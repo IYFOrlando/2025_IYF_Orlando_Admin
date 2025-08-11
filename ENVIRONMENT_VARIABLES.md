@@ -13,7 +13,10 @@ You need to configure these environment variables in Cloudflare Pages:
 - `VITE_FIREBASE_MEASUREMENT_ID` - Your Firebase measurement ID (optional)
 
 ### Admin Access:
-- `VITE_ADMIN_EMAILS` - Comma-separated list of admin email addresses
+- `VITE_ADMIN_EMAILS` - Comma-separated list of admin email addresses (optional, for additional UI restrictions)
+
+### Authentication:
+The application now uses email/password authentication instead of Google OAuth for better security control.
 
 ## How to Configure in Cloudflare Pages:
 

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { onAuthStateChanged, getAuth, signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { Box, CircularProgress, Stack, Typography, Button } from '@mui/material'
-import LoginPage from './LoginPage'
+import PublicAccessPage from './PublicAccessPage'
 import { ADMIN_EMAILS } from '../../../lib/admin'
 
 type Props = { children: React.ReactNode }
@@ -27,7 +27,7 @@ export default function AuthGate({ children }: Props) {
     )
   }
 
-  if (!user) return <LoginPage />
+  if (!user) return <PublicAccessPage />
 
   // UI allowlist (real security is in Firestore rules)
   const allowed =
