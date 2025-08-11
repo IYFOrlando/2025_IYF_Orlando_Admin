@@ -1,0 +1,8 @@
+name = "iyf-admin"
+compatibility_date = "2025-01-11"
+
+[build]
+command = "npm run build:cloudflare"
+
+[build.upload]
+format = "directory"
