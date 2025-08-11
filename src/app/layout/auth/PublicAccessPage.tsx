@@ -18,7 +18,6 @@ export default function PublicAccessPage() {
       const auth = getAuth()
       await signInWithEmailAndPassword(auth, email, password)
     } catch (e: any) {
-      console.error('Login error:', e)
       setError(e?.message || 'Login failed. Please check your credentials.')
       SAlert.fire({ 
         title: 'Access Denied', 

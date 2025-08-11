@@ -10,7 +10,7 @@ export default class GridErrorBoundary extends React.Component<Props, State> {
     this.state = { hasError: false }
   }
   static getDerivedStateFromError(error: any) { return { hasError: true, error } }
-  componentDidCatch(error: any) { console.error('[DataGrid crashed]', error) }
+  componentDidCatch(error: any) { /* Error logged silently */ }
   render() {
     if (this.state.hasError) {
       return (

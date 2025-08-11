@@ -15,11 +15,8 @@ export default function LoginPage() {
         throw new Error('Firebase API key not configured. Please check environment variables.')
       }
       
-      console.log('Attempting Google sign in...')
-      const result = await signInWithPopup(auth, provider)
-      console.log('Sign in successful:', result.user.email)
+      await signInWithPopup(auth, provider)
     } catch (e: any) {
-      console.error('Login error:', e)
       SAlert.fire({ 
         title: 'Login failed', 
         text: e?.message || 'Unknown error occurred', 

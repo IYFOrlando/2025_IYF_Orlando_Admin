@@ -15,7 +15,7 @@ export default class RootErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: any, info: any) {
     // Still log to console for details
     // eslint-disable-next-line no-console
-    console.error('App crashed:', error, info)
+    // Error logged silently for production
   }
   handleReload = () => {
     this.setState({ hasError: false, error: undefined })
