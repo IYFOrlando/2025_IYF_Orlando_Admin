@@ -20,7 +20,7 @@ import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
 
 /** Admin allowlist (keep consistent with Firestore rules) */
-const ADMIN_EMAILS = ['jodlouis.dev@gmail.com']
+const ADMIN_EMAILS = ['jodlouis.dev@gmail.com', 'orlando@iyfusa.org', 'admin@iyfusa.org']
 
 /** Live billing aggregation per student (for Payment status chip) */
 type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid' }
@@ -230,16 +230,18 @@ export default function RegistrationsList() {
     <Card elevation={0} sx={{ borderRadius: 3 }}>
       <CardHeader
         title="Registrations"
-        subheader={isAdmin ? 'Edit via modal • Confirm delete • Fast filter' : 'Viewer mode (read-only)'}
+        subheader={isAdmin ? 'Full access: Edit, delete, export, and manage registrations' : 'Viewer mode (read-only)'}
         action={
           isAdmin && (
             <Stack direction="row" spacing={1}>
               <Button
-                size="small"
+                size="medium"
                 color="warning"
+                variant="contained"
                 onClick={migrateKoreanToKoreanLanguage}
+                sx={{ fontWeight: 'bold' }}
               >
-                Migrate Korean → Korean Language
+                🔄 Migrate Korean → Korean Language
               </Button>
               <Button
                 size="small"
