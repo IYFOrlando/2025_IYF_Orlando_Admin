@@ -9,9 +9,22 @@ export default function LoginPage() {
     try {
       const auth = getAuth()
       const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
+      
+      // Check if Firebase is properly configured
+      if (!import.meta.env.VITE_FIREBASE_API_KEY) {
+        throw new Error('Firebase API key not configured. Please check environment variables.')
+      }
+      
+      console.log('Attempting Google sign in...')
+      const result = await signInWithPopup(auth, provider)
+      console.log('Sign in successful:', result.user.email)
     } catch (e: any) {
-      SAlert.fire({ title: 'Login failed', text: e?.message, icon: 'error' })
+      console.error('Login error:', e)
+      SAlert.fire({ 
+        title: 'Login failed', 
+        text: e?.message || 'Unknown error occurred', 
+        icon: 'error' 
+      })
     }
   }
 
