@@ -12,7 +12,7 @@ export default class RootErrorBoundary extends React.Component<Props, State> {
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error }
   }
-  componentDidCatch(error: any, info: any) {
+  componentDidCatch(_error: any, _info: any) {
     // Still log to console for details
     // eslint-disable-next-line no-console
     // Error logged silently for production

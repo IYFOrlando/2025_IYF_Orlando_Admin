@@ -1,4 +1,4 @@
-import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore'
 import { db } from './firebase'
 import { Alert as SAlert } from './alerts'
 
