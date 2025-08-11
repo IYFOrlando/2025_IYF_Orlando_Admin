@@ -8,7 +8,8 @@ export function isKoreanLanguage(acad?: string) {
   const a = normLower(acad)
   if (!a) return false
   if (a.includes('cook')) return false // exclude Korean Cooking
-  return a.includes('korean') || a.includes('corean') || a.includes('kore')
+  // Check for exact match or common variants
+  return a === 'korean language' || a === 'korean lang' || a.includes('corean') || a.includes('kore')
 }
 export function mapKoreanLevel(level?: string) {
   const v = normLower(level)

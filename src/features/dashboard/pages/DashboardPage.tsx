@@ -21,7 +21,7 @@ function isKoreanLanguage(acad?: string) {
   // exclude Korean Cooking explicitly
   if (a.includes('cook')) return false
   // accept common variants & typos
-  if (a.includes('korean')) return true           // "Korean Language", "Korean Lang"
+  if (a === 'Korean Language' || a === 'Korean Lang') return true
   if (a.includes('corean') || a.includes('kore')) return true // "coreano", "koreano"
   return false
 }
