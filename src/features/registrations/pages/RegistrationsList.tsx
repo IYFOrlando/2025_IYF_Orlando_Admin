@@ -14,6 +14,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
 import { useRegistrations } from '../hooks/useRegistrations'
+import { migrateKoreanToKoreanLanguage } from '../../../lib/migration'
 import type { Registration } from '../types'
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
@@ -232,15 +233,24 @@ export default function RegistrationsList() {
         subheader={isAdmin ? 'Edit via modal • Confirm delete • Fast filter' : 'Viewer mode (read-only)'}
         action={
           isAdmin && (
-            <Button
-              size="small"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={handleBulkDelete}
-              disabled={!selection.length}
-            >
-              Delete Selected
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                size="small"
+                color="warning"
+                onClick={migrateKoreanToKoreanLanguage}
+              >
+                Migrate Korean → Korean Language
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}
+                disabled={!selection.length}
+              >
+                Delete Selected
+              </Button>
+            </Stack>
           )
         }
       />
