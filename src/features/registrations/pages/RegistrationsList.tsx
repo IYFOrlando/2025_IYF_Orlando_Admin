@@ -105,7 +105,7 @@ export default function RegistrationsList() {
 
       {
         field: 'age', headerName: 'Age', width: 90, align:'center', headerAlign:'center',
-        valueGetter: (_v, r) => computeAge((r as any).birthday)
+        valueGetter: (params) => computeAge((params.row as any).birthday)
       },
       { field: 'birthday', headerName: 'Birthday', width: 130 },
 
@@ -114,21 +114,21 @@ export default function RegistrationsList() {
       // Period 1 (display only; edit via modal)
       {
         field: 'p1Academy', headerName: 'P1 Academy', minWidth: 180, flex: 1,
-        valueGetter: (_v, r) => r?.firstPeriod?.academy || ''
+        valueGetter: (params) => params.row?.firstPeriod?.academy || ''
       },
       {
         field: 'p1Level', headerName: 'P1 Level', minWidth: 170, flex: 1,
-        valueGetter: (_v, r) => r?.firstPeriod?.level || ''
+        valueGetter: (params) => params.row?.firstPeriod?.level || ''
       },
 
       // Period 2
       {
         field: 'p2Academy', headerName: 'P2 Academy', minWidth: 180, flex: 1,
-        valueGetter: (_v, r) => r?.secondPeriod?.academy || ''
+        valueGetter: (params) => params.row?.secondPeriod?.academy || ''
       },
       {
         field: 'p2Level', headerName: 'P2 Level', minWidth: 170, flex: 1,
-        valueGetter: (_v, r) => r?.secondPeriod?.level || ''
+        valueGetter: (params) => params.row?.secondPeriod?.level || ''
       },
 
       { field: 'city', headerName: 'City', minWidth: 140 },
@@ -139,8 +139,8 @@ export default function RegistrationsList() {
         field: 'createdAt',
         headerName: 'Created',
         width: 170,
-        valueGetter: (_v, r) => {
-          const ts: any = (r as any).createdAt
+        valueGetter: (params) => {
+          const ts: any = (params.row as any).createdAt
           const ms = ts?.seconds ? ts.seconds * 1000 : (typeof ts === 'number' ? ts : Date.now())
           const d = new Date(ms)
           const pad = (n:number)=>String(n).padStart(2,'0')
@@ -153,7 +153,7 @@ export default function RegistrationsList() {
         headerName: 'Payment',
         width: 170,
         sortable: true,
-        valueGetter: (_v, r) => (byStudent.get(String(r.id))?.status ?? 'unpaid'),
+        valueGetter: (params) => (byStudent.get(String(params.row.id))?.status ?? 'unpaid'),
         sortComparator: (v1, v2) => statusWeight[v1 as keyof typeof statusWeight] - statusWeight[v2 as keyof typeof statusWeight],
         renderCell: (p: GridRenderCellParams) => {
           const id = String(p.id)
