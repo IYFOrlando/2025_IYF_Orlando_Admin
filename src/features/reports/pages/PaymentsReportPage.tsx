@@ -159,6 +159,7 @@ export default function PaymentsPage() {
   async function savePricingNow() {
     const next: PricingDoc = {
       academyPrices: Object.fromEntries(Object.entries(editMap).filter(([k]) => k && k.trim()).map(([k,v]) => [k.trim(), Number(v || 0)])),
+      items: [],
       lunch: { semester: Number(editLunchSem || 0), single: Number(editLunchSingle || 0) },
     }
     await savePricing(next)
@@ -476,7 +477,7 @@ export default function PaymentsPage() {
                       <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap">
                         <Tooltip title={openTuition && lines.length ? 'Open tuition invoice exists — apply payments or create lunch-only' : ''}>
                           <span>
-                            <Button variant="contained" onClick={() => createInvoice('normal')} disabled={!student || (openTuition && lines.length) || (tuitionFullyPaid && lines.length)}>
+                            <Button variant="contained" onClick={() => createInvoice('normal')} disabled={!student || Boolean(openTuition && lines.length) || Boolean(tuitionFullyPaid && lines.length)}>
                               Create Invoice
                             </Button>
                           </span>

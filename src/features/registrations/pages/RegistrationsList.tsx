@@ -154,7 +154,7 @@ export default function RegistrationsList() {
         width: 170,
         sortable: true,
         valueGetter: (_v, r) => (byStudent.get(String(r.id))?.status ?? 'unpaid'),
-        sortComparator: (v1, v2) => statusWeight[v1 as any] - statusWeight[v2 as any],
+        sortComparator: (v1, v2) => statusWeight[v1 as keyof typeof statusWeight] - statusWeight[v2 as keyof typeof statusWeight],
         renderCell: (p: GridRenderCellParams) => {
           const id = String(p.id)
           const agg = byStudent.get(id)
@@ -270,7 +270,7 @@ export default function RegistrationsList() {
                 printOptions: { disableToolbarButton: true }
               }
             }}
-            sortingOrder={['desc','asc','none']}
+            sortingOrder={['desc','asc']}
             initialState={{
               pagination: { paginationModel: { page: 0, pageSize: 25 } },
               columns: { columnVisibilityModel: { address:false, gender:false } }

@@ -1,7 +1,24 @@
 export type PricingDoc = {
   academyPrices: Record<string, number>
+  items?: PricingItem[]
+  currency?: string
   lunch?: { semester?: number | null; single?: number | null }
   updatedAt?: any
+}
+
+export type PricingItem = {
+  id: string
+  academy: string
+  level?: string | null
+  p1?: number | null
+  p2?: number | null
+  enabled?: boolean
+  notes?: string
+}
+
+export type LunchPricing = {
+  semester?: number
+  single?: number
 }
 
 export type InvoiceLine = {

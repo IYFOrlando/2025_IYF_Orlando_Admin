@@ -1,4 +1,4 @@
-import * as React from 'react'
+
 import { Box, Paper, Typography, Button, Stack } from '@mui/material'
 import GoogleIcon from '@mui/icons-material/Google'
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Card, CardHeader, CardContent, Grid, Stack, Button, Chip, Typography, Accordion, AccordionSummary, AccordionDetails, Divider } from '@mui/material'
+import { Card, CardHeader, CardContent, Grid, Stack, Button, Chip, Typography, Accordion, AccordionSummary, AccordionDetails } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { collection, onSnapshot } from 'firebase/firestore'

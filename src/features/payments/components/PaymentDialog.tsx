@@ -50,7 +50,7 @@ export default function PricingItemDialog({ open, onClose, initial, onSave }: Pr
           <Grid item xs={12}>
             <TextField
               select fullWidth label="Academy" value={form.academy}
-              onChange={(e) => setForm((p) => ({ ...p, academy: e.target.value }))}
+              onChange={(e) => setForm((p: PricingItem) => ({ ...p, academy: e.target.value }))}
             >
               {ACADEMIES.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
             </TextField>
@@ -60,7 +60,7 @@ export default function PricingItemDialog({ open, onClose, initial, onSave }: Pr
             <Grid item xs={12}>
               <TextField
                 select fullWidth label="Korean Level" value={form.level || ''}
-                onChange={(e) => setForm((p) => ({ ...p, level: e.target.value }))}
+                onChange={(e) => setForm((p: PricingItem) => ({ ...p, level: e.target.value }))}
               >
                 {KOREAN_LEVELS.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
               </TextField>
@@ -71,26 +71,26 @@ export default function PricingItemDialog({ open, onClose, initial, onSave }: Pr
             <TextField
               type="number" fullWidth label="Price — Period 1 (USD)"
               value={form.p1 ?? ''} inputProps={{ step: '0.01', min: '0' }}
-              onChange={(e) => setForm((p) => ({ ...p, p1: e.target.value === '' ? null : Number(e.target.value) }))}
+              onChange={(e) => setForm((p: PricingItem) => ({ ...p, p1: e.target.value === '' ? null : Number(e.target.value) }))}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField
               type="number" fullWidth label="Price — Period 2 (USD)"
               value={form.p2 ?? ''} inputProps={{ step: '0.01', min: '0' }}
-              onChange={(e) => setForm((p) => ({ ...p, p2: e.target.value === '' ? null : Number(e.target.value) }))}
+              onChange={(e) => setForm((p: PricingItem) => ({ ...p, p2: e.target.value === '' ? null : Number(e.target.value) }))}
             />
           </Grid>
 
           <Grid item xs={12}>
             <TextField
               fullWidth label="Notes" value={form.notes || ''}
-              onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+              onChange={(e) => setForm((p: PricingItem) => ({ ...p, notes: e.target.value }))}
             />
           </Grid>
           <Grid item xs={12}>
             <FormControlLabel
-              control={<Switch checked={!!form.enabled} onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))} />}
+              control={<Switch checked={!!form.enabled} onChange={(e) => setForm((p: PricingItem) => ({ ...p, enabled: e.target.checked }))} />}
               label="Enabled"
             />
           </Grid>

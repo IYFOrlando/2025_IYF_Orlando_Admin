@@ -8,6 +8,7 @@ const PATH = ['settings', 'pricing'] as const
 export function usePricingSettings() {
   const [data, setData] = React.useState<PricingDoc>({
     academyPrices: {},
+    items: [],
     lunch: { semester: 40, single: 4 },
   })
   const [loading, setLoading] = React.useState(true)
@@ -22,11 +23,12 @@ export function usePricingSettings() {
           const raw = snap.data() as any
           setData({
             academyPrices: raw.academyPrices || {},
+            items: raw.items || [],
             lunch: raw.lunch || { semester: 40, single: 4 },
             updatedAt: raw.updatedAt,
           })
         } else {
-          setData({ academyPrices: {}, lunch: { semester: 40, single: 4 } })
+          setData({ academyPrices: {}, items: [], lunch: { semester: 40, single: 4 } })
         }
         setLoading(false)
       },
@@ -41,6 +43,7 @@ export function usePricingSettings() {
       doc(db, ...PATH),
       {
         academyPrices: next.academyPrices || {},
+        items: next.items || [],
         lunch: next.lunch || { semester: 40, single: 4 },
         updatedAt: new Date(),
       },

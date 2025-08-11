@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Grid, Stack, Chip, Button, Typography, Accordion, AccordionSummary, AccordionDetails, Divider
+  Card, CardHeader, CardContent, Grid, Stack, Chip, Button, Typography, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
@@ -100,10 +100,7 @@ export default function ReportsPage() {
     { field:'p2', headerName:'P2', width:90 },
     { field:'total', headerName:'Total', width:110 },
   ]
-  const colsRevenue: GridColDef[] = [
-    { field:'academy', headerName:'Academy', flex:1, minWidth:200 },
-    { field:'amount', headerName:'Revenue', width:140, valueFormatter:(p)=>usd(Number(p.value||0)) },
-  ]
+
 
   // ----- exports -----
   const exportCSV = (rows: any[], name: string) => {
@@ -206,7 +203,7 @@ export default function ReportsPage() {
                     <div style={{ height: 380, width:'100%' }}>
                       <DataGrid rows={rowsRevenue} columns={[
                         { field:'academy', headerName:'Academy', flex:1, minWidth:200 },
-                        { field:'amount', headerName:'Revenue', width:140, valueFormatter:(p)=>usd(Number(p.value||0)) },
+                        { field:'amount', headerName:'Revenue', width:140, valueFormatter:(p: any)=>usd(Number(p.value||0)) },
                       ]} getRowId={(r)=>r.id} disableRowSelectionOnClick />
                     </div>
                   </Grid>

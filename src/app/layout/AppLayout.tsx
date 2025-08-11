@@ -9,7 +9,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard'
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import QueryStatsIcon from '@mui/icons-material/QueryStats'
-import AssessmentIcon from '@mui/icons-material/Assessment'
+
 import ClassIcon from '@mui/icons-material/Class'
 import ChecklistIcon from '@mui/icons-material/Checklist'
 import InsightsIcon from '@mui/icons-material/Insights'

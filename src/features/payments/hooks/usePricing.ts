@@ -7,6 +7,7 @@ import type { PricingDoc, PricingItem, LunchPricing } from '../types'
 const DOC_PATH = ['settings', 'pricing'] as const
 
 const DEFAULT_DOC: PricingDoc = {
+  academyPrices: {},
   items: [],
   lunch: { semester: 40, single: 4 },
   currency: 'USD',
@@ -25,6 +26,7 @@ export function usePricing() {
         if (snap.exists()) {
           const d = snap.data() as PricingDoc
           setDocData({
+            academyPrices: d.academyPrices || {},
             items: Array.isArray(d.items) ? d.items : [],
             lunch: d.lunch || DEFAULT_DOC.lunch,
             currency: d.currency || 'USD',
