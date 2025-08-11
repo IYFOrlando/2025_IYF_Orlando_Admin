@@ -77,11 +77,6 @@ export default function RegistrationsList() {
   const [userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
   const isAdmin = !!(userEmail && ADMIN_EMAILS.includes(userEmail))
-  
-  // Debug info
-  console.log('Debug - userEmail:', userEmail)
-  console.log('Debug - isAdmin:', isAdmin)
-  console.log('Debug - ADMIN_EMAILS:', ADMIN_EMAILS)
 
   const { data, loading, error } = useRegistrations()
   const rows = data ?? []
@@ -237,34 +232,28 @@ export default function RegistrationsList() {
         title="Registrations"
         subheader={isAdmin ? 'Full access: Edit, delete, export, and manage registrations' : 'Viewer mode (read-only)'}
         action={
-          <Stack direction="row" spacing={1}>
-            {isAdmin ? (
-              <>
-                <Button
-                  size="medium"
-                  color="warning"
-                  variant="contained"
-                  onClick={migrateKoreanToKoreanLanguage}
-                  sx={{ fontWeight: 'bold' }}
-                >
-                  🔄 Migrate Korean → Korean Language
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleBulkDelete}
-                  disabled={!selection.length}
-                >
-                  Delete Selected
-                </Button>
-              </>
-            ) : (
-              <Alert severity="info" sx={{ p: 1 }}>
-                Admin: {userEmail || 'Not logged in'} | IsAdmin: {isAdmin ? 'Yes' : 'No'}
-              </Alert>
-            )}
-          </Stack>
+          isAdmin && (
+            <Stack direction="row" spacing={1}>
+              <Button
+                size="medium"
+                color="warning"
+                variant="contained"
+                onClick={migrateKoreanToKoreanLanguage}
+                sx={{ fontWeight: 'bold' }}
+              >
+                🔄 Migrate Korean → Korean Language
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDelete}
+                disabled={!selection.length}
+              >
+                Delete Selected
+              </Button>
+            </Stack>
+          )
         }
       />
       <CardContent>
