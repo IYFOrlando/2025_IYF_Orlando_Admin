@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 
 import AppLayout from './layout/AppLayout'
+import AuthGate from './layout/auth/AuthGate'
 import theme from '../theme'
 
 // Pages
@@ -23,7 +24,11 @@ import '../index.css'
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <AuthGate>
+        <AppLayout />
+      </AuthGate>
+    ),
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
