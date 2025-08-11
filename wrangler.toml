@@ -1,3 +1,6 @@
 name = "iyf-admin"
 compatibility_date = "2025-01-11"
 pages_build_output_dir = "dist"
+
+[build]
+command = "npm install && npm run build"
