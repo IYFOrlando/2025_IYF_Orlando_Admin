@@ -83,6 +83,15 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
       timestamp: new Date().toISOString()
     })
   }, [isAdmin, hasGmailAccess, _userEmail])
+  
+  // Force admin check based on email - this should be more reliable
+  const forceIsAdmin = React.useMemo(() => {
+    const adminEmails = ['orlando@iyfusa.org', 'jodlouis.dev@gmail.com']
+    return adminEmails.includes(_userEmail || '')
+  }, [_userEmail])
+  
+  // Use the forced admin check if the prop is inconsistent
+  const effectiveIsAdmin = isAdmin || forceIsAdmin
 
   const { data, loading, error } = useRegistrations()
   const rows = data ?? []
@@ -181,11 +190,11 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
 
       {
         field: 'actions', headerName: '', width: 96, sortable:false, filterable:false,
-        renderCell: (p) => {
+                renderCell: (p) => {
           // Debug: Log the isAdmin value for each row
           console.log('🔧 Row Actions Debug:', {
             rowId: p.id,
-            isAdmin,
+            isAdmin: effectiveIsAdmin,
             hasGmailAccess,
             userEmail: _userEmail,
             timestamp: new Date().toISOString()
@@ -193,43 +202,43 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
           
           return (
             <Stack direction="row" spacing={0.5}>
-              <Tooltip title={isAdmin ? 'Edit' : 'Admin only'}>
+              <Tooltip title={effectiveIsAdmin ? 'Edit' : 'Admin only'}>
                 <span>
-                  <IconButton size="small" onClick={()=>{ if(!isAdmin) return; setEditing(p.row as Registration); setEditOpen(true) }} disabled={!isAdmin}>
+                  <IconButton size="small" onClick={()=>{ if(!effectiveIsAdmin) return; setEditing(p.row as Registration); setEditOpen(true) }} disabled={!effectiveIsAdmin}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                 </span>
               </Tooltip>
-            <Tooltip title={isAdmin ? 'Delete registration' : 'Admin only'}>
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={async ()=>{
-                    if (!isAdmin) return
-                    const res = await confirmDelete('Delete registration?', 'This will permanently remove this record.')
-                    if (!res.isConfirmed) return
-                    try {
-                      await deleteDoc(doc(db,'fall_academy_2025', String(p.id)))
-                      notifySuccess('Deleted', 'Registration removed')
-                    } catch (e:any) {
-                      notifyError('Delete failed', e?.message)
-                    }
-                  }}
-                  disabled={!isAdmin}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Stack>
-        )
-      }
+              <Tooltip title={effectiveIsAdmin ? 'Delete registration' : 'Admin only'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={async ()=>{
+                      if (!effectiveIsAdmin) return
+                      const res = await confirmDelete('Delete registration?', 'This will permanently remove this record.')
+                      if (!res.isConfirmed) return
+                      try {
+                        await deleteDoc(doc(db,'fall_academy_2025', String(p.id)))
+                        notifySuccess('Deleted', 'Registration removed')
+                      } catch (e:any) {
+                        notifyError('Delete failed', e?.message)
+                      }
+                    }}
+                    disabled={!effectiveIsAdmin}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
+          )
+        }
     ],
-    [byStudent, isAdmin]
+    [byStudent, effectiveIsAdmin]
   )
 
   const handleBulkDelete = async () => {
-    if (!isAdmin) return
+    if (!effectiveIsAdmin) return
     if (!selection.length) return SAlert.fire({ title:'Nothing selected', icon:'info', timer:1200, showConfirmButton:false })
     const res = await confirmDelete('Delete selected?', `You are about to delete ${selection.length} registration(s).`)
     if (!res.isConfirmed) return
@@ -247,14 +256,14 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
       <CardHeader
         title="Registrations"
         subheader={
-        isAdmin 
+        effectiveIsAdmin 
           ? 'Full access: Edit, delete, export, and manage registrations' 
           : hasGmailAccess 
             ? 'Read-only access: View and export registrations' 
             : 'No access'
       }
               action={
-        isAdmin && (
+        effectiveIsAdmin && (
           <Button
             size="small"
             color="error"
@@ -268,7 +277,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
       }
       />
       <CardContent>
-        {!isAdmin && hasGmailAccess && (
+        {!effectiveIsAdmin && hasGmailAccess && (
           <Alert severity="info" sx={{ mb:2 }}>
             You have read-only access. You can view and export registrations, but only admins can edit or delete.
           </Alert>
@@ -280,9 +289,9 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
             columns={columns}
             loading={loading}
             getRowId={(row) => row.id}
-            checkboxSelection={isAdmin}
-            onRowSelectionModelChange={(m)=> isAdmin && setSelection(m as string[])}
-            rowSelectionModel={isAdmin ? selection : []}
+            checkboxSelection={effectiveIsAdmin}
+            onRowSelectionModelChange={(m)=> effectiveIsAdmin && setSelection(m as string[])}
+            rowSelectionModel={effectiveIsAdmin ? selection : []}
             disableRowSelectionOnClick
             density="compact"
             slots={{ toolbar: GridToolbar }}
