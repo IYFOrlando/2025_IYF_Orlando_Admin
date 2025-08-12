@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Common TypeScript error fixes
 const fixes = [
@@ -29,7 +33,7 @@ function applyFixes() {
   console.log('🔧 Applying TypeScript error fixes...');
   
   fixes.forEach(({ file, patterns }) => {
-    const filePath = path.join(process.cwd(), file);
+    const filePath = path.join(path.dirname(__dirname), file);
     
     if (!fs.existsSync(filePath)) {
       console.log(`⚠️  File not found: ${file}`);
