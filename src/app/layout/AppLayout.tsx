@@ -9,6 +9,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard'
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import QueryStatsIcon from '@mui/icons-material/QueryStats'
+import WarningIcon from '@mui/icons-material/Warning'
 
 import ClassIcon from '@mui/icons-material/Class'
 import ChecklistIcon from '@mui/icons-material/Checklist'
@@ -30,6 +31,7 @@ const mainItems: Item[] = [
 
 const reportItems: Item[] = [
   { to: '/reports', label: 'Reports', icon: <QueryStatsIcon /> },
+  { to: '/reports/invalid-academies', label: 'Invalid Academies', icon: <WarningIcon /> },
   // { to: '/reports/payments', label: 'Payments Report', icon: <AssessmentIcon /> },
   // { to: '/reports/registrations', label: 'Registrations Report', icon: <AssessmentIcon /> },
 ]

@@ -14,6 +14,7 @@ import PaymentsPage from '../features/payments/pages/PaymentsPage'
 import ReportsPage from '../features/reports/pages/ReportsPage'
 import PaymentsReportPage from '../features/reports/pages/PaymentsReportPage'
 import RegistrationsReportPage from '../features/reports/pages/RegistrationsReportPage'
+import InvalidAcademiesReportPage from '../features/reports/pages/InvalidAcademiesReportPage'
 import AttendancePage from '../features/attendance/pages/AttendancePage'
 import ProgressPage from '../features/progress/pages/ProgressPage'
 import ClassesPage from '../features/classes/pages/ClassesPage'
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: 'reports', element: <ReportsPage /> },
       { path: 'reports/payments', element: <PaymentsReportPage /> },
       { path: 'reports/registrations', element: <RegistrationsReportPage /> },
+      { path: 'reports/invalid-academies', element: <InvalidAcademiesReportPage /> },
 
       { path: 'attendance', element: <AttendancePage /> },
       { path: 'progress', element: <ProgressPage /> },
