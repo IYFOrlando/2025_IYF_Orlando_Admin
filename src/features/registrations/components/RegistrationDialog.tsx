@@ -25,7 +25,6 @@ const STATES = [
 const NO_LEVELS = ["N/A","Art","DIY","Kids","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen"]
 const P1_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen","Kids"]
 const P2_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Senior","Kids"]
-const KL_LEVELS = ["Alphabet","Beginner","Intermediate","K-Movie Conversation"]
 
 type Props = {
   open: boolean
