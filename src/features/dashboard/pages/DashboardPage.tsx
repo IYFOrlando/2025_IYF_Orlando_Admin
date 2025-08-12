@@ -81,23 +81,25 @@ export default function DashboardPage() {
       .map(([academy, count]) => ({ academy, count }))
       .sort((a, b) => b.count - a.count)
 
-    const levelOrder = ['Alphabet','Beginner','Intermediate','K-Movie Conversation','Unknown'] as const
-    const allLevels = new Set<string>([...klP1.keys(), ...klP2.keys(), ...levelOrder])
-
-    const klRows: KLRow[] = Array.from(allLevels)
+    // Define the correct levels for each period according to the new configuration
+    const p1Levels = ['Alphabet', 'Intermediate', 'K-Movie Conversation']
+    const p2Levels = ['Beginner']
+    const allLevels = [...p1Levels, ...p2Levels, 'Unknown']
+    
+    const klRows: KLRow[] = allLevels
       .map(level => {
-        const period1 = klP1.get(level) || 0
-        const period2 = klP2.get(level) || 0
+        // For P1: only show levels that should be available in P1
+        const period1 = p1Levels.includes(level) ? (klP1.get(level) || 0) : 0
+        // For P2: only show levels that should be available in P2  
+        const period2 = p2Levels.includes(level) ? (klP2.get(level) || 0) : 0
         return { level, period1, period2, total: period1 + period2 }
       })
       .filter(r => r.total > 0)
       .sort((a,b) => {
-        const ai = levelOrder.indexOf(a.level as any)
-        const bi = levelOrder.indexOf(b.level as any)
-        if (ai !== -1 && bi !== -1) return ai - bi
-        if (ai !== -1) return -1
-        if (bi !== -1) return 1
-        return b.total - a.total
+        // Sort by the defined order
+        const ai = allLevels.indexOf(a.level)
+        const bi = allLevels.indexOf(b.level)
+        return ai - bi
       })
 
     const totals = {
