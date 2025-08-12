@@ -2,15 +2,22 @@
 import * as React from 'react'
 import {
   IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
-  Avatar, Tooltip
+  Avatar, Tooltip, Chip, Stack
 } from '@mui/material'
 import Logout from '@mui/icons-material/Logout'
 import Login from '@mui/icons-material/Login'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { auth } from '../../lib/firebase'
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
 
-export default function AuthMenu() {
+interface AuthMenuProps {
+  isAdmin?: boolean
+  hasGmailAccess?: boolean
+}
+
+export default function AuthMenu({ isAdmin = false, hasGmailAccess = false }: AuthMenuProps) {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
   const [user, setUser] = React.useState<any>(auth.currentUser || null)
   const open = Boolean(anchorEl)
@@ -49,11 +56,33 @@ export default function AuthMenu() {
 
   return (
     <>
-      <Tooltip title={user.email || 'Account'}>
-        <IconButton onClick={handleOpen} color="inherit" size="small" aria-label="account menu">
-          <Avatar sx={{ width: 28, height: 28 }}>{initials}</Avatar>
-        </IconButton>
-      </Tooltip>
+      <Stack direction="row" spacing={1} alignItems="center">
+        {isAdmin && (
+          <Chip
+            icon={<AdminPanelSettingsIcon />}
+            label="Admin"
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ fontSize: '0.7rem', height: 24 }}
+          />
+        )}
+        {!isAdmin && hasGmailAccess && (
+          <Chip
+            icon={<VisibilityIcon />}
+            label="Read-only"
+            size="small"
+            color="default"
+            variant="outlined"
+            sx={{ fontSize: '0.7rem', height: 24 }}
+          />
+        )}
+        <Tooltip title={user.email || 'Account'}>
+          <IconButton onClick={handleOpen} color="inherit" size="small" aria-label="account menu">
+            <Avatar sx={{ width: 28, height: 28 }}>{initials}</Avatar>
+          </IconButton>
+        </Tooltip>
+      </Stack>
       <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
         <MenuItem disabled>
           <ListItemIcon><ManageAccountsIcon fontSize="small" /></ListItemIcon>

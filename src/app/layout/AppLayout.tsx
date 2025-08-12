@@ -57,7 +57,12 @@ function NavItem({ to, label, icon }: Item) {
   )
 }
 
-export default function AppLayout() {
+interface AppLayoutProps {
+  isAdmin?: boolean
+  hasGmailAccess?: boolean
+}
+
+export default function AppLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps) {
   const [open, setOpen] = React.useState(false)
   const isMdUp = useMediaQuery('(min-width:900px)')
 
@@ -96,7 +101,7 @@ export default function AppLayout() {
           )}
           <Typography variant="h6" noWrap sx={{ flex: 1 }}>IYF Orlando — Admin</Typography>
           <Stack direction="row" spacing={1} alignItems="center">
-            <AuthMenu />
+            <AuthMenu isAdmin={isAdmin} hasGmailAccess={hasGmailAccess} />
           </Stack>
         </Toolbar>
       </AppBar>
