@@ -181,15 +181,25 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
 
       {
         field: 'actions', headerName: '', width: 96, sortable:false, filterable:false,
-        renderCell: (p) => (
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title={isAdmin ? 'Edit' : 'Admin only'}>
-              <span>
-                <IconButton size="small" onClick={()=>{ if(!isAdmin) return; setEditing(p.row as Registration); setEditOpen(true) }} disabled={!isAdmin}>
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+        renderCell: (p) => {
+          // Debug: Log the isAdmin value for each row
+          console.log('🔧 Row Actions Debug:', {
+            rowId: p.id,
+            isAdmin,
+            hasGmailAccess,
+            userEmail: _userEmail,
+            timestamp: new Date().toISOString()
+          })
+          
+          return (
+            <Stack direction="row" spacing={0.5}>
+              <Tooltip title={isAdmin ? 'Edit' : 'Admin only'}>
+                <span>
+                  <IconButton size="small" onClick={()=>{ if(!isAdmin) return; setEditing(p.row as Registration); setEditOpen(true) }} disabled={!isAdmin}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
             <Tooltip title={isAdmin ? 'Delete registration' : 'Admin only'}>
               <span>
                 <IconButton
