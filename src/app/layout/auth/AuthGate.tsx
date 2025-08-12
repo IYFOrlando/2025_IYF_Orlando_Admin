@@ -69,11 +69,11 @@ export default function AuthGate({ children }: Props) {
 
   if (!user) return <PublicAccessPage />
 
-  // UI allowlist (real security is in Firestore rules)
-  const allowed =
-    ADMIN_EMAILS.length === 0 || ADMIN_EMAILS.includes(user.email || '')
+  // Check if user is admin or has Gmail access
+  const isAdmin = ADMIN_EMAILS.includes(user.email || '')
+  const hasGmailAccess = user.email?.endsWith('@gmail.com') || false
 
-  if (!allowed) {
+  if (!isAdmin && !hasGmailAccess) {
     return (
       <Stack
         sx={{ minHeight: '70vh', alignItems: 'center', justifyContent: 'center', p: 3 }}
@@ -81,7 +81,7 @@ export default function AuthGate({ children }: Props) {
       >
         <Typography variant="h6">Not authorized</Typography>
         <Typography variant="body2" color="text.secondary">
-          This account ({user.email}) is not on the admin list.
+          This account ({user.email}) is not authorized. Only Gmail accounts are allowed for read-only access.
         </Typography>
         <Button onClick={() => signOut(getAuth())} variant="contained">
           Sign out
@@ -90,5 +90,13 @@ export default function AuthGate({ children }: Props) {
     )
   }
 
-  return <>{children}</>
+  // Pass admin status to children
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+      return React.cloneElement(child, { isAdmin } as any)
+    }
+    return child
+  })
+
+  return <>{childrenWithProps}</>
 }

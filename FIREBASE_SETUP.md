@@ -20,6 +20,13 @@
 ### Option 2: Programmatically (Recommended)
 You can create users programmatically using Firebase Admin SDK or through your application.
 
+## Required Admin Emails
+Add these emails as admin users:
+- `orlando@iyfusa.org` (Main admin - full access)
+
+## Gmail Access
+Any user with a Gmail account can sign in for read-only access to view registrations and reports.
+
 ## Security Rules
 
 Make sure your Firestore security rules are properly configured:

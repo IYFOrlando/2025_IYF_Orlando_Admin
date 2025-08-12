@@ -1,6 +1,6 @@
-import { Box, Paper, Typography, Button, Stack, TextField, Alert } from '@mui/material'
+import { Box, Paper, Typography, Button, Stack, TextField, Alert, Divider } from '@mui/material'
 import { useState } from 'react'
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import { Alert as SAlert } from '../../../lib/alerts'
 
 export default function PublicAccessPage() {
@@ -9,7 +9,7 @@ export default function PublicAccessPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -19,10 +19,30 @@ export default function PublicAccessPage() {
       await signInWithEmailAndPassword(auth, email, password)
     } catch (e: any) {
       setError(e?.message || 'Login failed. Please check your credentials.')
-      SAlert.fire({ 
-        title: 'Access Denied', 
-        text: 'Invalid credentials. Please contact the administrator for access.', 
-        icon: 'error' 
+      SAlert.fire({
+        title: 'Access Denied',
+        text: 'Invalid credentials. Please contact the administrator for access.',
+        icon: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const auth = getAuth()
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(auth, provider)
+    } catch (e: any) {
+      setError(e?.message || 'Google login failed.')
+      SAlert.fire({
+        title: 'Login Failed',
+        text: 'Google authentication failed. Please try again.',
+        icon: 'error'
       })
     } finally {
       setLoading(false)
@@ -53,7 +73,26 @@ export default function PublicAccessPage() {
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleLogin} sx={{ width: '100%' }}>
+          {/* Google Login */}
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            fullWidth
+            sx={{ mb: 2 }}
+          >
+            {loading ? 'Signing in...' : 'Sign in with Google'}
+          </Button>
+
+          <Divider sx={{ width: '100%' }}>
+            <Typography variant="body2" color="textSecondary">
+              OR
+            </Typography>
+          </Divider>
+
+          {/* Email/Password Login */}
+          <Box component="form" onSubmit={handleEmailLogin} sx={{ width: '100%' }}>
             <Stack spacing={2}>
               <TextField
                 label="Email"
@@ -82,7 +121,7 @@ export default function PublicAccessPage() {
                 disabled={loading}
                 sx={{ mt: 2 }}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Signing in...' : 'Sign In with Email'}
               </Button>
             </Stack>
           </Box>

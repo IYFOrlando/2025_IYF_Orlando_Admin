@@ -19,9 +19,6 @@ import type { Registration } from '../types'
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
 
-/** Admin allowlist (keep consistent with Firestore rules) */
-const ADMIN_EMAILS = ['jodlouis.dev@gmail.com', 'orlando@iyfusa.org', 'admin@iyfusa.org']
-
 /** Live billing aggregation per student (for Payment status chip) */
 type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid' }
 function useInvoiceAggByStudent() {
@@ -72,11 +69,10 @@ function computeAge(birthday?: string | null): number | '' {
 }
 
 /** ---------- Page ---------- */
-export default function RegistrationsList() {
-  // Admin vs viewer
+export default function RegistrationsList({ isAdmin = false }: { isAdmin?: boolean }) {
+  // Get user email for display purposes
   const [userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
-  const isAdmin = !!(userEmail && ADMIN_EMAILS.includes(userEmail))
 
   const { data, loading, error } = useRegistrations()
   const rows = data ?? []
