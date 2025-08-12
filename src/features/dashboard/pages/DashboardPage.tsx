@@ -42,8 +42,8 @@ export default function DashboardPage() {
 
     // Define academies available in each period
     const p1Academies = [
-      'Art', 'DIY', 'Korean Language', 'Korean Cooking', 'Piano',
-      'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen', 'Kids'
+      'Art', 'DIY', 'Korean Language', 'Piano',
+      'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen'
     ]
     
     const p2Academies = [
