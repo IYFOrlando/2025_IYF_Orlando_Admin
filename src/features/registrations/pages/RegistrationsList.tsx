@@ -73,6 +73,16 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
   // Get user email for display purposes
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
+  
+  // Debug: Log the props to see what's being passed
+  React.useEffect(() => {
+    console.log('🔍 RegistrationsList Debug:', {
+      isAdmin,
+      hasGmailAccess,
+      userEmail: _userEmail,
+      timestamp: new Date().toISOString()
+    })
+  }, [isAdmin, hasGmailAccess, _userEmail])
 
   const { data, loading, error } = useRegistrations()
   const rows = data ?? []

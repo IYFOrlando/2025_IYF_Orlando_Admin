@@ -72,6 +72,15 @@ export default function AuthGate({ children }: Props) {
     // Check if user is admin or has Gmail access
   const isAdmin = ADMIN_EMAILS.includes(user.email || '')
   const hasGmailAccess = user.email?.endsWith('@gmail.com') || false
+  
+  // Debug: Log the authorization logic
+  console.log('🔐 AuthGate Debug:', {
+    userEmail: user.email,
+    isAdmin,
+    hasGmailAccess,
+    adminEmails: ADMIN_EMAILS,
+    timestamp: new Date().toISOString()
+  })
 
   if (!isAdmin && !hasGmailAccess) {
     return (
