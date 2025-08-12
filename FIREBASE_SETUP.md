@@ -29,15 +29,50 @@ Any user with a Gmail account can sign in for read-only access to view registrat
 
 ## Security Rules
 
-Make sure your Firestore security rules are properly configured:
+The project includes proper Firestore security rules in `firestore.rules`. These rules ensure:
+
+- **Admins** (`orlando@iyfusa.org`, `jodlouis.dev@gmail.com`, `michellemoralespradis@gmail.com`): Full read/write access
+- **Gmail users**: Read-only access to registrations, invoices, and pricing
+- **Others**: No access
+
+### Deploy Rules
+
+1. Install Firebase CLI: `npm install -g firebase-tools`
+2. Login to Firebase: `firebase login`
+3. Initialize project: `firebase init firestore`
+4. Deploy rules: `./deploy-firestore-rules.sh`
+
+Or manually deploy:
+```bash
+firebase deploy --only firestore:rules
+```
+
+### Rules Overview
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Only authenticated users can read/write
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             request.auth.token.email in [
+               'orlando@iyfusa.org',
+               'jodlouis.dev@gmail.com', 
+               'michellemoralespradis@gmail.com'
+             ];
+    }
+    
+    // Helper function to check if user has Gmail access
+    function hasGmailAccess() {
+      return request.auth != null && 
+             request.auth.token.email.matches('.*@gmail\\.com$');
+    }
+    
+    // Registrations collection
+    match /fall_academy_2025/{document} {
+      allow read: if isAdmin() || hasGmailAccess();
+      allow write: if isAdmin();
     }
   }
 }

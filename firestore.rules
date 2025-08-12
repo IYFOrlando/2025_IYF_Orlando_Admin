@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             request.auth.token.email in [
+               'orlando@iyfusa.org',
+               'jodlouis.dev@gmail.com', 
+               'michellemoralespradis@gmail.com'
+             ];
+    }
+    
+    // Helper function to check if user has Gmail access
+    function hasGmailAccess() {
+      return request.auth != null && 
+             request.auth.token.email.matches('.*@gmail\\.com$');
+    }
+    
+    // Helper function to check if user is authorized (admin or Gmail)
+    function isAuthorized() {
+      return isAdmin() || hasGmailAccess();
+    }
+    
+    // Registrations collection
+    match /fall_academy_2025/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write (create, update, delete)
+      allow write: if isAdmin();
+    }
+    
+    // Academy invoices collection
+    match /academy_invoices/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // Pricing collection
+    match /academy_pricing/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // Default rule for other collections
+    match /{document=**} {
+      // Only admins can access other collections
+      allow read, write: if isAdmin();
+    }
+  }
+}
