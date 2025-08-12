@@ -73,9 +73,9 @@ export default function DashboardPage() {
       }
     }
 
-    // Define all available academies
+    // Define all available academies (excluding N/A which is not a real academy)
     const allAcademies = [
-      'N/A', 'Art', 'DIY', 'Korean Language', 'Korean Cooking', 'Piano',
+      'Art', 'DIY', 'Korean Language', 'Korean Cooking', 'Piano',
       'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen', 'Kids'
     ]
 
