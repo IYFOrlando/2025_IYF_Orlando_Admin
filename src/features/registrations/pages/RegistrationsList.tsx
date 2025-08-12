@@ -233,6 +233,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
             </Stack>
           )
         }
+      }
     ],
     [byStudent, effectiveIsAdmin]
   )
