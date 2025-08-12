@@ -86,7 +86,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
   
   // Force admin check based on email - this should be more reliable
   const forceIsAdmin = React.useMemo(() => {
-    const adminEmails = ['orlando@iyfusa.org', 'jodlouis.dev@gmail.com']
+    const adminEmails = ['orlando@iyfusa.org', 'jodlouis.dev@gmail.com', 'michellemoralespradis@gmail.com']
     return adminEmails.includes(_userEmail || '')
   }, [_userEmail])
   

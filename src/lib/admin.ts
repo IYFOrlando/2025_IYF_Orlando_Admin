@@ -2,6 +2,7 @@
 export const ADMIN_EMAILS: string[] = [
   'orlando@iyfusa.org',
   'jodlouis.dev@gmail.com',
+  'michellemoralespradis@gmail.com',
   ...(import.meta.env.VITE_ADMIN_EMAILS || '')
     .split(',')
     .map((s: string) => s.trim())
