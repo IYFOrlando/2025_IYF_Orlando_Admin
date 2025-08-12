@@ -26,6 +26,15 @@ const fixes = [
         replace: (match) => match.replace(/,?\s*Stack/, '')
       }
     ]
+  },
+  {
+    file: 'src/features/reports/pages/InvalidAcademiesReportPage.tsx',
+    patterns: [
+      {
+        search: /import \{[\s\S]*?Stack,[\s\S]*?\} from '@mui\/material'/,
+        replace: (match) => match.replace(/,?\s*Stack/, '')
+      }
+    ]
   }
 ];
 

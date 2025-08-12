@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  Box, Card, CardHeader, CardContent, Typography, Grid, Chip, Stack,
+  Box, Card, CardHeader, CardContent, Typography, Grid, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Alert
 } from '@mui/material'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
