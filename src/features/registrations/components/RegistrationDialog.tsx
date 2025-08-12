@@ -25,7 +25,7 @@ const STATES = [
 const NO_LEVELS = ["N/A","Art","DIY","Kids","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen"]
 const P1_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen","Kids"]
 const P2_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Senior","Kids"]
-const KL_LEVELS = ["Alphabet","Beginner","Intermediate","Advanced"]
+const KL_LEVELS = ["Alphabet","Beginner","Intermediate","K-Movie Conversation"]
 
 type Props = {
   open: boolean
@@ -48,7 +48,7 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
     const a = form.firstPeriod?.academy
     if (!a) return []
     if (NO_LEVELS.includes(a)) return ["N/A"]
-    if (a === 'Korean Language') return KL_LEVELS.filter(l => l !== 'Beginner') // exclude Beginner in P1
+    if (a === 'Korean Language') return KL_LEVELS // All levels available in P1
     return []
   }, [form.firstPeriod?.academy])
 
@@ -56,7 +56,7 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
     const a = form.secondPeriod?.academy
     if (!a) return []
     if (NO_LEVELS.includes(a)) return ["N/A"]
-    if (a === 'Korean Language') return ["Beginner"] // P2 only Beginner
+    if (a === 'Korean Language') return KL_LEVELS // All levels available in P2
     return []
   }, [form.secondPeriod?.academy])
 
