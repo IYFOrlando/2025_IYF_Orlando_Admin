@@ -190,7 +190,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
 
       {
         field: 'actions', headerName: '', width: 96, sortable:false, filterable:false,
-                renderCell: (p) => {
+        renderCell: (p) => {
           // Debug: Log the isAdmin value for each row
           console.log('🔧 Row Actions Debug:', {
             rowId: p.id,
