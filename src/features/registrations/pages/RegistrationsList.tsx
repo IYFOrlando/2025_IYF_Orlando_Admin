@@ -14,7 +14,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
 import { useRegistrations } from '../hooks/useRegistrations'
-import { migrateKoreanToKoreanLanguage } from '../../../lib/migration'
+
 import type { Registration } from '../types'
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
@@ -227,30 +227,19 @@ export default function RegistrationsList({ isAdmin = false }: { isAdmin?: boole
       <CardHeader
         title="Registrations"
         subheader={isAdmin ? 'Full access: Edit, delete, export, and manage registrations' : 'Viewer mode (read-only)'}
-        action={
-          isAdmin && (
-            <Stack direction="row" spacing={1}>
-              <Button
-                size="medium"
-                color="warning"
-                variant="contained"
-                onClick={migrateKoreanToKoreanLanguage}
-                sx={{ fontWeight: 'bold' }}
-              >
-                🔄 Migrate Korean → Korean Language
-              </Button>
-              <Button
-                size="small"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleBulkDelete}
-                disabled={!selection.length}
-              >
-                Delete Selected
-              </Button>
-            </Stack>
-          )
-        }
+              action={
+        isAdmin && (
+          <Button
+            size="small"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleBulkDelete}
+            disabled={!selection.length}
+          >
+            Delete Selected
+          </Button>
+        )
+      }
       />
       <CardContent>
         {!isAdmin && (
