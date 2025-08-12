@@ -73,12 +73,24 @@ export default function DashboardPage() {
       }
     }
 
-    const p1Rows: CountRow[] = Array.from(p1.entries())
-      .map(([academy, count]) => ({ academy, count }))
+    // Define all available academies
+    const allAcademies = [
+      'N/A', 'Art', 'DIY', 'Korean Language', 'Korean Cooking', 'Piano',
+      'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen', 'Kids'
+    ]
+
+    const p1Rows: CountRow[] = allAcademies
+      .map(academy => ({ 
+        academy, 
+        count: p1.get(academy) || 0 
+      }))
       .sort((a, b) => b.count - a.count)
 
-    const p2Rows: CountRow[] = Array.from(p2.entries())
-      .map(([academy, count]) => ({ academy, count }))
+    const p2Rows: CountRow[] = allAcademies
+      .map(academy => ({ 
+        academy, 
+        count: p2.get(academy) || 0 
+      }))
       .sort((a, b) => b.count - a.count)
 
     // Define the correct levels for each period according to the new configuration
