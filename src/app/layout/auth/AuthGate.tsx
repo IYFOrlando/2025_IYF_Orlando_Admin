@@ -69,7 +69,7 @@ export default function AuthGate({ children }: Props) {
 
   if (!user) return <PublicAccessPage />
 
-  // Check if user is admin or has Gmail access
+    // Check if user is admin or has Gmail access
   const isAdmin = ADMIN_EMAILS.includes(user.email || '')
   const hasGmailAccess = user.email?.endsWith('@gmail.com') || false
 
@@ -90,10 +90,10 @@ export default function AuthGate({ children }: Props) {
     )
   }
 
-  // Pass admin status to children
+  // Pass admin status to children (Gmail users get read-only access)
   const childrenWithProps = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
-      return React.cloneElement(child, { isAdmin } as any)
+      return React.cloneElement(child, { isAdmin, hasGmailAccess } as any)
     }
     return child
   })

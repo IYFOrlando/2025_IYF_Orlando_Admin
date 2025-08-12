@@ -69,7 +69,7 @@ function computeAge(birthday?: string | null): number | '' {
 }
 
 /** ---------- Page ---------- */
-export default function RegistrationsList({ isAdmin = false }: { isAdmin?: boolean }) {
+export default function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
   // Get user email for display purposes
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
@@ -226,7 +226,13 @@ export default function RegistrationsList({ isAdmin = false }: { isAdmin?: boole
     <Card elevation={0} sx={{ borderRadius: 3 }}>
       <CardHeader
         title="Registrations"
-        subheader={isAdmin ? 'Full access: Edit, delete, export, and manage registrations' : 'Viewer mode (read-only)'}
+        subheader={
+        isAdmin 
+          ? 'Full access: Edit, delete, export, and manage registrations' 
+          : hasGmailAccess 
+            ? 'Read-only access: View and export registrations' 
+            : 'No access'
+      }
               action={
         isAdmin && (
           <Button
@@ -242,9 +248,9 @@ export default function RegistrationsList({ isAdmin = false }: { isAdmin?: boole
       }
       />
       <CardContent>
-        {!isAdmin && (
+        {!isAdmin && hasGmailAccess && (
           <Alert severity="info" sx={{ mb:2 }}>
-            You can view and export. Only admins can edit or delete.
+            You have read-only access. You can view and export registrations, but only admins can edit or delete.
           </Alert>
         )}
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
