@@ -48,7 +48,7 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
     const a = form.firstPeriod?.academy
     if (!a) return []
     if (NO_LEVELS.includes(a)) return ["N/A"]
-    if (a === 'Korean Language') return KL_LEVELS // All levels available in P1
+    if (a === 'Korean Language') return ["Alphabet", "Intermediate", "K-Movie Conversation"] // P1: exclude Beginner
     return []
   }, [form.firstPeriod?.academy])
 
@@ -56,7 +56,7 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
     const a = form.secondPeriod?.academy
     if (!a) return []
     if (NO_LEVELS.includes(a)) return ["N/A"]
-    if (a === 'Korean Language') return KL_LEVELS // All levels available in P2
+    if (a === 'Korean Language') return ["Beginner"] // P2: only Beginner
     return []
   }, [form.secondPeriod?.academy])
 
