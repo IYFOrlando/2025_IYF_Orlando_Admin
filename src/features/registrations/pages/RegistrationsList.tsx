@@ -71,7 +71,7 @@ function computeAge(birthday?: string | null): number | '' {
 /** ---------- Page ---------- */
 export default function RegistrationsList({ isAdmin = false }: { isAdmin?: boolean }) {
   // Get user email for display purposes
-  const [userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
+  const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
 
   const { data, loading, error } = useRegistrations()

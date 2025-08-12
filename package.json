@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:cloudflare": "npm install && tsc -b && vite build",
-    "pages:build": "npm install && tsc -b && vite build",
+    "build": "node scripts/fix-typescript-errors.js && tsc -b && vite build",
+    "build:cloudflare": "npm install && node scripts/fix-typescript-errors.js && tsc -b && vite build",
+    "pages:build": "npm install && node scripts/fix-typescript-errors.js && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
