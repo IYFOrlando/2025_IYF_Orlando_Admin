@@ -26,7 +26,7 @@ const mainItems: Item[] = [
   { to: '/payments', label: 'Payments', icon: <ReceiptLongIcon /> },
   { to: '/attendance', label: 'Attendance', icon: <ChecklistIcon /> },
   { to: '/progress', label: 'Progress', icon: <InsightsIcon /> },
-  { to: '/classes', label: 'Classes', icon: <ClassIcon /> },
+  { to: '/classes', label: 'Academies', icon: <ClassIcon /> },
 ]
 
 const reportItems: Item[] = [

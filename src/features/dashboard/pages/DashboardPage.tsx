@@ -1,23 +1,103 @@
 import * as React from 'react'
 import {
   Grid, Card, CardContent, Typography, Table, TableHead, TableRow,
-  TableCell, TableBody, Divider, Stack, Button
+  TableCell, TableBody, Divider, Stack, Button, Box, Alert
 } from '@mui/material'
-import { useRegistrations } from '../../registrations/hooks/useRegistrations'
+import { useRegistrations, REG_COLLECTION } from '../../registrations/hooks/useRegistrations'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { displayYMD } from '../../../lib/date'
+import { doc, updateDoc, getDoc } from 'firebase/firestore'
+import { db } from '../../../lib/firebase'
+import { Alert as SAlert, notifyError, notifySuccess } from '../../../lib/alerts'
+import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 
 type CountRow = { academy: string; count: number }
-
-// ---------- Robust matchers ----------
-function normalizeAcademy(s?: string) {
-  return (s ?? '').toString().trim().toLowerCase()
-}
 
 
 export default function DashboardPage() {
   const { data, loading } = useRegistrations()
+
+  // Function to normalize levels in Firebase (run once)
+  const normalizeLevelsInFirebase = async () => {
+    if (!data || data.length === 0) return
+    
+    console.log('=== NORMALIZING LEVELS IN FIREBASE ===')
+    
+    let updatedCount = 0
+    let errorCount = 0
+    
+    for (const reg of data) {
+      let needsUpdate = false
+      const fieldUpdates: any = {}
+      
+      // Check first period
+      if (reg.firstPeriod?.level) {
+        const originalLevel = reg.firstPeriod.level
+        const normalizedLevel = normalizeLevel(originalLevel)
+        if (originalLevel !== normalizedLevel) {
+          // Use proper nested object structure for Firebase
+          fieldUpdates.firstPeriod = {
+            ...reg.firstPeriod,
+            level: normalizedLevel
+          }
+          needsUpdate = true
+          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
+        }
+      }
+      
+      // Check second period
+      if (reg.secondPeriod?.level) {
+        const originalLevel = reg.secondPeriod.level
+        const normalizedLevel = normalizeLevel(originalLevel)
+        if (originalLevel !== normalizedLevel) {
+          // Use proper nested object structure for Firebase
+          fieldUpdates.secondPeriod = {
+            ...reg.secondPeriod,
+            level: normalizedLevel
+          }
+          needsUpdate = true
+          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
+        }
+      }
+      
+      if (needsUpdate && reg.id) {
+        const docRef = doc(db, REG_COLLECTION, reg.id)
+        
+        // First verify the document exists
+        try {
+          const docSnap = await getDoc(docRef)
+          if (!docSnap.exists()) {
+            console.warn(`⚠️ Document ${reg.id} does not exist, skipping...`)
+            continue
+          }
+          
+          // Perform the update
+          await updateDoc(docRef, fieldUpdates)
+          console.log(`✅ Successfully updated registration ${reg.id}`)
+          updatedCount++
+        } catch (error) {
+          console.error(`❌ Error updating registration ${reg.id}:`, error)
+          errorCount++
+          // Continue with other updates
+        }
+      }
+    }
+    
+    console.log(`=== NORMALIZATION COMPLETE ===`)
+    console.log(`✅ Successfully updated: ${updatedCount} registrations`)
+    console.log(`❌ Errors encountered: ${errorCount} registrations`)
+    
+    if (updatedCount > 0) {
+      notifySuccess('Normalization Complete', `Successfully normalized ${updatedCount} registrations in Firebase${errorCount > 0 ? `\n❌ ${errorCount} errors occurred` : ''}`)
+    } else if (errorCount > 0) {
+      notifyError('Normalization Failed', `Failed to normalize any registrations. ${errorCount} errors occurred. Check console for details.`)
+    } else {
+      SAlert.fire({ title: 'No Normalization Needed', text: 'All levels are already normalized', icon: 'info' })
+    }
+  }
+
+
 
   const { totals, p1Rows, p2Rows } = React.useMemo(() => {
     const p1 = new Map<string, number>()
@@ -29,13 +109,13 @@ export default function DashboardPage() {
 
       // Period 1 academy tally
       if (a1 && normalizeAcademy(a1) !== 'n/a') {
-        const key = (a1 ?? '').toString().trim()
+        const key = normalizeAcademy(a1)
         p1.set(key, (p1.get(key) || 0) + 1)
       }
 
       // Period 2 academy tally
       if (a2 && normalizeAcademy(a2) !== 'n/a') {
-        const key = (a2 ?? '').toString().trim()
+        const key = normalizeAcademy(a2)
         p2.set(key, (p2.get(key) || 0) + 1)
       }
     }
@@ -161,6 +241,31 @@ export default function DashboardPage() {
               <Button size="small" variant="outlined" onClick={exportPDF}>PDF</Button>
             </Stack>
             <Typography variant="body2" color="text.secondary">Download the tables below as a PDF.</Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* Normalization Tool */}
+      <Grid item xs={12}>
+        <Card elevation={0} sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+              <Typography variant="h6">Data Management</Typography>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                onClick={normalizeLevelsInFirebase}
+                disabled={loading}
+              >
+                🔄 Normalize Levels
+              </Button>
+            </Stack>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                The "🔄 Normalize Levels" button will merge "Alphabet Level" → "Alphabet" and "Intermediate Level" → "Intermediate" in the database.
+                This helps maintain consistent data across all pages.
+              </Typography>
+            </Alert>
           </CardContent>
         </Card>
       </Grid>

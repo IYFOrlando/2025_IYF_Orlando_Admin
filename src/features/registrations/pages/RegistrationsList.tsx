@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Box, Card, CardHeader, CardContent, Alert, IconButton, Chip, Stack, Tooltip, Button,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid, Typography
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
@@ -13,11 +13,12 @@ import {
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
-import { useRegistrations } from '../hooks/useRegistrations'
+import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
 
 import type { Registration } from '../types'
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
+import { normalizeLevel } from '../../../lib/normalization'
 
 /** Live billing aggregation per student (for Payment status chip) */
 type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid' }
@@ -238,13 +239,95 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
     [byStudent, effectiveIsAdmin]
   )
 
+  // Function to normalize levels in Firebase (run once)
+  const normalizeLevelsInFirebase = async () => {
+    if (!data || data.length === 0) return
+    
+    console.log('=== NORMALIZING LEVELS IN FIREBASE ===')
+    const { updateDoc, getDoc } = await import('firebase/firestore')
+    
+    let updatedCount = 0
+    let errorCount = 0
+    
+    for (const reg of data) {
+      let needsUpdate = false
+      const fieldUpdates: any = {}
+      
+      // Check first period
+      if (reg.firstPeriod?.level) {
+        const originalLevel = reg.firstPeriod.level
+        const normalizedLevel = normalizeLevel(originalLevel)
+        if (originalLevel !== normalizedLevel) {
+          // Use proper nested object structure for Firebase
+          fieldUpdates.firstPeriod = {
+            ...reg.firstPeriod,
+            level: normalizedLevel
+          }
+          needsUpdate = true
+          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
+        }
+      }
+      
+      // Check second period
+      if (reg.secondPeriod?.level) {
+        const originalLevel = reg.secondPeriod.level
+        const normalizedLevel = normalizeLevel(originalLevel)
+        if (originalLevel !== normalizedLevel) {
+          // Use proper nested object structure for Firebase
+          fieldUpdates.secondPeriod = {
+            ...reg.secondPeriod,
+            level: normalizedLevel
+          }
+          needsUpdate = true
+          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
+        }
+      }
+      
+      if (needsUpdate && reg.id) {
+        const docRef = doc(db, REG_COLLECTION, reg.id)
+        
+        // First verify the document exists
+        try {
+          const docSnap = await getDoc(docRef)
+          if (!docSnap.exists()) {
+            console.warn(`⚠️ Document ${reg.id} does not exist, skipping...`)
+            continue
+          }
+          
+          // Perform the update
+          await updateDoc(docRef, fieldUpdates)
+          console.log(`✅ Successfully updated registration ${reg.id}`)
+          updatedCount++
+        } catch (error) {
+          console.error(`❌ Error updating registration ${reg.id}:`, error)
+          errorCount++
+          // Continue with other updates
+        }
+      }
+    }
+    
+    console.log(`=== NORMALIZATION COMPLETE ===`)
+    console.log(`✅ Successfully updated: ${updatedCount} registrations`)
+    console.log(`❌ Errors encountered: ${errorCount} registrations`)
+    
+    if (updatedCount > 0) {
+      notifySuccess('Normalization Complete', `Successfully normalized ${updatedCount} registrations in Firebase${errorCount > 0 ? `\n❌ ${errorCount} errors occurred` : ''}`)
+    } else if (errorCount > 0) {
+      notifyError('Normalization Failed', `Failed to normalize any registrations. ${errorCount} errors occurred. Check console for details.`)
+    } else {
+      SAlert.fire({ title: 'No Normalization Needed', text: 'All levels are already normalized', icon: 'info' })
+    }
+  }
+
+
+
   const handleBulkDelete = async () => {
     if (!effectiveIsAdmin) return
     if (!selection.length) return SAlert.fire({ title:'Nothing selected', icon:'info', timer:1200, showConfirmButton:false })
     const res = await confirmDelete('Delete selected?', `You are about to delete ${selection.length} registration(s).`)
     if (!res.isConfirmed) return
     try {
-      await Promise.all(selection.map(id => deleteDoc(doc(db, 'fall_academy_2025', String(id)))))
+      await Promise.all(selection.map(id => deleteDoc(doc(db, REG_COLLECTION, String(id)))))
       notifySuccess('Deleted', `${selection.length} registration(s) removed`)
       setSelection([])
     } catch (e:any) {
@@ -265,15 +348,25 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
       }
               action={
         effectiveIsAdmin && (
-          <Button
-            size="small"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleBulkDelete}
-            disabled={!selection.length}
-          >
-            Delete Selected
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={normalizeLevelsInFirebase}
+              disabled={loading}
+            >
+              🔄 Normalize Levels
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleBulkDelete}
+              disabled={!selection.length}
+            >
+              Delete Selected
+            </Button>
+          </Stack>
         )
       }
       />
@@ -284,6 +377,17 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
           </Alert>
         )}
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        
+        {/* Debug and Normalization Tools */}
+        {effectiveIsAdmin && (
+          <Box sx={{ mt: 2, mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="subtitle2" gutterBottom>Debug Tools:</Typography>
+            <Typography variant="caption" color="text.secondary">
+              The "🔄 Normalize Levels" button will merge "Alphabet Level" → "Alphabet" and "Intermediate Level" → "Intermediate" in the database
+            </Typography>
+          </Box>
+        )}
+        
         <Box sx={{ height: 720, width: '100%' }}>
           <DataGrid
             rows={rows}
