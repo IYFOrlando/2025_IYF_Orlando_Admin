@@ -6,7 +6,7 @@ A React + TypeScript + Vite application for managing IYF Orlando academy registr
 
 This project is configured for deployment on Cloudflare Pages with the following specifications:
 
-- **Node.js Version**: 20.20.8
+- **Node.js Version**: 20
 - **Package Manager**: NPM
 - **Build Command**: `npm install && npm run build`
 - **Output Directory**: `dist`
