@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Tabs, Tab, Typography, Chip, Accordion, AccordionSummary, AccordionDetails, FormControl, InputLabel, Select, MenuItem
+  Tabs, Tab, Typography, Chip, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -14,10 +14,9 @@ import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import type { Registration } from '../../registrations/types'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import logoImage from '../../../assets/logo/IYF logo.jpg'
-import { collection, doc, setDoc, getDocs, onSnapshot } from 'firebase/firestore'
+import logoImage from '../../../assets/logo/IYF logo.png'
+import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
-import { REG_COLLECTION } from '../../registrations/hooks/useRegistrations'
 import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 
 interface TabPanelProps {
@@ -82,29 +81,14 @@ export default function AcademiesPage() {
       
       setTeachers(teachersData)
       setTeachersLoading(false)
-         }, (error) => {
+         }, () => {
        setTeachersLoading(false)
      })
 
     return () => unsubscribe()
   }, [])
 
-  // Get all unique academies from registrations
-  const academies = React.useMemo(() => {
-    const academySet = new Set<string>()
-    registrations?.forEach(reg => {
-      const p1Academy = reg?.firstPeriod?.academy?.trim()
-      const p2Academy = reg?.secondPeriod?.academy?.trim()
-      
-      if (p1Academy && p1Academy.toLowerCase() !== 'n/a') {
-        academySet.add(p1Academy)
-      }
-      if (p2Academy && p2Academy.toLowerCase() !== 'n/a') {
-        academySet.add(p2Academy)
-      }
-    })
-    return Array.from(academySet).sort()
-  }, [registrations])
+
 
 
 
@@ -651,7 +635,7 @@ export default function AcademiesPage() {
         {teachersLoading && <Alert severity="info" sx={{ mb:1 }}>Loading teacher information...</Alert>}
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+                     <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
             <Tab label={`Period 1 (${period1Academies.length} academies)`} />
             <Tab label={`Period 2 (${period2Academies.length} academies)`} />
             <Tab label={`Korean Language (${koreanAcademies.length} academies)`} />

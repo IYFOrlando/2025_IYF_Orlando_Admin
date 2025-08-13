@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Grid, Card, CardContent, Typography, Table, TableHead, TableRow,
-  TableCell, TableBody, Divider, Stack, Button, Box, Alert
+  TableCell, TableBody, Divider, Stack, Button, Alert
 } from '@mui/material'
 import { useRegistrations, REG_COLLECTION } from '../../registrations/hooks/useRegistrations'
 import jsPDF from 'jspdf'

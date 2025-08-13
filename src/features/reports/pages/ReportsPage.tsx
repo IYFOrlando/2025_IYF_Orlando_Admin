@@ -1,14 +1,11 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Tabs, Tab, Typography, Chip, Accordion, AccordionSummary, AccordionDetails, FormControl, InputLabel, Select, MenuItem,
-  Grid, Table, TableHead, TableRow, TableCell, TableBody, Divider, IconButton, Tooltip, Paper
+  Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField,
+  Tabs, Tab, Typography, Chip, FormControl, InputLabel, Select, MenuItem,
+  Grid, Table, TableHead, TableRow, TableCell, TableBody, Paper
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import type { GridColDef } from '@mui/x-data-grid'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SchoolIcon from '@mui/icons-material/School'
-import PrintIcon from '@mui/icons-material/Print'
 import PersonIcon from '@mui/icons-material/Person'
 import PaymentIcon from '@mui/icons-material/Payment'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -16,29 +13,24 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import PendingIcon from '@mui/icons-material/Pending'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import DownloadIcon from '@mui/icons-material/Download'
-import FilterListIcon from '@mui/icons-material/FilterList'
-import DateRangeIcon from '@mui/icons-material/DateRange'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
 import GroupIcon from '@mui/icons-material/Group'
-import CakeIcon from '@mui/icons-material/Cake'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 
 // Charts
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
-import type { Registration } from '../../registrations/types'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import logoImage from '../../../assets/logo/IYF logo.jpg'
-import { collection, doc, setDoc, getDocs, getDoc, onSnapshot, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import logoImage from '../../../assets/logo/IYF logo.png'
+import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
-import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
-import { INV_COLLECTION, PAY_COLLECTION } from '../../../lib/config'
+import { normalizeAcademy } from '../../../lib/normalization'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
-import type { Invoice, Payment } from '../../payments/types'
+
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -105,8 +97,8 @@ interface AttendanceRecord {
 
 export default function ReportsPage() {
   const { data: registrations, loading, error } = useRegistrations()
-  const { data: invoices, loading: invoicesLoading } = useInvoices()
-  const { data: payments, loading: paymentsLoading } = usePayments()
+  const { data: invoices } = useInvoices()
+  const { data: payments } = usePayments()
   
   const [tabValue, setTabValue] = React.useState(0)
   const [dateRange, setDateRange] = React.useState<{start: string, end: string}>({
@@ -117,18 +109,8 @@ export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = React.useState<'all' | 'p1' | 'p2'>('all')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<'all' | 'zelle' | 'cash'>('all')
 
-  // Payment State (for legacy compatibility)
-  const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
-  const [selectedPayment, setSelectedPayment] = React.useState<PaymentRecord | null>(null)
-  const [paymentAmount, setPaymentAmount] = React.useState('')
-  const [paymentNotes, setPaymentNotes] = React.useState('')
-
   // Attendance State
   const [attendance, setAttendance] = React.useState<AttendanceRecord[]>([])
-  const [attendanceDialogOpen, setAttendanceDialogOpen] = React.useState(false)
-  const [selectedAttendance, setSelectedAttendance] = React.useState<AttendanceRecord | null>(null)
-  const [attendanceStatus, setAttendanceStatus] = React.useState<AttendanceStatus>('present')
-  const [attendanceNotes, setAttendanceNotes] = React.useState('')
 
   // Process real payment data from invoices and payments (including lunch)
   const processedPaymentData = React.useMemo(() => {
@@ -786,7 +768,7 @@ export default function ReportsPage() {
         </Box>
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+                     <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
             <Tab label={`Registration (${filteredRegistrations.length})`} />
             <Tab label={`Payments (${filteredPayments.length})`} />
             <Tab label={`Lunch (${lunchAnalytics.totalLunches})`} />
@@ -851,20 +833,20 @@ export default function ReportsPage() {
                     <SchoolIcon color="primary" />
                     Registrations by Academy
                   </Typography>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData.academies}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <RechartsTooltip 
-                        formatter={(value, name, props) => [
-                          `${value} students`, 
-                          props.payload.fullName
-                        ]}
-                      />
-                      <Bar dataKey="value" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                                       <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={chartData.academies}>
+                         <CartesianGrid strokeDasharray="3 3" />
+                         <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                         <YAxis />
+                         <RechartsTooltip 
+                           formatter={(value, _, props) => [
+                             `${value} students`, 
+                             props.payload.fullName
+                           ]}
+                         />
+                         <Bar dataKey="value" fill="#8884d8" />
+                       </BarChart>
+                     </ResponsiveContainer>
                 </Paper>
               </Grid>
 
@@ -875,20 +857,20 @@ export default function ReportsPage() {
                     <LocationOnIcon color="primary" />
                     Registrations by City (Top 10)
                   </Typography>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData.cities}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <RechartsTooltip 
-                        formatter={(value, name, props) => [
-                          `${value} students`, 
-                          props.payload.fullName
-                        ]}
-                      />
-                      <Bar dataKey="value" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                                       <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={chartData.cities}>
+                         <CartesianGrid strokeDasharray="3 3" />
+                         <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                         <YAxis />
+                         <RechartsTooltip 
+                           formatter={(value, _, props) => [
+                             `${value} students`, 
+                             props.payload.fullName
+                           ]}
+                         />
+                         <Bar dataKey="value" fill="#82ca9d" />
+                       </BarChart>
+                     </ResponsiveContainer>
                 </Paper>
               </Grid>
             </Grid>
