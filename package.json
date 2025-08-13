@@ -12,7 +12,8 @@
     "build:cloudflare": "npm install && node scripts/fix-typescript-errors.js && tsc -b && vite build",
     "pages:build": "npm install && node scripts/fix-typescript-errors.js && tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "vite preview"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -78,5 +79,6 @@
     "vite-plugin-checker": "^0.10.2",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
-  }
+  },
+  "packageManager": "yarn@4.9.1"
 }
