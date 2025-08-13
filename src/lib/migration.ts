@@ -66,7 +66,6 @@ export async function migrateKoreanToKoreanLanguage() {
     }
 
   } catch (error: any) {
-    console.error('Migration error:', error)
     SAlert.fire({
       title: 'Migration Failed',
       text: error?.message || 'An error occurred during migration.',

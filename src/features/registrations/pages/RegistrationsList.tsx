@@ -75,15 +75,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
   
-  // Debug: Log the props to see what's being passed
-  React.useEffect(() => {
-    console.log('🔍 RegistrationsList Debug:', {
-      isAdmin,
-      hasGmailAccess,
-      userEmail: _userEmail,
-      timestamp: new Date().toISOString()
-    })
-  }, [isAdmin, hasGmailAccess, _userEmail])
+
   
   // Force admin check based on email - this should be more reliable
   const forceIsAdmin = React.useMemo(() => {
@@ -192,14 +184,6 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
       {
         field: 'actions', headerName: '', width: 96, sortable:false, filterable:false,
         renderCell: (p) => {
-          // Debug: Log the isAdmin value for each row
-          console.log('🔧 Row Actions Debug:', {
-            rowId: p.id,
-            isAdmin: effectiveIsAdmin,
-            hasGmailAccess,
-            userEmail: _userEmail,
-            timestamp: new Date().toISOString()
-          })
           
           return (
             <Stack direction="row" spacing={0.5}>
@@ -243,7 +227,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
   const normalizeLevelsInFirebase = async () => {
     if (!data || data.length === 0) return
     
-    console.log('=== NORMALIZING LEVELS IN FIREBASE ===')
+
     const { updateDoc, getDoc } = await import('firebase/firestore')
     
     let updatedCount = 0
@@ -264,7 +248,6 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
             level: normalizedLevel
           }
           needsUpdate = true
-          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
         }
       }
       
@@ -279,7 +262,6 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
             level: normalizedLevel
           }
           needsUpdate = true
-          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
         }
       }
       
@@ -290,25 +272,18 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
         try {
           const docSnap = await getDoc(docRef)
           if (!docSnap.exists()) {
-            console.warn(`⚠️ Document ${reg.id} does not exist, skipping...`)
             continue
           }
           
           // Perform the update
           await updateDoc(docRef, fieldUpdates)
-          console.log(`✅ Successfully updated registration ${reg.id}`)
           updatedCount++
         } catch (error) {
-          console.error(`❌ Error updating registration ${reg.id}:`, error)
           errorCount++
           // Continue with other updates
         }
       }
     }
-    
-    console.log(`=== NORMALIZATION COMPLETE ===`)
-    console.log(`✅ Successfully updated: ${updatedCount} registrations`)
-    console.log(`❌ Errors encountered: ${errorCount} registrations`)
     
     if (updatedCount > 0) {
       notifySuccess('Normalization Complete', `Successfully normalized ${updatedCount} registrations in Firebase${errorCount > 0 ? `\n❌ ${errorCount} errors occurred` : ''}`)

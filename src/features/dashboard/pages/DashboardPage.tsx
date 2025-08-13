@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const normalizeLevelsInFirebase = async () => {
     if (!data || data.length === 0) return
     
-    console.log('=== NORMALIZING LEVELS IN FIREBASE ===')
+
     
     let updatedCount = 0
     let errorCount = 0
@@ -42,7 +42,6 @@ export default function DashboardPage() {
             level: normalizedLevel
           }
           needsUpdate = true
-          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
         }
       }
       
@@ -57,7 +56,6 @@ export default function DashboardPage() {
             level: normalizedLevel
           }
           needsUpdate = true
-          console.log(`Normalizing: "${originalLevel}" -> "${normalizedLevel}"`)
         }
       }
       
@@ -68,25 +66,18 @@ export default function DashboardPage() {
         try {
           const docSnap = await getDoc(docRef)
           if (!docSnap.exists()) {
-            console.warn(`⚠️ Document ${reg.id} does not exist, skipping...`)
             continue
           }
           
           // Perform the update
           await updateDoc(docRef, fieldUpdates)
-          console.log(`✅ Successfully updated registration ${reg.id}`)
           updatedCount++
         } catch (error) {
-          console.error(`❌ Error updating registration ${reg.id}:`, error)
           errorCount++
           // Continue with other updates
         }
       }
     }
-    
-    console.log(`=== NORMALIZATION COMPLETE ===`)
-    console.log(`✅ Successfully updated: ${updatedCount} registrations`)
-    console.log(`❌ Errors encountered: ${errorCount} registrations`)
     
     if (updatedCount > 0) {
       notifySuccess('Normalization Complete', `Successfully normalized ${updatedCount} registrations in Firebase${errorCount > 0 ? `\n❌ ${errorCount} errors occurred` : ''}`)
