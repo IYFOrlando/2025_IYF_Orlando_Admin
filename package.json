@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "yarn": ">=4.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "node scripts/fix-typescript-errors.js && tsc -b && vite build",
