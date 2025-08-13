@@ -13,7 +13,10 @@
     "pages:build": "npm install && node scripts/fix-typescript-errors.js && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "vite preview"
+    "start": "vite preview",
+    "pages:deploy": "npm install && npm run build",
+    "cf-build": "npm install && npm run build",
+    "build:pages": "npm install && npm run build"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

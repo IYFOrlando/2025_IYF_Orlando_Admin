@@ -1,6 +1,17 @@
-# React + TypeScript + Vite
+# IYF Orlando Admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript + Vite application for managing IYF Orlando academy registrations, payments, and reports.
+
+## Deployment
+
+This project is configured for deployment on Cloudflare Pages with the following specifications:
+
+- **Node.js Version**: 20.20.8
+- **Package Manager**: NPM
+- **Build Command**: `npm install && npm run build`
+- **Output Directory**: `dist`
+
+## Development
 
 Currently, two official plugins are available:
 
