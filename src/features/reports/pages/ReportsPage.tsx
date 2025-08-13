@@ -690,7 +690,7 @@ export default function ReportsPage() {
 
   return (
     <Card elevation={0} sx={{ borderRadius: 3 }}>
-      <CardHeader 
+      <CardHeader
         title="Comprehensive Reports" 
         subheader="Track registration, payments, lunch, and attendance with detailed reporting" 
       />
@@ -794,7 +794,7 @@ export default function ReportsPage() {
             </Box>
 
             {/* Summary Cards */}
-            <Grid container spacing={3}>
+        <Grid container spacing={3}>
               <Grid item xs={12} sm={4}>
                 <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
                   <Typography variant="h4" fontWeight="bold">
@@ -822,7 +822,7 @@ export default function ReportsPage() {
                   <Typography variant="subtitle1">Cities Represented</Typography>
                 </Paper>
               </Grid>
-            </Grid>
+          </Grid>
 
             {/* Charts Row */}
             <Grid container spacing={3}>
@@ -835,9 +835,9 @@ export default function ReportsPage() {
                   </Typography>
                                        <ResponsiveContainer width="100%" height="100%">
                        <BarChart data={chartData.academies}>
-                         <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" />
                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                         <YAxis />
+                  <YAxis />
                          <RechartsTooltip 
                            formatter={(value, _, props) => [
                              `${value} students`, 
@@ -845,10 +845,10 @@ export default function ReportsPage() {
                            ]}
                          />
                          <Bar dataKey="value" fill="#8884d8" />
-                       </BarChart>
-                     </ResponsiveContainer>
+                </BarChart>
+              </ResponsiveContainer>
                 </Paper>
-              </Grid>
+          </Grid>
 
               {/* City Chart */}
               <Grid item xs={12} lg={6}>
@@ -859,9 +859,9 @@ export default function ReportsPage() {
                   </Typography>
                                        <ResponsiveContainer width="100%" height="100%">
                        <BarChart data={chartData.cities}>
-                         <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" />
                          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                         <YAxis />
+                  <YAxis />
                          <RechartsTooltip 
                            formatter={(value, _, props) => [
                              `${value} students`, 
@@ -971,7 +971,7 @@ export default function ReportsPage() {
                     </Pie>
                     <RechartsTooltip formatter={(value) => [`${value} students`, 'Count']} />
                   </PieChart>
-                </ResponsiveContainer>
+              </ResponsiveContainer>
               </Box>
             </Paper>
           </Stack>
@@ -1029,7 +1029,7 @@ export default function ReportsPage() {
                   <Typography variant="subtitle1">Total Cash</Typography>
                 </Paper>
               </Grid>
-            </Grid>
+          </Grid>
 
             {/* No Data Alert */}
             {processedPaymentData.length === 0 && (
@@ -1054,8 +1054,8 @@ export default function ReportsPage() {
 
             {/* Charts Row */}
             {processedPaymentData.length > 0 ? (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
                   <Paper sx={{ p: 3, height: 400 }}>
                     <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <PaymentIcon /> Payments by Academy
@@ -1070,14 +1070,14 @@ export default function ReportsPage() {
                       </BarChart>
                     </ResponsiveContainer>
                   </Paper>
-                </Grid>
-                <Grid item xs={12} md={6}>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
                   <Paper sx={{ p: 3, height: 400 }}>
                     <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <AssessmentIcon /> Payment Status Distribution
                     </Typography>
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                        <PieChart>
                         <Pie
                           data={paymentChartData.status}
                           cx="50%"
@@ -1091,13 +1091,13 @@ export default function ReportsPage() {
                           {paymentChartData.status.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.fill} />
                           ))}
-                        </Pie>
+                          </Pie>
                         <RechartsTooltip formatter={(value) => [`${value} payments`, 'Count']} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                        </PieChart>
+                      </ResponsiveContainer>
                   </Paper>
+                  </Grid>
                 </Grid>
-              </Grid>
             ) : (
                              <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50' }}>
                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
@@ -1223,7 +1223,7 @@ export default function ReportsPage() {
             </Box>
 
             {/* Summary Cards */}
-            <Grid container spacing={3}>
+                <Grid container spacing={3}>
               <Grid item xs={12} sm={3}>
                 <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.main', color: 'white' }}>
                   <Typography variant="h4" fontWeight="bold">
@@ -1231,7 +1231,7 @@ export default function ReportsPage() {
                   </Typography>
                   <Typography variant="subtitle1">Total Lunch Revenue</Typography>
                 </Paper>
-              </Grid>
+                  </Grid>
               <Grid item xs={12} sm={3}>
                 <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
                   <Typography variant="h4" fontWeight="bold">
@@ -1239,7 +1239,7 @@ export default function ReportsPage() {
                   </Typography>
                   <Typography variant="subtitle1">Total Lunches</Typography>
                 </Paper>
-              </Grid>
+                  </Grid>
               <Grid item xs={12} sm={3}>
                 <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'secondary.main', color: 'white' }}>
                   <Typography variant="h4" fontWeight="bold">
@@ -1247,7 +1247,7 @@ export default function ReportsPage() {
                   </Typography>
                   <Typography variant="subtitle1">Semester Lunches</Typography>
                 </Paper>
-              </Grid>
+                </Grid>
               <Grid item xs={12} sm={3}>
                 <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'warning.main', color: 'white' }}>
                   <Typography variant="h4" fontWeight="bold">
@@ -1255,8 +1255,8 @@ export default function ReportsPage() {
                   </Typography>
                   <Typography variant="subtitle1">Single Lunches</Typography>
                 </Paper>
-              </Grid>
-            </Grid>
+          </Grid>
+        </Grid>
 
             {/* Lunch Chart */}
             <Paper sx={{ p: 3 }}>

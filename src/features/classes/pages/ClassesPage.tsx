@@ -409,8 +409,8 @@ export default function AcademiesPage() {
             {levels.map(level => {
               const levelRegistrations = koreanByLevel[level]
               const teacher = getTeacherForAcademy(academyName, level)
-              
-              return (
+
+  return (
                 <Box key={level} sx={{ mb: 3 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Typography variant="h6" color="primary">
@@ -501,32 +501,32 @@ export default function AcademiesPage() {
               >
                 {teacher ? 'Edit Teacher' : 'Add Teacher'}
               </Button>
-              <Button
+          <Button
                 startIcon={<PrintIcon />}
-                variant="contained"
+            variant="contained"
                 size="small"
                 onClick={() => generatePDF(academyName, period, academyRegistrations)}
-              >
+          >
                 Export PDF
-              </Button>
-            </Stack>
-            
+          </Button>
+        </Stack>
+
             <Typography variant="h6" gutterBottom>Student List</Typography>
             <Box sx={{ height: 400 }}>
-              <DataGrid
+          <DataGrid
                 rows={academyRegistrations}
                 columns={studentCols}
-                loading={loading}
-                disableRowSelectionOnClick
-                getRowId={(r)=>r.id}
-                slots={{ toolbar: GridToolbar }}
+            loading={loading}
+            disableRowSelectionOnClick
+            getRowId={(r)=>r.id}
+            slots={{ toolbar: GridToolbar }}
                 density="compact"
                 initialState={{
                   pagination: { paginationModel: { page: 0, pageSize: 25 } }
                 }}
                 pageSizeOptions={[10,25,50,100]}
-              />
-            </Box>
+          />
+        </Box>
           </AccordionDetails>
         </Accordion>
       )
@@ -677,7 +677,7 @@ export default function AcademiesPage() {
             {teachers[selectedLevel ? `${selectedAcademy}_${selectedLevel}` : selectedAcademy] ? 'Edit Teacher' : 'Add Teacher'} 
             {selectedLevel ? ` - ${selectedAcademy} (${selectedLevel})` : ` - ${selectedAcademy}`}
           </DialogTitle>
-          <DialogContent dividers>
+      <DialogContent dividers>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField 
                 label="Teacher Name" 
@@ -700,14 +700,14 @@ export default function AcademiesPage() {
                 fullWidth 
               />
             </Stack>
-          </DialogContent>
-          <DialogActions>
+      </DialogContent>
+      <DialogActions>
             <Button onClick={() => setTeacherDialogOpen(false)}>Cancel</Button>
             <Button variant="contained" onClick={handleTeacherSave} disabled={!teacherName.trim()}>
               Save
             </Button>
-          </DialogActions>
-        </Dialog>
+      </DialogActions>
+    </Dialog>
       </CardContent>
     </Card>
   )
