@@ -8,7 +8,7 @@ This project is configured for deployment on Cloudflare Pages with the following
 
 - **Node.js Version**: 20
 - **Package Manager**: NPM
-- **Build Command**: `npm install && npm run build`
+- **Build Command**: `npm run build:cloudflare-deploy`
 - **Output Directory**: `dist`
 
 ## Development

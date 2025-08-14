@@ -1,1 +1,1 @@
-build_command = "npm install && npm run build"
+build_command = "npm run build:cloudflare-deploy"
