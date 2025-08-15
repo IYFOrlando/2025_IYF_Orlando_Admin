@@ -1,98 +1,25 @@
 import * as React from 'react'
 import {
   Grid, Card, CardContent, Typography, Table, TableHead, TableRow,
-  TableCell, TableBody, Divider, Stack, Button, Alert
+  TableCell, TableBody, Divider, Stack, Button
 } from '@mui/material'
-import { useRegistrations, REG_COLLECTION } from '../../registrations/hooks/useRegistrations'
+import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { displayYMD } from '../../../lib/date'
-import { doc, updateDoc, getDoc } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
-import { Alert as SAlert, notifyError, notifySuccess } from '../../../lib/alerts'
 import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
+import logoImage from '../../../assets/logo/IYF_logo.png'
 
 type CountRow = { academy: string; count: number }
-
+type KoreanLevelRow = { level: string; count: number }
 
 export default function DashboardPage() {
   const { data, loading } = useRegistrations()
 
-  // Function to normalize levels in Firebase (run once)
-  const normalizeLevelsInFirebase = async () => {
-    if (!data || data.length === 0) return
-    
-
-    
-    let updatedCount = 0
-    let errorCount = 0
-    
-    for (const reg of data) {
-      let needsUpdate = false
-      const fieldUpdates: any = {}
-      
-      // Check first period
-      if (reg.firstPeriod?.level) {
-        const originalLevel = reg.firstPeriod.level
-        const normalizedLevel = normalizeLevel(originalLevel)
-        if (originalLevel !== normalizedLevel) {
-          // Use proper nested object structure for Firebase
-          fieldUpdates.firstPeriod = {
-            ...reg.firstPeriod,
-            level: normalizedLevel
-          }
-          needsUpdate = true
-        }
-      }
-      
-      // Check second period
-      if (reg.secondPeriod?.level) {
-        const originalLevel = reg.secondPeriod.level
-        const normalizedLevel = normalizeLevel(originalLevel)
-        if (originalLevel !== normalizedLevel) {
-          // Use proper nested object structure for Firebase
-          fieldUpdates.secondPeriod = {
-            ...reg.secondPeriod,
-            level: normalizedLevel
-          }
-          needsUpdate = true
-        }
-      }
-      
-      if (needsUpdate && reg.id) {
-        const docRef = doc(db, REG_COLLECTION, reg.id)
-        
-        // First verify the document exists
-        try {
-          const docSnap = await getDoc(docRef)
-          if (!docSnap.exists()) {
-            continue
-          }
-          
-          // Perform the update
-          await updateDoc(docRef, fieldUpdates)
-          updatedCount++
-        } catch (error) {
-          errorCount++
-          // Continue with other updates
-        }
-      }
-    }
-    
-    if (updatedCount > 0) {
-      notifySuccess('Normalization Complete', `Successfully normalized ${updatedCount} registrations in Firebase${errorCount > 0 ? `\n❌ ${errorCount} errors occurred` : ''}`)
-    } else if (errorCount > 0) {
-      notifyError('Normalization Failed', `Failed to normalize any registrations. ${errorCount} errors occurred. Check console for details.`)
-    } else {
-      SAlert.fire({ title: 'No Normalization Needed', text: 'All levels are already normalized', icon: 'info' })
-    }
-  }
-
-
-
-  const { totals, p1Rows, p2Rows } = React.useMemo(() => {
+  const { totals, p1Rows, p2Rows, koreanLevelRows } = React.useMemo(() => {
     const p1 = new Map<string, number>()
     const p2 = new Map<string, number>()
+    const koreanLevels = new Map<string, number>()
 
     for (const r of data) {
       const a1 = r?.firstPeriod?.academy
@@ -102,12 +29,24 @@ export default function DashboardPage() {
       if (a1 && normalizeAcademy(a1) !== 'n/a') {
         const key = normalizeAcademy(a1)
         p1.set(key, (p1.get(key) || 0) + 1)
+        
+        // Track Korean Language levels
+        if (key === 'Korean Language' && r.firstPeriod?.level) {
+          const level = normalizeLevel(r.firstPeriod.level)
+          koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+        }
       }
 
       // Period 2 academy tally
       if (a2 && normalizeAcademy(a2) !== 'n/a') {
         const key = normalizeAcademy(a2)
         p2.set(key, (p2.get(key) || 0) + 1)
+        
+        // Track Korean Language levels
+        if (key === 'Korean Language' && r.secondPeriod?.level) {
+          const level = normalizeLevel(r.secondPeriod.level)
+          koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+        }
       }
     }
 
@@ -136,31 +75,66 @@ export default function DashboardPage() {
       }))
       .sort((a, b) => b.count - a.count)
 
+    const koreanLevelRows: KoreanLevelRow[] = Array.from(koreanLevels.entries())
+      .map(([level, count]) => ({ level, count }))
+      .sort((a, b) => b.count - a.count)
+
     const totals = {
       registrations: data.length,
       p1Total: p1Rows.reduce((s, r) => s + r.count, 0),
       p2Total: p2Rows.reduce((s, r) => s + r.count, 0),
     }
 
-    return { totals, p1Rows, p2Rows }
+    return { totals, p1Rows, p2Rows, koreanLevelRows }
   }, [data])
 
   const exportPDF = () => {
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
     const marginX = 40
+    const pageWidth = doc.internal.pageSize.width
 
-    // Header
+    // Add IYF Logo
+    try {
+      doc.addImage(logoImage, 'PNG', marginX, 20, 40, 40)
+    } catch (error) {
+      // Fallback to text if image fails to load
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(24)
+      doc.setTextColor(0, 0, 0)
+      doc.text('IYF', marginX, 40)
+    }
+  
+
+    // Title
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(16)
-    doc.text('IYF Orlando — Dashboard Report', marginX, 50)
+    doc.setFontSize(20)
+    doc.setTextColor(0, 0, 0) // Black color
+    doc.text('2025 Fall Academy Report', pageWidth / 2, 70, { align: 'center' })
+    
+    // Subtitle
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.text(`Generated: ${new Date().toLocaleString()}`, marginX, 68)
+    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 85, { align: 'center' })
 
-    // KPIs
+    // Decorative line
+    doc.setDrawColor(25, 118, 210)
+    doc.setLineWidth(2)
+    doc.line(marginX, 95, pageWidth - marginX, 95)
+
+    // KPIs with better styling
     autoTable(doc, {
-      startY: 90,
-      styles: { fontSize: 11 },
+      startY: 110,
+      styles: { 
+        fontSize: 11,
+        cellPadding: 8,
+        lineColor: [25, 118, 210],
+        lineWidth: 0.5
+      },
+      headStyles: {
+        fillColor: [25, 118, 210],
+        textColor: 255,
+        fontStyle: 'bold'
+      },
       head: [['Metric', 'Value']],
       body: [
         ['Total Registrations', String(totals.registrations)],
@@ -171,30 +145,78 @@ export default function DashboardPage() {
       margin: { left: marginX, right: marginX },
     })
 
-    // Period 1
+
+
+    // Period 1 with enhanced styling
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 18,
-      head: [['Academy', 'Count (P1)']],
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Academy', 'Count (Period 1)']],
       body: p1Rows.map(r => [r.academy, r.count]),
       theme: 'grid',
       margin: { left: marginX, right: marginX },
-      styles: { fontSize: 11 },
+      styles: { 
+        fontSize: 11,
+        cellPadding: 6,
+        lineColor: [25, 118, 210],
+        lineWidth: 0.5
+      },
+      headStyles: {
+        fillColor: [25, 118, 210],
+        textColor: 255,
+        fontStyle: 'bold'
+      },
     })
 
-    // Period 2
+    // Period 2 with enhanced styling
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 18,
-      head: [['Academy', 'Count (P2)']],
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Academy', 'Count (Period 2)']],
       body: p2Rows.map(r => [r.academy, r.count]),
       theme: 'grid',
       margin: { left: marginX, right: marginX },
-      styles: { fontSize: 11 },
+      styles: { 
+        fontSize: 11,
+        cellPadding: 6,
+        lineColor: [25, 118, 210],
+        lineWidth: 0.5
+      },
+      headStyles: {
+        fillColor: [25, 118, 210],
+        textColor: 255,
+        fontStyle: 'bold'
+      },
     })
 
+    // Korean Language by Levels
+    if (koreanLevelRows.length > 0) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Korean Language - Level', 'Students']],
+        body: koreanLevelRows.map(r => [r.level, r.count]),
+        theme: 'grid',
+        margin: { left: marginX, right: marginX },
+        styles: { 
+          fontSize: 11,
+          cellPadding: 6,
+          lineColor: [25, 118, 210],
+          lineWidth: 0.5
+        },
+        headStyles: {
+          fillColor: [25, 118, 210],
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+      })
+    }
 
+    // Footer with IYF branding
+    const finalY = (doc as any).lastAutoTable.finalY + 30
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.text('IYF Orlando', pageWidth / 2, finalY, { align: 'center' })
 
-    // Footer removed
-    doc.save(`iyf-dashboard-${displayYMD(new Date())}.pdf`)
+    doc.save(`iyf-2025-fall-academy-report-${displayYMD(new Date())}.pdf`)
   }
 
   return (
@@ -232,31 +254,6 @@ export default function DashboardPage() {
               <Button size="small" variant="outlined" onClick={exportPDF}>PDF</Button>
             </Stack>
             <Typography variant="body2" color="text.secondary">Download the tables below as a PDF.</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Normalization Tool */}
-      <Grid item xs={12}>
-        <Card elevation={0} sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-              <Typography variant="h6">Data Management</Typography>
-              <Button 
-                size="small" 
-                variant="outlined" 
-                onClick={normalizeLevelsInFirebase}
-                disabled={loading}
-              >
-                🔄 Normalize Levels
-              </Button>
-            </Stack>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                The "🔄 Normalize Levels" button will merge "Alphabet Level" → "Alphabet" and "Intermediate Level" → "Intermediate" in the database.
-                This helps maintain consistent data across all pages.
-              </Typography>
-            </Alert>
           </CardContent>
         </Card>
       </Grid>
@@ -319,6 +316,34 @@ export default function DashboardPage() {
         </Card>
       </Grid>
 
+      {/* Korean Language by Levels */}
+      <Grid item xs={12}>
+        <Card elevation={0} sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h6">Korean Language — by Level</Typography>
+            <Divider sx={{ my: 2 }} />
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Level</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>Students</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {koreanLevelRows.map((r) => (
+                  <TableRow key={r.level}>
+                    <TableCell>{r.level}</TableCell>
+                    <TableCell align="right">{r.count}</TableCell>
+                  </TableRow>
+                ))}
+                {koreanLevelRows.length === 0 && (
+                  <TableRow><TableCell colSpan={2}>No Korean Language registrations.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </Grid>
 
     </Grid>
   )

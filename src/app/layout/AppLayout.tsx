@@ -15,6 +15,7 @@ import ClassIcon from '@mui/icons-material/Class'
 import ChecklistIcon from '@mui/icons-material/Checklist'
 import InsightsIcon from '@mui/icons-material/Insights'
 import AuthMenu from './AuthMenu'
+import iyfLogo from '../../assets/logo/IYF_logo.png'
 
 const DRAWER_WIDTH = 240
 
@@ -68,7 +69,19 @@ export default function AppLayout({ isAdmin = false, hasGmailAccess = false }: A
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Typography variant="h6" sx={{ px: 2, py: 2 }}>IYF Admin</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 2 }}>
+        <img src={iyfLogo} alt="IYF Logo" style={{ height: 32, width: 32, marginRight: 8 }} />
+        <Typography variant="h6">IYF Admin</Typography>
+        {!isMdUp && (
+          <IconButton 
+            onClick={() => setOpen(false)} 
+            sx={{ ml: 'auto' }}
+            size="small"
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+      </Box>
       <Divider />
       <List sx={{ px: 0.5 }}>
         {mainItems.map(it => <NavItem key={it.to} {...it} />)}
@@ -99,7 +112,10 @@ export default function AppLayout({ isAdmin = false, hasGmailAccess = false }: A
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" noWrap sx={{ flex: 1 }}>IYF Orlando — Admin</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <img src={iyfLogo} alt="IYF Logo" style={{ height: 40, width: 40, marginRight: 12 }} />
+            <Typography variant="h6" noWrap>IYF Orlando — Admin</Typography>
+          </Box>
           <Stack direction="row" spacing={1} alignItems="center">
             <AuthMenu isAdmin={isAdmin} hasGmailAccess={hasGmailAccess} />
           </Stack>

@@ -24,7 +24,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import logoImage from '../../../assets/logo/IYF logo.png'
+import logoImage from '../../../assets/logo/IYF_logo.png'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { normalizeAcademy } from '../../../lib/normalization'

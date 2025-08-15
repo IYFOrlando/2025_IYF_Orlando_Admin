@@ -8,6 +8,20 @@ const theme = createTheme({
   },
   components: {
     MuiButton: { styleOverrides: { root: { textTransform: 'none', borderRadius: 12 } } },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          zIndex: 1200,
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          zIndex: 1201,
+        },
+      },
+    },
   },
 })
 
