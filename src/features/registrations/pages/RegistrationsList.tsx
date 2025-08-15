@@ -18,7 +18,6 @@ import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
 import type { Registration } from '../types'
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
-import { normalizeLevel } from '../../../lib/normalization'
 
 /** Live billing aggregation per student (for Payment status chip) */
 type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid' }
@@ -73,7 +72,12 @@ function computeAge(birthday?: string | null): number | '' {
 export default function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
   // Get user email for display purposes
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
-  React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, u => {
+      setUserEmail(u?.email || null)
+    })
+    return unsubscribe
+  }, [])
   
 
   
@@ -223,76 +227,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
     [byStudent, effectiveIsAdmin]
   )
 
-  // Function to normalize levels in Firebase (run once)
-  const normalizeLevelsInFirebase = async () => {
-    if (!data || data.length === 0) return
-    
 
-    const { updateDoc, getDoc } = await import('firebase/firestore')
-    
-    let updatedCount = 0
-    let errorCount = 0
-    
-    for (const reg of data) {
-      let needsUpdate = false
-      const fieldUpdates: any = {}
-      
-      // Check first period
-      if (reg.firstPeriod?.level) {
-        const originalLevel = reg.firstPeriod.level
-        const normalizedLevel = normalizeLevel(originalLevel)
-        if (originalLevel !== normalizedLevel) {
-          // Use proper nested object structure for Firebase
-          fieldUpdates.firstPeriod = {
-            ...reg.firstPeriod,
-            level: normalizedLevel
-          }
-          needsUpdate = true
-        }
-      }
-      
-      // Check second period
-      if (reg.secondPeriod?.level) {
-        const originalLevel = reg.secondPeriod.level
-        const normalizedLevel = normalizeLevel(originalLevel)
-        if (originalLevel !== normalizedLevel) {
-          // Use proper nested object structure for Firebase
-          fieldUpdates.secondPeriod = {
-            ...reg.secondPeriod,
-            level: normalizedLevel
-          }
-          needsUpdate = true
-        }
-      }
-      
-      if (needsUpdate && reg.id) {
-        const docRef = doc(db, REG_COLLECTION, reg.id)
-        
-        // First verify the document exists
-        try {
-          const docSnap = await getDoc(docRef)
-          if (!docSnap.exists()) {
-            continue
-          }
-          
-          // Perform the update
-          await updateDoc(docRef, fieldUpdates)
-          updatedCount++
-        } catch (error) {
-          errorCount++
-          // Continue with other updates
-        }
-      }
-    }
-    
-    if (updatedCount > 0) {
-      notifySuccess('Normalization Complete', `Successfully normalized ${updatedCount} registrations in Firebase${errorCount > 0 ? `\n❌ ${errorCount} errors occurred` : ''}`)
-    } else if (errorCount > 0) {
-      notifyError('Normalization Failed', `Failed to normalize any registrations. ${errorCount} errors occurred. Check console for details.`)
-    } else {
-      SAlert.fire({ title: 'No Normalization Needed', text: 'All levels are already normalized', icon: 'info' })
-    }
-  }
 
 
 
@@ -321,29 +256,19 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
             ? 'Read-only access: View and export registrations' 
             : 'No access'
       }
-              action={
-        effectiveIsAdmin && (
-          <Stack direction="row" spacing={1}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={normalizeLevelsInFirebase}
-              disabled={loading}
-            >
-              🔄 Normalize Levels
-            </Button>
-            <Button
-              size="small"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={handleBulkDelete}
-              disabled={!selection.length}
-            >
-              Delete Selected
-            </Button>
-          </Stack>
-        )
-      }
+                     action={
+         effectiveIsAdmin && (
+           <Button
+             size="small"
+             color="error"
+             startIcon={<DeleteIcon />}
+             onClick={handleBulkDelete}
+             disabled={!selection.length}
+           >
+             Delete Selected
+           </Button>
+         )
+       }
       />
       <CardContent>
         {!effectiveIsAdmin && hasGmailAccess && (
@@ -353,47 +278,57 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
         )}
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         
-        {/* Debug and Normalization Tools */}
-        {effectiveIsAdmin && (
-          <Box sx={{ mt: 2, mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-            <Typography variant="subtitle2" gutterBottom>Debug Tools:</Typography>
-            <Typography variant="caption" color="text.secondary">
-              The "🔄 Normalize Levels" button will merge "Alphabet Level" → "Alphabet" and "Intermediate Level" → "Intermediate" in the database
-            </Typography>
-          </Box>
-        )}
         
-        <Box sx={{ height: 720, width: '100%' }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            loading={loading}
-            getRowId={(row) => row.id}
-            checkboxSelection={effectiveIsAdmin}
-            onRowSelectionModelChange={(m)=> effectiveIsAdmin && setSelection(m as string[])}
-            rowSelectionModel={effectiveIsAdmin ? selection : []}
-            disableRowSelectionOnClick
-            density="compact"
-            slots={{ toolbar: GridToolbar }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-                quickFilterProps: { debounceMs: 300 },
-                printOptions: { disableToolbarButton: true }
-              }
-            }}
-            sortingOrder={['desc','asc']}
-            initialState={{
-              pagination: { paginationModel: { page: 0, pageSize: 25 } },
-              columns: { columnVisibilityModel: { address:false, gender:false } }
-            }}
-            pageSizeOptions={[10,25,50,100]}
-            getRowClassName={(params) => {
-              const st = byStudent.get(String(params.id))?.status || 'unpaid'
-              return st === 'paid' ? 'row-paid' : (st === 'partial' ? 'row-partial' : '')
-            }}
-          />
-        </Box>
+        
+                 <Box sx={{ height: 720, width: '100%', overflow: 'hidden' }}>
+           <DataGrid
+             rows={rows}
+             columns={columns}
+             loading={loading}
+             getRowId={(row) => row.id}
+             checkboxSelection={effectiveIsAdmin}
+             onRowSelectionModelChange={(m)=> effectiveIsAdmin && setSelection(m as string[])}
+             rowSelectionModel={effectiveIsAdmin ? selection : []}
+             disableRowSelectionOnClick
+             density="compact"
+             slots={{ toolbar: GridToolbar }}
+             slotProps={{
+               toolbar: {
+                 showQuickFilter: true,
+                 quickFilterProps: { debounceMs: 300 },
+                 printOptions: { disableToolbarButton: true },
+                 csvOptions: { disableToolbarButton: false }
+               }
+             }}
+             sortingOrder={['desc','asc']}
+             initialState={{
+               pagination: { paginationModel: { page: 0, pageSize: 25 } },
+               columns: { columnVisibilityModel: { address:false, gender:false } }
+             }}
+             pageSizeOptions={[10,25,50,100]}
+             getRowClassName={(params) => {
+               const st = byStudent.get(String(params.id))?.status || 'unpaid'
+               return st === 'paid' ? 'row-paid' : (st === 'partial' ? 'row-partial' : '')
+             }}
+                           sx={{
+                '& .MuiDataGrid-toolbarContainer': {
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  flexDirection: 'row'
+                },
+                '& .MuiDataGrid-quickFilter': {
+                  order: -1,
+                  marginLeft: 0,
+                  marginRight: 'auto',
+                  flexShrink: 0
+                },
+                '& .MuiDataGrid-toolbarContainer > *:not(.MuiDataGrid-quickFilter)': {
+                  marginLeft: 'auto'
+                }
+              }}
+           />
+         </Box>
       </CardContent>
 
       {/* Edit dialog */}
@@ -401,7 +336,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
         open={editOpen}
         onClose={()=>{ setEditOpen(false); setEditing(null) }}
         row={editing}
-        isAdmin={isAdmin}
+        isAdmin={effectiveIsAdmin}
       />
     </Card>
   )
@@ -464,7 +399,7 @@ function EditRegistrationDialog({
         secondPeriod: { academy: p2Academy || '', level: p2Academy === 'Korean Language' ? p2Level : 'N/A' },
         updatedAt: serverTimestamp()
       }
-      await updateDoc(doc(db, 'fall_academy_2025', row.id), payload)
+      await updateDoc(doc(db, REG_COLLECTION, row.id), payload)
       notifySuccess('Saved', 'Registration updated')
       onClose()
     } catch (e:any) {

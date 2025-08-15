@@ -19,16 +19,16 @@ service cloud.firestore {
     
     // Helper function to check if user is authorized (admin or Gmail)
     function isAuthorized() {
-      return isAdmin() || hasGmailAccess();
+      return request.auth != null && (isAdmin() || hasGmailAccess());
     }
     
-    // Registrations collection
+    // Registrations collection - allow full CRUD for admins
     match /fall_academy_2025/{document} {
       // Anyone authorized can read
       allow read: if isAuthorized();
       
       // Only admins can write (create, update, delete)
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
     
     // Academy invoices collection
@@ -37,7 +37,43 @@ service cloud.firestore {
       allow read: if isAuthorized();
       
       // Only admins can write
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Academy payments collection
+    match /academy_payments/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Academy attendance collection
+    match /academy_attendance/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Academy progress collection
+    match /academy_progress/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Academy classes collection
+    match /academy_classes/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
     }
     
     // Pricing collection
@@ -46,7 +82,7 @@ service cloud.firestore {
       allow read: if isAuthorized();
       
       // Only admins can write
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
     
     // Default rule for other collections

@@ -105,3 +105,39 @@ html, body, #root { height: 100%; }
 
 .row-paid .MuiDataGrid-cell { background: rgba(46,125,50,.07); }
 .row-partial .MuiDataGrid-cell { background: rgba(245,124,0,.07); }
+
+/* DataGrid toolbar alignment */
+.MuiDataGrid-toolbarContainer {
+  justify-content: flex-start !important;
+  align-items: center !important;
+  padding: 8px 16px !important;
+  flex-direction: row !important;
+}
+
+.MuiDataGrid-quickFilter {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  order: -1 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Ensure search box is on the left and stable */
+.MuiDataGrid-toolbarContainer .MuiDataGrid-quickFilter {
+  order: -1 !important;
+  flex-shrink: 0 !important;
+  margin-right: auto !important;
+}
+
+/* Move all other toolbar items to the right */
+.MuiDataGrid-toolbarContainer > *:not(.MuiDataGrid-quickFilter) {
+  margin-left: auto !important;
+}
+
+/* Prevent table shaking */
+.MuiDataGrid-root {
+  overflow: hidden !important;
+}
+
+.MuiDataGrid-virtualScroller {
+  overflow: auto !important;
+}
