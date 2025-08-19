@@ -85,6 +85,33 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
     
+    // Food tickets collection
+    match /food_tickets/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Weekly reports collection
+    match /weekly_reports/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Teachers collection
+    match /teachers/{document} {
+      // Anyone authorized can read
+      allow read: if isAuthorized();
+      
+      // Only admins can write
+      allow create, update, delete: if isAdmin();
+    }
+    
     // Default rule for other collections
     match /{document=**} {
       // Only admins can access other collections

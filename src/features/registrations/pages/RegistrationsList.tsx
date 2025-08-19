@@ -5,6 +5,7 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
+import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import {
   DataGrid, GridToolbar, type GridColDef, type GridRenderCellParams
 } from '@mui/x-data-grid'
@@ -14,13 +15,17 @@ import {
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
 import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
+import { useInvoices } from '../../payments/hooks/useInvoices'
+import { usePayments } from '../../payments/hooks/usePayments'
 
 import type { Registration } from '../types'
+
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
+import * as XLSX from 'xlsx'
 
 /** Live billing aggregation per student (for Payment status chip) */
-type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid' }
+type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid'|'exonerated' }
 function useInvoiceAggByStudent() {
   const [map, setMap] = React.useState<Map<string, BillingAgg>>(new Map())
   React.useEffect(() => {
@@ -34,7 +39,12 @@ function useInvoiceAggByStudent() {
         cur.total += Number(inv.total || 0)
         cur.paid  += Number(inv.paid || 0)
         cur.balance = Math.max(cur.total - cur.paid, 0)
-        cur.status = cur.paid <= 0 ? 'unpaid' : (cur.balance > 0 ? 'partial' : 'paid')
+        // For exonerated invoices, keep the status as 'exonerated'
+        if (inv.status === 'exonerated') {
+          cur.status = 'exonerated'
+        } else {
+          cur.status = cur.paid <= 0 ? 'unpaid' : (cur.balance > 0 ? 'partial' : 'paid')
+        }
         agg.set(id, cur)
       }
       setMap(agg)
@@ -69,7 +79,7 @@ function computeAge(birthday?: string | null): number | '' {
 }
 
 /** ---------- Page ---------- */
-export default function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
+function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
   // Get user email for display purposes
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => {
@@ -91,6 +101,8 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
   const effectiveIsAdmin = isAdmin || forceIsAdmin
 
   const { data, loading, error } = useRegistrations()
+  const { data: invoices } = useInvoices()
+  const { data: payments } = usePayments()
   const rows = data ?? []
   const byStudent = useInvoiceAggByStudent()
   const [selection, setSelection] = React.useState<string[]>([])
@@ -98,18 +110,56 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
   const [editOpen, setEditOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<Registration | null>(null)
 
-  const statusWeight: Record<'unpaid'|'partial'|'paid', number> = { unpaid: 0, partial: 1, paid: 2 }
+  const statusWeight: Record<'unpaid'|'partial'|'paid'|'exonerated', number> = { unpaid: 0, partial: 1, paid: 2, exonerated: 3 }
+
+  // Create payment data map for export
+  const paymentDataMap = React.useMemo(() => {
+    const map = new Map<string, {
+      totalFee: number
+      paid: number
+      balance: number
+      lastPaymentDate: string
+      paymentMethod: string
+    }>()
+    
+    // Process invoices
+    invoices?.forEach(inv => {
+      const studentId = String(inv.studentId)
+      const existing = map.get(studentId) || { totalFee: 0, paid: 0, balance: 0, lastPaymentDate: '', paymentMethod: '' }
+      existing.totalFee += Number(inv.total || 0)
+      existing.paid += Number(inv.paid || 0)
+      existing.balance += Number(inv.balance || 0)
+      map.set(studentId, existing)
+    })
+    
+    // Process payments to get last payment date and method
+    payments?.forEach(payment => {
+      const studentId = String(payment.studentId)
+      const existing = map.get(studentId)
+      if (existing) {
+        const paymentDate = payment.createdAt?.seconds 
+          ? new Date(payment.createdAt.seconds * 1000).toLocaleDateString()
+          : new Date().toLocaleDateString()
+        
+        if (!existing.lastPaymentDate || paymentDate > existing.lastPaymentDate) {
+          existing.lastPaymentDate = paymentDate
+          existing.paymentMethod = payment.method || ''
+        }
+      }
+    })
+    
+    return map
+  }, [invoices, payments])
 
   const columns = React.useMemo<GridColDef[]>(
     () => [
       {
-        field: 'rownum', headerName: '#', width: 72, sortable:false, filterable:false, align:'center', headerAlign:'center',
-        renderCell: (p) => {
-          const api: any = p.api
-          const idx = typeof api?.getRowIndexRelativeToVisibleRows === 'function'
-            ? api.getRowIndexRelativeToVisibleRows(p.id)
-            : api?.getRowIndex?.(p.id) ?? 0
-          return <span style={{ opacity:.7 }}>{(idx ?? 0) + 1}</span>
+        field: 'id', headerName: '#', width: 72, sortable: false, filterable: false, align: 'center', headerAlign: 'center',
+        valueGetter: (params) => {
+          // Use a stable index based on the row ID
+          const allRows = params.api.getSortedRowIds()
+          const index = allRows.indexOf(params.id)
+          return index + 1
         }
       },
       { field: 'firstName', headerName: 'First', minWidth: 130, flex: 1 },
@@ -171,9 +221,9 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
         renderCell: (p: GridRenderCellParams) => {
           const id = String(p.id)
           const agg = byStudent.get(id)
-          const status = (agg?.status || 'unpaid') as 'unpaid'|'partial'|'paid'
-          const color: 'default' | 'warning' | 'success' =
-            status === 'paid' ? 'success' : status === 'partial' ? 'warning' : 'default'
+          const status = (agg?.status || 'unpaid') as 'unpaid'|'partial'|'paid'|'exonerated'
+                      const color: 'default' | 'warning' | 'success' =
+              status === 'paid' ? 'success' : status === 'exonerated' ? 'success' : status === 'partial' ? 'warning' : 'default'
           return (
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip label={status.toUpperCase()} color={color} size="small" />
@@ -245,8 +295,154 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
     }
   }
 
+  const handleExportExcel = () => {
+    try {
+      // Use the current rows data directly
+      const exportData = rows.map((row: any, index: number) => {
+        const paymentData = paymentDataMap.get(String(row.id)) || {
+          totalFee: 0, paid: 0, balance: 0, lastPaymentDate: '', paymentMethod: ''
+        }
+        
+        const rowData: any = {
+          '#': index + 1,
+          'First Name': row.firstName || '',
+          'Last Name': row.lastName || '',
+          'Email': row.email || '',
+          'Age': computeAge(row.birthday) || '',
+          'Birthday': row.birthday || '',
+          'Phone': row.cellNumber || '',
+          'P1 Academy': row.firstPeriod?.academy || '',
+          'P1 Level': row.firstPeriod?.level || '',
+          'P2 Academy': row.secondPeriod?.academy || '',
+          'P2 Level': row.secondPeriod?.level || '',
+          'City': row.city || '',
+          'State': row.state || '',
+          'Zip': row.zipCode || '',
+          'Created': row.createdAt?.seconds 
+            ? new Date(row.createdAt.seconds * 1000).toLocaleString()
+            : new Date().toLocaleString(),
+          'Total Fee': usd(paymentData.totalFee),
+          'Paid': usd(paymentData.paid),
+          'Balance': usd(paymentData.balance),
+          'Last Payment Date': paymentData.lastPaymentDate,
+          'Payment Method': paymentData.paymentMethod,
+          'Payment Status': (() => {
+            const status = byStudent.get(String(row.id))?.status || 'unpaid'
+            return status === 'exonerated' ? 'EXONERADO' : status.toUpperCase()
+          })()
+        }
+        
+        return rowData
+      })
+      
+
+      
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(exportData)
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 5 },   // #
+        { wch: 15 },  // First Name
+        { wch: 15 },  // Last Name
+        { wch: 25 },  // Email
+        { wch: 8 },   // Age
+        { wch: 12 },  // Birthday
+        { wch: 15 },  // Phone
+        { wch: 20 },  // P1 Academy
+        { wch: 15 },  // P1 Level
+        { wch: 20 },  // P2 Academy
+        { wch: 15 },  // P2 Level
+        { wch: 15 },  // City
+        { wch: 12 },  // State
+        { wch: 10 },  // Zip
+        { wch: 20 },  // Created
+        { wch: 12 },  // Total Fee
+        { wch: 12 },  // Paid
+        { wch: 12 },  // Balance
+        { wch: 15 },  // Last Payment Date
+        { wch: 15 },  // Payment Method
+        { wch: 15 }   // Payment Status
+      ]
+      
+      ws['!cols'] = colWidths
+      
+      // Add styling for payment status and balance
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const rowData = exportData[R - 1]
+        const status = rowData['Payment Status']
+        const balance = rowData['Balance']
+        
+        // Find payment status column dynamically
+        const statusColIndex = Object.keys(rowData).indexOf('Payment Status')
+        if (statusColIndex !== -1) {
+          const statusCell = XLSX.utils.encode_cell({ r: R, c: statusColIndex })
+          if (ws[statusCell]) {
+            // Add cell styling based on payment status
+            if (status === 'PAID') {
+              ws[statusCell].s = {
+                fill: { fgColor: { rgb: 'C6EFCE' } }, // Light green
+                font: { color: { rgb: '006100' }, bold: true }
+              }
+            } else if (status === 'PARTIAL') {
+              ws[statusCell].s = {
+                fill: { fgColor: { rgb: 'FFEB9C' } }, // Light yellow
+                font: { color: { rgb: '9C5700' }, bold: true }
+              }
+            } else {
+              ws[statusCell].s = {
+                fill: { fgColor: { rgb: 'FFC7CE' } }, // Light red
+                font: { color: { rgb: '9C0006' }, bold: true }
+              }
+            }
+          }
+        }
+        
+        // Find balance column dynamically
+        const balanceColIndex = Object.keys(rowData).indexOf('Balance')
+        if (balanceColIndex !== -1 && balance !== '$0.00') {
+          const balanceCell = XLSX.utils.encode_cell({ r: R, c: balanceColIndex })
+          if (ws[balanceCell]) {
+            ws[balanceCell].s = {
+              fill: { fgColor: { rgb: 'FFC7CE' } }, // Light red for outstanding balance
+              font: { color: { rgb: '9C0006' }, bold: true }
+            }
+          }
+        }
+      }
+      
+      // Add header styling
+      const headerRange = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+      for (let C = headerRange.s.c; C <= headerRange.e.c; ++C) {
+        const headerCell = XLSX.utils.encode_cell({ r: 0, c: C })
+        if (ws[headerCell]) {
+          ws[headerCell].s = {
+            fill: { fgColor: { rgb: '4472C4' } }, // Blue header
+            font: { color: { rgb: 'FFFFFF' }, bold: true }
+          }
+        }
+      }
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Registrations')
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+      const filename = `IYF_Registrations_${timestamp}.xlsx`
+      
+      // Save file
+      XLSX.writeFile(wb, filename)
+      
+      notifySuccess('Export Successful', `Exported ${exportData.length} registrations to ${filename}`)
+    } catch (error: any) {
+      notifyError('Export Failed', error?.message || 'Failed to export data')
+    }
+  }
+
   return (
-    <Card elevation={0} sx={{ borderRadius: 3 }}>
+    <Card elevation={0} sx={{ borderRadius: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardHeader
         title="Registrations"
         subheader={
@@ -257,20 +453,32 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
             : 'No access'
       }
                      action={
-         effectiveIsAdmin && (
-           <Button
-             size="small"
-             color="error"
-             startIcon={<DeleteIcon />}
-             onClick={handleBulkDelete}
-             disabled={!selection.length}
-           >
-             Delete Selected
-           </Button>
-         )
+         <Stack direction="row" spacing={1}>
+           {(effectiveIsAdmin || hasGmailAccess) && (
+             <Button
+               size="small"
+               color="primary"
+               startIcon={<FileDownloadIcon />}
+               onClick={handleExportExcel}
+             >
+               Export Excel
+             </Button>
+           )}
+           {effectiveIsAdmin && (
+             <Button
+               size="small"
+               color="error"
+               startIcon={<DeleteIcon />}
+               onClick={handleBulkDelete}
+               disabled={!selection.length}
+             >
+               Delete Selected
+             </Button>
+           )}
+         </Stack>
        }
       />
-      <CardContent>
+      <CardContent sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {!effectiveIsAdmin && hasGmailAccess && (
           <Alert severity="info" sx={{ mb:2 }}>
             You have read-only access. You can view and export registrations, but only admins can edit or delete.
@@ -280,7 +488,7 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
         
         
         
-                 <Box sx={{ height: 720, width: '100%', overflow: 'hidden' }}>
+                 <Box sx={{ flex: 1, width: '100%', overflow: 'hidden', position: 'relative', minHeight: 0 }}>
            <DataGrid
              rows={rows}
              columns={columns}
@@ -295,22 +503,57 @@ export default function RegistrationsList({ isAdmin = false, hasGmailAccess = fa
              slotProps={{
                toolbar: {
                  showQuickFilter: true,
-                 quickFilterProps: { debounceMs: 300 },
+                 quickFilterProps: { debounceMs: 500 },
                  printOptions: { disableToolbarButton: true },
                  csvOptions: { disableToolbarButton: false }
                }
              }}
-             sortingOrder={['desc','asc']}
-             initialState={{
-               pagination: { paginationModel: { page: 0, pageSize: 25 } },
-               columns: { columnVisibilityModel: { address:false, gender:false } }
-             }}
-             pageSizeOptions={[10,25,50,100]}
+
+                           sortingOrder={['desc','asc']}
+              initialState={{
+                columns: { columnVisibilityModel: { address:false, gender:false } },
+                sorting: {
+                  sortModel: [{ field: 'createdAt', sort: 'desc' }]
+                }
+              }}
+              paginationMode="client"
+              pageSizeOptions={[]}
              getRowClassName={(params) => {
                const st = byStudent.get(String(params.id))?.status || 'unpaid'
                return st === 'paid' ? 'row-paid' : (st === 'partial' ? 'row-partial' : '')
              }}
                            sx={{
+                border: 'none',
+                '& .MuiDataGrid-root': {
+                  border: 'none'
+                },
+                '& .MuiDataGrid-main': {
+                  border: 'none'
+                },
+                '& .MuiDataGrid-virtualScroller': {
+                  overflow: 'auto !important'
+                },
+                '& .MuiDataGrid-virtualScrollerContent': {
+                  height: '100% !important',
+                  width: '100% !important'
+                },
+                '& .MuiDataGrid-row': {
+                  cursor: 'default',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                    transition: 'background-color 0.2s ease'
+                  }
+                },
+                '& .MuiDataGrid-cell': {
+                  borderBottom: '1px solid #e0e0e0'
+                },
+                '& .MuiDataGrid-columnHeaders': {
+                  backgroundColor: '#f5f5f5',
+                  borderBottom: '2px solid #e0e0e0'
+                },
+                '& .MuiDataGrid-footerContainer': {
+                  borderTop: '1px solid #e0e0e0'
+                },
                 '& .MuiDataGrid-toolbarContainer': {
                   justifyContent: 'flex-start',
                   alignItems: 'center',
@@ -455,3 +698,5 @@ function EditRegistrationDialog({
     </Dialog>
   )
 }
+
+export default RegistrationsList

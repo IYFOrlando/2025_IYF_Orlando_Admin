@@ -5,6 +5,7 @@ import {
   IconButton, Divider, useMediaQuery, Stack
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import CloseIcon from '@mui/icons-material/Close'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
@@ -24,7 +25,7 @@ type Item = { to: string; label: string; icon: React.ReactNode }
 const mainItems: Item[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { to: '/registrations', label: 'Registrations', icon: <PeopleAltIcon /> },
-  { to: '/payments', label: 'Payments', icon: <ReceiptLongIcon /> },
+  { to: '/payments', label: 'Payments & Records', icon: <ReceiptLongIcon /> },
   { to: '/attendance', label: 'Attendance', icon: <ChecklistIcon /> },
   { to: '/progress', label: 'Progress', icon: <InsightsIcon /> },
   { to: '/classes', label: 'Academies', icon: <ClassIcon /> },
@@ -37,13 +38,26 @@ const reportItems: Item[] = [
   // { to: '/reports/registrations', label: 'Registrations Report', icon: <AssessmentIcon /> },
 ]
 
-function NavItem({ to, label, icon }: Item) {
+interface NavItemProps extends Item {
+  onNavClick?: () => void
+}
+
+function NavItem({ to, label, icon, onNavClick }: NavItemProps) {
   const location = useLocation()
   const active = location.pathname === to
+  
+  const handleClick = () => {
+    // Close drawer on mobile when clicking a nav item
+    if (onNavClick) {
+      onNavClick()
+    }
+  }
+  
   return (
     <ListItemButton
       component={NavLink}
       to={to}
+      onClick={handleClick}
       sx={{
         borderRadius: 2,
         mx: 1,
@@ -72,24 +86,15 @@ export default function AppLayout({ isAdmin = false, hasGmailAccess = false }: A
       <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 2 }}>
         <img src={iyfLogo} alt="IYF Logo" style={{ height: 32, width: 32, marginRight: 8 }} />
         <Typography variant="h6">IYF Admin</Typography>
-        {!isMdUp && (
-          <IconButton 
-            onClick={() => setOpen(false)} 
-            sx={{ ml: 'auto' }}
-            size="small"
-          >
-            <MenuIcon />
-          </IconButton>
-        )}
       </Box>
       <Divider />
       <List sx={{ px: 0.5 }}>
-        {mainItems.map(it => <NavItem key={it.to} {...it} />)}
+        {mainItems.map(it => <NavItem key={it.to} {...it} onNavClick={() => !isMdUp && setOpen(false)} />)}
       </List>
       <Divider sx={{ my: 1 }} />
       <Typography variant="overline" sx={{ px: 2, color: 'text.secondary' }}>Reports</Typography>
       <List sx={{ px: 0.5 }}>
-        {reportItems.map(it => <NavItem key={it.to} {...it} />)}
+        {reportItems.map(it => <NavItem key={it.to} {...it} onNavClick={() => !isMdUp && setOpen(false)} />)}
       </List>
       <Box sx={{ flex: 1 }} />
       <Box sx={{ p: 2, fontSize: 12, color: 'text.secondary' }}>
@@ -108,8 +113,12 @@ export default function AppLayout({ isAdmin = false, hasGmailAccess = false }: A
       <AppBar position="fixed" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar>
           {!isMdUp && (
-            <IconButton edge="start" onClick={() => setOpen(true)} sx={{ mr: 1 }}>
-              <MenuIcon />
+            <IconButton 
+              edge="start" 
+              onClick={() => setOpen(!open)} 
+              sx={{ mr: 1 }}
+            >
+              {open ? <CloseIcon /> : <MenuIcon />}
             </IconButton>
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>

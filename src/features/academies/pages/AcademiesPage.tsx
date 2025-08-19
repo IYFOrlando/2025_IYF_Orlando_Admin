@@ -47,7 +47,7 @@ function computeAge(birthday?: string | null): number | '' {
   return age < 0 ? '' : age
 }
 
-export default function AcademiesPage() {
+const AcademiesPage = React.memo(function AcademiesPage() {
   const { data: registrations, loading, error } = useRegistrations()
   
      // Remove debug useEffect - no longer needed
@@ -92,12 +92,12 @@ export default function AcademiesPage() {
 
 
 
-  // Define Period 1 and Period 2 academies based on what's in the data
+  // Define Period 1 and Period 2 academies based on what's in the data (excluding Korean Language)
   const period1Academies = React.useMemo(() => {
     const p1Set = new Set<string>()
     registrations?.forEach(reg => {
       const p1Academy = reg?.firstPeriod?.academy?.trim()
-      if (p1Academy && p1Academy.toLowerCase() !== 'n/a') {
+      if (p1Academy && p1Academy.toLowerCase() !== 'n/a' && !p1Academy.toLowerCase().includes('korean language')) {
         p1Set.add(p1Academy)
       }
     })
@@ -108,7 +108,7 @@ export default function AcademiesPage() {
     const p2Set = new Set<string>()
     registrations?.forEach(reg => {
       const p2Academy = reg?.secondPeriod?.academy?.trim()
-      if (p2Academy && p2Academy.toLowerCase() !== 'n/a') {
+      if (p2Academy && p2Academy.toLowerCase() !== 'n/a' && !p2Academy.toLowerCase().includes('korean language')) {
         p2Set.add(p2Academy)
       }
     })
@@ -133,7 +133,7 @@ export default function AcademiesPage() {
   }, [registrations])
 
   // Get registrations for a specific academy and period
-  const getRegistrationsForAcademy = (academyName: string, period: 'p1' | 'p2') => {
+  const getRegistrationsForAcademy = React.useCallback((academyName: string, period: 'p1' | 'p2') => {
     return registrations?.filter(reg => {
       if (period === 'p1') {
         const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || null)
@@ -143,10 +143,10 @@ export default function AcademiesPage() {
         return p2Academy === normalizeAcademy(academyName)
       }
     }) || []
-  }
+  }, [registrations])
 
   // Get all registrations for a Korean academy (both periods combined)
-  const getKoreanRegistrationsAllPeriods = (academyName: string) => {
+  const getKoreanRegistrationsAllPeriods = React.useCallback((academyName: string) => {
     const result = registrations?.filter(reg => {
       const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || null)
       const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || null)
@@ -158,10 +158,10 @@ export default function AcademiesPage() {
     }) || []
     
     return result
-  }
+  }, [registrations])
 
   // For Korean Language, group by levels
-  const getKoreanRegistrationsByLevel = (academyName: string, period: 'p1' | 'p2') => {
+  const getKoreanRegistrationsByLevel = React.useCallback((academyName: string, period: 'p1' | 'p2') => {
     const registrations = getRegistrationsForAcademy(academyName, period)
     const byLevel: Record<string, Registration[]> = {}
     
@@ -175,12 +175,12 @@ export default function AcademiesPage() {
     })
     
     return byLevel
-  }
+  }, [getRegistrationsForAcademy])
 
 
 
   // For Korean Language, group by levels (all periods combined)
-  const getKoreanRegistrationsByLevelAllPeriods = (academyName: string) => {
+  const getKoreanRegistrationsByLevelAllPeriods = React.useCallback((academyName: string) => {
     const registrations = getKoreanRegistrationsAllPeriods(academyName)
     const byLevel: Record<string, Registration[]> = {}
     
@@ -211,7 +211,7 @@ export default function AcademiesPage() {
     })
     
     return byLevel
-  }
+  }, [getKoreanRegistrationsAllPeriods])
 
   
 
@@ -235,7 +235,7 @@ export default function AcademiesPage() {
     { field:'state', headerName:'State', width:100 },
   ], [])
 
-  const handleTeacherSave = async () => {
+  const handleTeacherSave = React.useCallback(async () => {
     if (selectedAcademy && teacherName.trim()) {
       const teacherKey = selectedLevel ? `${selectedAcademy}_${selectedLevel}` : selectedAcademy
       
@@ -261,9 +261,9 @@ export default function AcademiesPage() {
          alert('Error saving teacher information. Please try again.')
        }
     }
-  }
+  }, [selectedAcademy, selectedLevel, teacherName, teacherEmail, teacherPhone])
 
-  const openTeacherDialog = (academyName: string, level?: string) => {
+  const openTeacherDialog = React.useCallback((academyName: string, level?: string) => {
     setSelectedAcademy(academyName)
     setSelectedLevel(level || '')
     const teacherKey = level ? `${academyName}_${level}` : academyName
@@ -278,16 +278,16 @@ export default function AcademiesPage() {
       setTeacherPhone('')
     }
     setTeacherDialogOpen(true)
-  }
+  }, [teachers])
 
-  const getTeacherForAcademy = (academyName: string, level?: string) => {
+  const getTeacherForAcademy = React.useCallback((academyName: string, level?: string) => {
     const teacherKey = level ? `${academyName}_${level}` : academyName
     return teachers[teacherKey]
-  }
+  }, [teachers])
 
 
 
-  const generatePDF = (academyName: string, period: 'p1' | 'p2' | 'all', registrations: Registration[], level?: string) => {
+  const generatePDF = React.useCallback((academyName: string, period: 'p1' | 'p2' | 'all', registrations: Registration[], level?: string) => {
     const doc = new jsPDF()
     const teacher = getTeacherForAcademy(academyName, level)
     
@@ -337,7 +337,8 @@ export default function AcademiesPage() {
     }
     
     // Student table
-    const tableData = registrations.map(reg => [
+    const tableData = registrations.map((reg, index) => [
+      (index + 1).toString(), // Number column
       reg.firstName || '',
       reg.lastName || '',
       computeAge(reg.birthday) || '',
@@ -348,7 +349,7 @@ export default function AcademiesPage() {
     ])
     
     autoTable(doc, {
-      head: [['First Name', 'Last Name', 'Age', 'Email', 'Phone', 'City', 'State']],
+      head: [['#', 'First Name', 'Last Name', 'Age', 'Email', 'Phone', 'City', 'State']],
       body: tableData,
       startY: startY,
       styles: { fontSize: 9 },
@@ -357,8 +358,17 @@ export default function AcademiesPage() {
         textColor: [255, 255, 255],
         fontStyle: 'bold'
       },
+      columnStyles: {
+        0: { cellWidth: 15, halign: 'center' } // Number column styling
+      },
       margin: { top: 10 }
     })
+    
+    // Summary after table
+    const tableEndY = (doc as any).lastAutoTable.finalY || startY + (registrations.length * 10) + 20
+    doc.setFontSize(11)
+    doc.setTextColor(0, 0, 0)
+    doc.text(`Total Students: ${registrations.length}`, 20, tableEndY + 10)
     
     // Footer
     const pageCount = doc.getNumberOfPages()
@@ -371,9 +381,9 @@ export default function AcademiesPage() {
       ? `${academyName}_${period}_${level}_report.pdf`
       : `${academyName}_${period}_report.pdf`
     doc.save(filename)
-  }
+  }, [getTeacherForAcademy])
 
-  const renderAcademySection = (academyName: string, period: 'p1' | 'p2') => {
+  const renderAcademySection = React.useCallback((academyName: string, period: 'p1' | 'p2') => {
     const isKorean = academyName.toLowerCase().includes('korean') && !academyName.toLowerCase().includes('cooking')
     
     if (isKorean) {
@@ -381,7 +391,7 @@ export default function AcademiesPage() {
       const levels = Object.keys(koreanByLevel).sort()
       
       return (
-        <Accordion key={academyName} defaultExpanded>
+        <Accordion key={academyName} defaultExpanded={false}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
               <SchoolIcon color="primary" />
@@ -410,7 +420,7 @@ export default function AcademiesPage() {
               const levelRegistrations = koreanByLevel[level]
               const teacher = getTeacherForAcademy(academyName, level)
 
-  return (
+return (
                 <Box key={level} sx={{ mb: 3 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Typography variant="h6" color="primary">
@@ -444,7 +454,14 @@ export default function AcademiesPage() {
                       </Button>
                     </Stack>
                   </Stack>
-                  <Box sx={{ height: 300 }}>
+                  <Box sx={{ 
+                    height: 300, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    minHeight: 0
+                  }}>
                     <DataGrid
                       rows={levelRegistrations}
                       columns={studentCols}
@@ -454,9 +471,34 @@ export default function AcademiesPage() {
                       slots={{ toolbar: GridToolbar }}
                       density="compact"
                       initialState={{
-                        pagination: { paginationModel: { page: 0, pageSize: 25 } }
+                        sorting: {
+                          sortModel: [{ field: 'lastName', sort: 'asc' }]
+                        }
                       }}
-                      pageSizeOptions={[10,25,50,100]}
+                      paginationMode="client"
+                      pageSizeOptions={[]}
+                      sx={{
+                        flex: 1,
+                        minHeight: 0,
+                        '& .MuiDataGrid-root': {
+                          border: 'none'
+                        },
+                        '& .MuiDataGrid-cell': {
+                          borderBottom: '1px solid #e0e0e0',
+                          cursor: 'default'
+                        },
+                        '& .MuiDataGrid-columnHeaders': {
+                          backgroundColor: '#f5f5f5',
+                          borderBottom: '2px solid #e0e0e0'
+                        },
+                        '& .MuiDataGrid-footerContainer': {
+                          borderTop: '2px solid #e0e0e0',
+                          backgroundColor: '#f5f5f5'
+                        },
+                        '& .MuiDataGrid-row:hover': {
+                          backgroundColor: '#f8f9fa'
+                        }
+                      }}
                     />
                   </Box>
                 </Box>
@@ -470,7 +512,7 @@ export default function AcademiesPage() {
       const teacher = getTeacherForAcademy(academyName)
       
       return (
-        <Accordion key={academyName} defaultExpanded>
+        <Accordion key={academyName} defaultExpanded={false}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
               <SchoolIcon color="primary" />
@@ -512,7 +554,14 @@ export default function AcademiesPage() {
         </Stack>
 
             <Typography variant="h6" gutterBottom>Student List</Typography>
-            <Box sx={{ height: 400 }}>
+            <Box sx={{ 
+              height: 400, 
+              display: 'flex', 
+              flexDirection: 'column',
+              overflow: 'hidden',
+              position: 'relative',
+              minHeight: 0
+            }}>
           <DataGrid
                 rows={academyRegistrations}
                 columns={studentCols}
@@ -522,23 +571,48 @@ export default function AcademiesPage() {
             slots={{ toolbar: GridToolbar }}
                 density="compact"
                 initialState={{
-                  pagination: { paginationModel: { page: 0, pageSize: 25 } }
+                  sorting: {
+                    sortModel: [{ field: 'lastName', sort: 'asc' }]
+                  }
                 }}
-                pageSizeOptions={[10,25,50,100]}
+                paginationMode="client"
+                pageSizeOptions={[]}
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  '& .MuiDataGrid-root': {
+                    border: 'none'
+                  },
+                  '& .MuiDataGrid-cell': {
+                    borderBottom: '1px solid #e0e0e0',
+                    cursor: 'default'
+                  },
+                  '& .MuiDataGrid-columnHeaders': {
+                    backgroundColor: '#f5f5f5',
+                    borderBottom: '2px solid #e0e0e0'
+                  },
+                  '& .MuiDataGrid-footerContainer': {
+                    borderTop: '2px solid #e0e0e0',
+                    backgroundColor: '#f5f5f5'
+                  },
+                  '& .MuiDataGrid-row:hover': {
+                    backgroundColor: '#f8f9fa'
+                  }
+                }}
           />
         </Box>
           </AccordionDetails>
         </Accordion>
       )
     }
-  }
+  }, [getKoreanRegistrationsByLevel, getRegistrationsForAcademy, getTeacherForAcademy, openTeacherDialog, generatePDF, studentCols, loading])
 
-  const renderKoreanAcademySection = (academyName: string) => {
+  const renderKoreanAcademySection = React.useCallback((academyName: string) => {
     const koreanByLevel = getKoreanRegistrationsByLevelAllPeriods(academyName)
     const levels = Object.keys(koreanByLevel).sort()
     
     return (
-      <Accordion key={academyName} defaultExpanded>
+      <Accordion key={academyName} defaultExpanded={false}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
             <SchoolIcon color="primary" />
@@ -601,7 +675,14 @@ export default function AcademiesPage() {
                     </Button>
                   </Stack>
                 </Stack>
-                <Box sx={{ height: 300 }}>
+                <Box sx={{ 
+                  height: 300, 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  minHeight: 0
+                }}>
                   <DataGrid
                     rows={levelRegistrations}
                     columns={studentCols}
@@ -611,9 +692,34 @@ export default function AcademiesPage() {
                     slots={{ toolbar: GridToolbar }}
                     density="compact"
                     initialState={{
-                      pagination: { paginationModel: { page: 0, pageSize: 25 } }
+                      sorting: {
+                        sortModel: [{ field: 'lastName', sort: 'asc' }]
+                      }
                     }}
-                    pageSizeOptions={[10,25,50,100]}
+                    paginationMode="client"
+                    pageSizeOptions={[]}
+                    sx={{
+                      flex: 1,
+                      minHeight: 0,
+                      '& .MuiDataGrid-root': {
+                        border: 'none'
+                      },
+                      '& .MuiDataGrid-cell': {
+                        borderBottom: '1px solid #e0e0e0',
+                        cursor: 'default'
+                      },
+                      '& .MuiDataGrid-columnHeaders': {
+                        backgroundColor: '#f5f5f5',
+                        borderBottom: '2px solid #e0e0e0'
+                      },
+                      '& .MuiDataGrid-footerContainer': {
+                        borderTop: '2px solid #e0e0e0',
+                        backgroundColor: '#f5f5f5'
+                      },
+                      '& .MuiDataGrid-row:hover': {
+                        backgroundColor: '#f8f9fa'
+                      }
+                    }}
                   />
                 </Box>
               </Box>
@@ -622,13 +728,13 @@ export default function AcademiesPage() {
         </AccordionDetails>
       </Accordion>
     )
-  }
+  }, [getKoreanRegistrationsByLevelAllPeriods, getTeacherForAcademy, openTeacherDialog, generatePDF, studentCols, loading])
 
   return (
     <Card elevation={0} sx={{ borderRadius:3 }}>
       <CardHeader 
         title="Academies" 
-        subheader="View student registrations organized by academy and period" 
+        subheader="View student registrations organized by academy and period. All records shown without pagination." 
       />
       <CardContent>
         {error && <Alert severity="error" sx={{ mb:1 }}>{error}</Alert>}
@@ -711,4 +817,6 @@ export default function AcademiesPage() {
       </CardContent>
     </Card>
   )
-}
+})
+
+export default AcademiesPage

@@ -61,7 +61,7 @@ function computeAge(birthday?: string | null): number | '' {
 }
 
 // Payment Status Types
-type PaymentStatus = 'paid' | 'pending' | 'partial' | 'overdue' | 'waived' | 'unpaid'
+type PaymentStatus = 'paid' | 'pending' | 'partial' | 'overdue' | 'waived' | 'unpaid' | 'exonerated'
 
 interface PaymentRecord {
   id: string

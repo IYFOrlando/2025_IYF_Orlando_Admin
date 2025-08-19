@@ -47,7 +47,7 @@ export type Invoice = {
   total: number
   paid: number
   balance: number
-  status: 'unpaid' | 'partial' | 'paid'
+  status: 'unpaid' | 'partial' | 'paid' | 'exonerated'
   method?: 'cash' | 'zelle' | null
   createdAt: any
   updatedAt: any
