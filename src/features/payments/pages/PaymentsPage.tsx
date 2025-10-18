@@ -590,19 +590,25 @@ const PaymentsPage = React.memo(() => {
     const margin = 48
     const now = new Date()
     const issueDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    const dueDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
     // Header - Invoice title (top left)
     doc.setFont('helvetica','bold')
     doc.setFontSize(24)
     doc.text('Invoice', margin, 60)
 
-    // Logo placeholder (top right) - you can replace this with actual logo
-    doc.setFillColor(200, 200, 200)
-    doc.rect(pageWidth - 80, 30, 50, 50, 'F')
-    doc.setFont('helvetica','normal')
-    doc.setFontSize(8)
-    doc.text('IYF LOGO', pageWidth - 55, 55, { align: 'center' })
+    // Logo (top right) - using the actual IYF logo
+    try {
+      // Add the logo image
+      const logoPath = '/src/assets/logo/IYF_logo.png'
+      doc.addImage(logoPath, 'PNG', pageWidth - 80, 30, 50, 50)
+    } catch (error) {
+      // Fallback if logo not found
+      doc.setFillColor(200, 200, 200)
+      doc.rect(pageWidth - 80, 30, 50, 50, 'F')
+      doc.setFont('helvetica','normal')
+      doc.setFontSize(8)
+      doc.text('IYF LOGO', pageWidth - 55, 55, { align: 'center' })
+    }
 
     // Invoice details (left column)
     doc.setFont('helvetica','normal')
@@ -610,30 +616,29 @@ const PaymentsPage = React.memo(() => {
     let yPos = 100
     doc.text('Invoice number', margin, yPos)
     doc.text(inv.id, margin + 80, yPos)
-    yPos += 15
+    yPos += 20
     doc.text('Date of issue', margin, yPos)
     doc.text(issueDate, margin + 80, yPos)
-    yPos += 15
-    doc.text('Date due', margin, yPos)
-    doc.text(dueDate, margin + 80, yPos)
 
-    // Sender information (left column)
-    yPos += 30
+    // Sender information (left column) - correct IYF Orlando info
+    yPos += 40
     doc.setFont('helvetica','bold')
     doc.setFontSize(12)
     doc.text('IYF Orlando', margin, yPos)
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
+    yPos += 20
+    doc.text('320 S Park Ave', margin, yPos)
     yPos += 15
-    doc.text('1234 Academy Drive', margin, yPos)
-    yPos += 12
-    doc.text('Orlando, Florida 32801, United States', margin, yPos)
-    yPos += 12
-    doc.text('Phone: +1 (407) 555-0123', margin, yPos)
-    yPos += 12
-    doc.text('Email: info@iyforlando.org', margin, yPos)
+    doc.text('Sanford, FL 32771', margin, yPos)
+    yPos += 15
+    doc.text('Phone: 407-900-3442', margin, yPos)
+    yPos += 15
+    doc.text('Email: orlando@iyfusa.org', margin, yPos)
+    yPos += 15
+    doc.text('Website: www.iyforlando.org', margin, yPos)
 
-    // Recipient information (right column)
+    // Recipient information (right column) - get student info from database
     const rightColumnX = pageWidth - 200
     yPos = 100
     doc.setFont('helvetica','bold')
@@ -641,35 +646,38 @@ const PaymentsPage = React.memo(() => {
     doc.text('Bill to', rightColumnX, yPos)
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
-    yPos += 15
+    yPos += 20
     doc.text(inv.studentName || 'Student Name', rightColumnX, yPos)
-    yPos += 12
-    doc.text('Student Address', rightColumnX, yPos)
-    yPos += 12
-    doc.text('Orlando, Florida 32801, United States', rightColumnX, yPos)
-    yPos += 12
-    doc.text('Email: student@email.com', rightColumnX, yPos)
+    
+    // Get student email from registrations data
+    const studentReg = regs.find(r => r.id === inv.studentId)
+    if (studentReg?.email) {
+      yPos += 15
+      doc.text(`Email: ${studentReg.email}`, rightColumnX, yPos)
+    }
 
-    // Amount due section
-    yPos += 40
+    // Amount due section - removed due date
+    yPos += 50
     doc.setFont('helvetica','bold')
     doc.setFontSize(14)
     const amountDue = inv.balance > 0 ? inv.balance : 0
-    doc.text(`$${amountDue.toFixed(2)} USD due ${dueDate}`, margin, yPos)
-    yPos += 20
+    doc.text(`$${amountDue.toFixed(2)} USD`, margin, yPos)
+    yPos += 25
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
-    doc.setTextColor(0, 0, 255)
-    doc.text('Pay online', margin, yPos)
-    doc.setTextColor(0, 0, 0)
+    doc.text('Payment Methods:', margin, yPos)
+    yPos += 15
+    doc.text('• Cash', margin, yPos)
+    yPos += 12
+    doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
 
     // Line separator
-    yPos += 20
+    yPos += 25
     doc.setLineWidth(0.5)
     doc.line(margin, yPos, pageWidth - margin, yPos)
 
     // Line items table
-    yPos += 20
+    yPos += 25
     const tableStartY = yPos
     
     // Table headers
@@ -681,9 +689,9 @@ const PaymentsPage = React.memo(() => {
     doc.text('Amount', margin + 350, yPos)
     
     // Header line
-    yPos += 5
+    yPos += 8
     doc.line(margin, yPos, pageWidth - margin, yPos)
-    yPos += 10
+    yPos += 15
 
     // Table rows
     doc.setFont('helvetica','normal')
@@ -692,14 +700,14 @@ const PaymentsPage = React.memo(() => {
     // Academy items
     inv.lines.forEach(line => {
       doc.text(line.academy, margin, yPos)
-      doc.text(`P${line.period}`, margin + 5, yPos + 12)
+      doc.text(`P${line.period}`, margin + 5, yPos + 15)
       if (line.level) {
-        doc.text(line.level, margin + 5, yPos + 24)
+        doc.text(line.level, margin + 5, yPos + 30)
       }
       doc.text(line.qty.toString(), margin + 200, yPos)
       doc.text(usd(line.unitPrice), margin + 250, yPos)
       doc.text(usd(line.amount), margin + 350, yPos)
-      yPos += 35
+      yPos += 45
     })
 
     // Lunch items
@@ -709,7 +717,7 @@ const PaymentsPage = React.memo(() => {
         doc.text('1', margin + 200, yPos)
         doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 250, yPos)
         doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 350, yPos)
-        yPos += 20
+        yPos += 25
       }
       if (inv.lunch?.singleQty && inv.lunch?.singleQty > 0) {
         doc.text('Lunch Single-Day', margin, yPos)
@@ -717,31 +725,31 @@ const PaymentsPage = React.memo(() => {
         const unitPrice = inv.lunch?.prices?.single || 0
         doc.text(usd(unitPrice), margin + 250, yPos)
         doc.text(usd(inv.lunch.singleQty * unitPrice), margin + 350, yPos)
-        yPos += 20
+        yPos += 25
       }
     }
 
     // Totals section (right aligned)
     const totalsStartX = pageWidth - 150
-    yPos = Math.max(yPos, tableStartY + 100)
+    yPos = Math.max(yPos, tableStartY + 120)
     
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
     doc.text('Subtotal', totalsStartX, yPos)
     doc.text(usd(inv.subtotal + (inv.lunchAmount || 0)), totalsStartX + 80, yPos)
-    yPos += 15
+    yPos += 20
 
     if (inv.discountAmount && inv.discountAmount > 0) {
       doc.text('Discount', totalsStartX, yPos)
       doc.text(`-${usd(inv.discountAmount)}`, totalsStartX + 80, yPos)
-      yPos += 15
+      yPos += 20
     }
 
     doc.setFont('helvetica','bold')
     doc.setFontSize(12)
     doc.text('Total', totalsStartX, yPos)
     doc.text(usd(inv.total), totalsStartX + 80, yPos)
-    yPos += 20
+    yPos += 25
 
     if (amountDue > 0) {
       doc.text('Amount due', totalsStartX, yPos)
