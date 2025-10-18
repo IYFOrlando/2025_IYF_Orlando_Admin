@@ -47,6 +47,12 @@ const DISCOUNT_CODES = {
     discount: 100, 
     type: 'percentage',
     description: '100% discount for teachers'
+  },
+  'SAVE50': { 
+    name: 'Save $50', 
+    discount: 50, 
+    type: 'fixed',
+    description: '$50 off discount'
   }
 }
 
@@ -548,44 +554,211 @@ const PaymentsPage = React.memo(() => {
     if (selectedInvoiceId === inv.id) setSelectedInvoiceId(null)
   }
 
+  /* ---------- invoice preview PDF (before creating invoice) ---------- */
+  const generateInvoicePreview = () => {
+    if (!student) return Swal.fire({ title: 'Select a student first', icon: 'info' })
+    if (lines.length === 0 && lunchAmount <= 0) {
+      return Swal.fire({ title: 'Nothing to invoice', icon: 'warning' })
+    }
+
+    // Create a temporary invoice object for preview
+    const previewInvoice: Invoice = {
+      id: 'PREVIEW-' + Date.now(),
+      studentId: student.id,
+      studentName: student.label,
+      lines: lines,
+      subtotal: subtotal,
+      lunch: { semesterSelected: lunchSemester, singleQty: lunchSingleQty, prices: { semester: lunchUnitSemester, single: lunchUnitSingle } },
+      lunchAmount: lunchAmount,
+      discountAmount: discountAmount,
+      discountNote: discountNote || null,
+      total: total,
+      paid: 0,
+      balance: total,
+      status: 'unpaid',
+      method: null,
+      createdAt: null,
+      updatedAt: null
+    }
+
+    generateReceipt(previewInvoice)
+  }
+
   /* ---------- receipt PDF ---------- */
   const generateReceipt = (inv: Invoice) => {
-    const docx = new jsPDF({ unit:'pt', format:'a4' })
-    const mx = 48
-    const now = new Date().toLocaleString()
+    const doc = new jsPDF({ unit:'pt', format:'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 48
+    const now = new Date()
+    const issueDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const dueDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-    docx.setFont('helvetica','bold'); docx.setFontSize(16)
-    docx.text('IYF Orlando — Payment Receipt', mx, 56)
-    docx.setFont('helvetica','normal'); docx.setFontSize(11)
-    docx.text(`Generated: ${now}`, mx, 76)
-    docx.text(`Student: ${inv.studentName}`, mx, 96)
-    docx.text(`Invoice ID: ${inv.id}`, mx, 114)
+    // Header - Invoice title (top left)
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(24)
+    doc.text('Invoice', margin, 60)
 
-    const head = [['Academy', 'Period', 'Level', 'Unit', 'Qty', 'Amount']]
-    const body = (inv.lines || []).map(l => [l.academy, `P${l.period}`, l.level || '', usd(l.unitPrice), l.qty, usd(l.amount)])
+    // Logo placeholder (top right) - you can replace this with actual logo
+    doc.setFillColor(200, 200, 200)
+    doc.rect(pageWidth - 80, 30, 50, 50, 'F')
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(8)
+    doc.text('IYF LOGO', pageWidth - 55, 55, { align: 'center' })
 
+    // Invoice details (left column)
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    let yPos = 100
+    doc.text('Invoice number', margin, yPos)
+    doc.text(inv.id, margin + 80, yPos)
+    yPos += 15
+    doc.text('Date of issue', margin, yPos)
+    doc.text(issueDate, margin + 80, yPos)
+    yPos += 15
+    doc.text('Date due', margin, yPos)
+    doc.text(dueDate, margin + 80, yPos)
+
+    // Sender information (left column)
+    yPos += 30
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(12)
+    doc.text('IYF Orlando', margin, yPos)
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    yPos += 15
+    doc.text('1234 Academy Drive', margin, yPos)
+    yPos += 12
+    doc.text('Orlando, Florida 32801, United States', margin, yPos)
+    yPos += 12
+    doc.text('Phone: +1 (407) 555-0123', margin, yPos)
+    yPos += 12
+    doc.text('Email: info@iyforlando.org', margin, yPos)
+
+    // Recipient information (right column)
+    const rightColumnX = pageWidth - 200
+    yPos = 100
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(12)
+    doc.text('Bill to', rightColumnX, yPos)
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    yPos += 15
+    doc.text(inv.studentName || 'Student Name', rightColumnX, yPos)
+    yPos += 12
+    doc.text('Student Address', rightColumnX, yPos)
+    yPos += 12
+    doc.text('Orlando, Florida 32801, United States', rightColumnX, yPos)
+    yPos += 12
+    doc.text('Email: student@email.com', rightColumnX, yPos)
+
+    // Amount due section
+    yPos += 40
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(14)
+    const amountDue = inv.balance > 0 ? inv.balance : 0
+    doc.text(`$${amountDue.toFixed(2)} USD due ${dueDate}`, margin, yPos)
+    yPos += 20
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 255)
+    doc.text('Pay online', margin, yPos)
+    doc.setTextColor(0, 0, 0)
+
+    // Line separator
+    yPos += 20
+    doc.setLineWidth(0.5)
+    doc.line(margin, yPos, pageWidth - margin, yPos)
+
+    // Line items table
+    yPos += 20
+    const tableStartY = yPos
+    
+    // Table headers
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(10)
+    doc.text('Description', margin, yPos)
+    doc.text('Qty', margin + 200, yPos)
+    doc.text('Unit price', margin + 250, yPos)
+    doc.text('Amount', margin + 350, yPos)
+    
+    // Header line
+    yPos += 5
+    doc.line(margin, yPos, pageWidth - margin, yPos)
+    yPos += 10
+
+    // Table rows
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    
+    // Academy items
+    inv.lines.forEach(line => {
+      doc.text(line.academy, margin, yPos)
+      doc.text(`P${line.period}`, margin + 5, yPos + 12)
+      if (line.level) {
+        doc.text(line.level, margin + 5, yPos + 24)
+      }
+      doc.text(line.qty.toString(), margin + 200, yPos)
+      doc.text(usd(line.unitPrice), margin + 250, yPos)
+      doc.text(usd(line.amount), margin + 350, yPos)
+      yPos += 35
+    })
+
+    // Lunch items
     if (inv.lunchAmount && inv.lunchAmount > 0) {
-      if (inv.lunch?.semesterSelected) body.push(['Lunch Semester','','',usd(inv.lunch?.prices?.semester||0),1,usd(inv.lunch?.prices?.semester||0)])
+      if (inv.lunch?.semesterSelected) {
+        doc.text('Lunch Semester', margin, yPos)
+        doc.text('1', margin + 200, yPos)
+        doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 250, yPos)
+        doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 350, yPos)
+        yPos += 20
+      }
       if (inv.lunch?.singleQty && inv.lunch?.singleQty > 0) {
-        const up = inv.lunch?.prices?.single || 0
-        body.push(['Lunch Single-Day','','',usd(up),inv.lunch.singleQty,usd(inv.lunch.singleQty*up)])
+        doc.text('Lunch Single-Day', margin, yPos)
+        doc.text(inv.lunch.singleQty.toString(), margin + 200, yPos)
+        const unitPrice = inv.lunch?.prices?.single || 0
+        doc.text(usd(unitPrice), margin + 250, yPos)
+        doc.text(usd(inv.lunch.singleQty * unitPrice), margin + 350, yPos)
+        yPos += 20
       }
     }
 
-    autoTable(docx, { startY: 140, head, body, theme: 'grid', margin: { left: mx, right: mx }, styles: { fontSize: 10 }, headStyles: { fillColor: [240,240,240] } })
+    // Totals section (right aligned)
+    const totalsStartX = pageWidth - 150
+    yPos = Math.max(yPos, tableStartY + 100)
+    
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    doc.text('Subtotal', totalsStartX, yPos)
+    doc.text(usd(inv.subtotal + (inv.lunchAmount || 0)), totalsStartX + 80, yPos)
+    yPos += 15
 
-    let y = (docx as any).lastAutoTable.finalY + 14
-    docx.setFont('helvetica','normal'); docx.setFontSize(11)
-    docx.text(`Subtotal: ${usd(inv.subtotal)}`, mx, y); y += 16
-    docx.text(`Lunch: ${usd(inv.lunchAmount || 0)}`, mx, y); y += 16
-    if (inv.discountAmount && inv.discountAmount > 0) { docx.text(`Discount: -${usd(inv.discountAmount)} ${inv.discountNote ? `(${inv.discountNote})` : ''}`, mx, y); y += 16 }
-    docx.setFont('helvetica','bold')
-    docx.text(`Total: ${usd(inv.total)}`, mx, y); y += 16
-    docx.text(`Paid: ${usd(inv.paid)}`, mx, y); y += 16
-    docx.text(`Balance: ${usd(inv.balance)}`, mx, y)
-    if (inv.balance === 0) { docx.setFont('helvetica','bold'); docx.setFontSize(36); docx.text('PAID', 420, 80, { angle: -20 }) }
+    if (inv.discountAmount && inv.discountAmount > 0) {
+      doc.text('Discount', totalsStartX, yPos)
+      doc.text(`-${usd(inv.discountAmount)}`, totalsStartX + 80, yPos)
+      yPos += 15
+    }
 
-    docx.save(`receipt-${inv.studentName?.replace(/\s+/g,'_')}-${inv.id}.pdf`)
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(12)
+    doc.text('Total', totalsStartX, yPos)
+    doc.text(usd(inv.total), totalsStartX + 80, yPos)
+    yPos += 20
+
+    if (amountDue > 0) {
+      doc.text('Amount due', totalsStartX, yPos)
+      doc.text(`$${amountDue.toFixed(2)} USD`, totalsStartX + 80, yPos)
+    } else {
+      doc.setFontSize(16)
+      doc.setTextColor(0, 128, 0)
+      doc.text('PAID', totalsStartX, yPos)
+      doc.setTextColor(0, 0, 0)
+    }
+
+    // Save file
+    const filename = inv.id.startsWith('PREVIEW-') 
+      ? `invoice-preview-${inv.studentName?.replace(/\s+/g,'_')}-${Date.now()}.pdf`
+      : `invoice-${inv.studentName?.replace(/\s+/g,'_')}-${inv.id}.pdf`
+    doc.save(filename)
   }
 
   /* ---------- Payment Records Functions ---------- */
@@ -1103,6 +1276,14 @@ const PaymentsPage = React.memo(() => {
                           </span>
                         </Tooltip>
                         <Button variant="outlined" onClick={() => createInvoice('lunchOnly')} disabled={!student}>Create Lunch-Only Invoice</Button>
+                        <Button 
+                          variant="outlined" 
+                          startIcon={<PictureAsPdfIcon />}
+                          onClick={generateInvoicePreview} 
+                          disabled={!student || (lines.length === 0 && lunchAmount <= 0)}
+                        >
+                          Preview Invoice
+                        </Button>
                       </Stack>
                     </Stack>
                   </CardContent>
