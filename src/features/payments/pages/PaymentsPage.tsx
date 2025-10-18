@@ -598,8 +598,8 @@ const PaymentsPage = React.memo(() => {
 
     // Logo (top right) - using the actual IYF logo
     try {
-      // Add the logo image
-      const logoPath = '/src/assets/logo/IYF_logo.png'
+      // Try to load the logo from the public assets
+      const logoPath = '/IYF_logo.png'
       doc.addImage(logoPath, 'PNG', pageWidth - 80, 30, 50, 50)
     } catch (error) {
       // Fallback if logo not found
@@ -621,7 +621,7 @@ const PaymentsPage = React.memo(() => {
     doc.text(issueDate, margin + 80, yPos)
 
     // Sender information (left column) - correct IYF Orlando info
-    yPos += 40
+    yPos += 50
     doc.setFont('helvetica','bold')
     doc.setFontSize(12)
     doc.text('IYF Orlando', margin, yPos)
@@ -640,36 +640,69 @@ const PaymentsPage = React.memo(() => {
 
     // Recipient information (right column) - get student info from database
     const rightColumnX = pageWidth - 200
-    yPos = 100
+    let rightYPos = 100
     doc.setFont('helvetica','bold')
     doc.setFontSize(12)
-    doc.text('Bill to', rightColumnX, yPos)
+    doc.text('Bill to', rightColumnX, rightYPos)
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
-    yPos += 20
-    doc.text(inv.studentName || 'Student Name', rightColumnX, yPos)
+    rightYPos += 20
+    doc.text(inv.studentName || 'Student Name', rightColumnX, rightYPos)
     
     // Get student email from registrations data
     const studentReg = regs.find(r => r.id === inv.studentId)
     if (studentReg?.email) {
-      yPos += 15
-      doc.text(`Email: ${studentReg.email}`, rightColumnX, yPos)
+      rightYPos += 15
+      doc.text(`Email: ${studentReg.email}`, rightColumnX, rightYPos)
     }
 
     // Amount due section - removed due date
-    yPos += 50
+    yPos += 60
     doc.setFont('helvetica','bold')
     doc.setFontSize(14)
     const amountDue = inv.balance > 0 ? inv.balance : 0
     doc.text(`$${amountDue.toFixed(2)} USD`, margin, yPos)
-    yPos += 25
+    yPos += 30
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
-    doc.text('Payment Methods:', margin, yPos)
-    yPos += 15
-    doc.text('• Cash', margin, yPos)
-    yPos += 12
-    doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+    
+    // Show payment method based on invoice status and method
+    if (inv.status === 'paid' && inv.method) {
+      doc.text('Payment Method:', margin, yPos)
+      yPos += 15
+      if (inv.method === 'cash') {
+        doc.text('• Cash', margin, yPos)
+      } else if (inv.method === 'zelle') {
+        doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+      } else if (inv.method === 'discount') {
+        doc.text('• Discount Applied', margin, yPos)
+      } else {
+        doc.text(`• ${inv.method.toUpperCase()}`, margin, yPos)
+      }
+    } else if (inv.status === 'partial' && inv.method) {
+      doc.text('Payment Method (Partial):', margin, yPos)
+      yPos += 15
+      if (inv.method === 'cash') {
+        doc.text('• Cash', margin, yPos)
+      } else if (inv.method === 'zelle') {
+        doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+      } else {
+        doc.text(`• ${inv.method.toUpperCase()}`, margin, yPos)
+      }
+      yPos += 20
+      doc.text('Available Payment Methods:', margin, yPos)
+      yPos += 15
+      doc.text('• Cash', margin, yPos)
+      yPos += 12
+      doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+    } else {
+      // Unpaid invoice - show available payment methods
+      doc.text('Payment Methods:', margin, yPos)
+      yPos += 15
+      doc.text('• Cash', margin, yPos)
+      yPos += 12
+      doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+    }
 
     // Line separator
     yPos += 25
@@ -749,12 +782,34 @@ const PaymentsPage = React.memo(() => {
     doc.setFontSize(12)
     doc.text('Total', totalsStartX, yPos)
     doc.text(usd(inv.total), totalsStartX + 80, yPos)
-    yPos += 25
+    yPos += 20
+
+    // Show paid amount and method if there are payments
+    if (inv.paid > 0) {
+      doc.setFont('helvetica','normal')
+      doc.setFontSize(10)
+      doc.text('Paid', totalsStartX, yPos)
+      doc.text(usd(inv.paid), totalsStartX + 80, yPos)
+      yPos += 15
+      
+      if (inv.method) {
+        doc.text('Method', totalsStartX, yPos)
+        const methodText = inv.method === 'cash' ? 'Cash' : 
+                          inv.method === 'zelle' ? 'Zelle' : 
+                          inv.method === 'discount' ? 'Discount' : 
+                          inv.method.toUpperCase()
+        doc.text(methodText, totalsStartX + 80, yPos)
+        yPos += 20
+      }
+    }
 
     if (amountDue > 0) {
+      doc.setFont('helvetica','bold')
+      doc.setFontSize(12)
       doc.text('Amount due', totalsStartX, yPos)
       doc.text(`$${amountDue.toFixed(2)} USD`, totalsStartX + 80, yPos)
     } else {
+      doc.setFont('helvetica','bold')
       doc.setFontSize(16)
       doc.setTextColor(0, 128, 0)
       doc.text('PAID', totalsStartX, yPos)
