@@ -30,7 +30,6 @@ import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import {
   DataGrid, GridToolbar, type GridColDef
