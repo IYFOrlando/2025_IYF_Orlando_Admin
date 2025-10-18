@@ -673,7 +673,7 @@ const PaymentsPage = React.memo(() => {
       if (inv.method === 'cash') {
         doc.text('• Cash', margin, yPos)
       } else if (inv.method === 'zelle') {
-        doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+        doc.text('• Zelle', margin, yPos)
       } else if (inv.method === 'discount') {
         doc.text('• Discount Applied', margin, yPos)
       } else {
