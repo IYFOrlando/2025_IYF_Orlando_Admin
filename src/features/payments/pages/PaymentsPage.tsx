@@ -677,7 +677,7 @@ const PaymentsPage = React.memo(() => {
       } else if (inv.method === 'discount') {
         doc.text('• Discount Applied', margin, yPos)
       } else {
-        doc.text(`• ${inv.method.toUpperCase()}`, margin, yPos)
+        doc.text(`• ${String(inv.method).toUpperCase()}`, margin, yPos)
       }
     } else if (inv.status === 'partial' && inv.method) {
       doc.text('Payment Method (Partial):', margin, yPos)
@@ -687,7 +687,7 @@ const PaymentsPage = React.memo(() => {
       } else if (inv.method === 'zelle') {
         doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
       } else {
-        doc.text(`• ${inv.method.toUpperCase()}`, margin, yPos)
+        doc.text(`• ${String(inv.method).toUpperCase()}`, margin, yPos)
       }
       yPos += 20
       doc.text('Available Payment Methods:', margin, yPos)
@@ -797,7 +797,7 @@ const PaymentsPage = React.memo(() => {
         const methodText = inv.method === 'cash' ? 'Cash' : 
                           inv.method === 'zelle' ? 'Zelle' : 
                           inv.method === 'discount' ? 'Discount' : 
-                          inv.method.toUpperCase()
+                          String(inv.method).toUpperCase()
         doc.text(methodText, totalsStartX + 80, yPos)
         yPos += 20
       }
