@@ -238,19 +238,22 @@ const PaymentsPage = React.memo(() => {
     return lines.reduce((sum, line) => sum + line.amount, 0)
   }, [lines])
 
-  // Calculate discount amount based on applied discount
+  // Calculate discount amount based on applied discount (only applies to academies, not lunch)
   const discountAmount = React.useMemo(() => {
     if (!appliedDiscount) return 0
     if (appliedDiscount.type === 'percentage') {
       return (subtotal * appliedDiscount.discount) / 100
     } else {
-      return appliedDiscount.discount
+      // For fixed discounts, only apply to academies (subtotal), not lunch
+      return Math.min(appliedDiscount.discount, subtotal)
     }
   }, [appliedDiscount, subtotal])
 
   const total = React.useMemo(() => {
-    return Math.max(0, subtotal - discountAmount)
-  }, [subtotal, discountAmount])
+    // Discount only applies to academies, lunch is always paid separately
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount)
+    return discountedSubtotal + lunchAmount
+  }, [subtotal, discountAmount, lunchAmount])
 
 
 
@@ -356,9 +359,10 @@ const PaymentsPage = React.memo(() => {
 
     const effectiveLines = mode === 'lunchOnly' ? [] : lines
     const effectiveSubtotal = effectiveLines.reduce((s, l) => s + Number(l.amount || 0), 0)
-    const effectiveGross = effectiveSubtotal + lunchAmount
-    const effectiveDiscount = Math.min(discountAmount || 0, effectiveGross)
-    const effectiveTotal = Math.max(effectiveGross - effectiveDiscount, 0)
+    const effectiveLunchAmount = lunchAmount
+    // Discount only applies to academies (subtotal), not lunch
+    const effectiveDiscount = Math.min(discountAmount || 0, effectiveSubtotal)
+    const effectiveTotal = Math.max(effectiveSubtotal - effectiveDiscount, 0) + effectiveLunchAmount
 
     if (effectiveLines.length === 0 && lunchAmount <= 0) {
       return Swal.fire({ title: 'Nothing to invoice', icon: 'warning' })
@@ -370,7 +374,7 @@ const PaymentsPage = React.memo(() => {
       lines: effectiveLines,
       subtotal: effectiveSubtotal,
       lunch: { semesterSelected: lunchSemester, singleQty: lunchSingleQty, prices: { semester: lunchUnitSemester, single: lunchUnitSingle } },
-      lunchAmount,
+      lunchAmount: effectiveLunchAmount,
       discountAmount: effectiveDiscount,
       discountNote: discountNote || null,
       total: effectiveTotal,
@@ -384,8 +388,9 @@ const PaymentsPage = React.memo(() => {
 
     setSelectedInvoiceId(ref.id)
     
-    // If the invoice has 100% discount (total is 0), automatically mark it as exonerated
-    if (effectiveTotal === 0 && effectiveDiscount > 0) {
+    // If the invoice has 100% discount on academies and no lunch, automatically mark it as exonerated
+    const academiesTotal = Math.max(effectiveSubtotal - effectiveDiscount, 0)
+    if (academiesTotal === 0 && effectiveLunchAmount === 0 && effectiveDiscount > 0) {
       await updateDoc(doc(db, INV, ref.id), { 
         paid: 0, 
         balance: 0, 
