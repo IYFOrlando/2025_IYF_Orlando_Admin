@@ -907,7 +907,7 @@ const PaymentsPage = React.memo(() => {
     doc.setTextColor(100, 100, 100)
     doc.setFont('helvetica','normal')
     doc.setFontSize(8)
-    doc.text('TYF Orlando Academy', pageWidth / 2, footerY + 15, { align: 'center' })
+    doc.text('IYF Orlando Academy', pageWidth / 2, footerY + 15, { align: 'center' })
     doc.text('www.iyforlando.org | orlando@iyfusa.org | 407-900-3442', pageWidth / 2, footerY + 30, { align: 'center' })
 
     // Save file
