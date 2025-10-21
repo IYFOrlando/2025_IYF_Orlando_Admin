@@ -57,23 +57,47 @@ const DISCOUNT_CODES = {
 
 /* ---------- helpers ---------- */
 function priceFor(academy?: string, _level?: string | null, _period?: 1 | 2, pricing?: PricingDoc) {
-  if (!academy || !pricing) return 0
+  if (!academy) return 0
   const a = norm(academy)
   
-  // Special pricing for Kids and Soccer - they only pay $40
-  // Check for various possible names
+  // Special pricing for specific academies
   const academyLower = a.toLowerCase()
-  if (academyLower === 'kids' || 
-      academyLower === 'soccer' || 
-      academyLower.includes('kids') || 
-      academyLower.includes('soccer')) {
-    console.log(`Special pricing applied for academy: ${academy} -> $40`)
+  
+  // Korean Cooking - $150
+  if (academyLower.includes('korean') && academyLower.includes('cooking')) {
+    return 150
+  }
+  
+  // Art, DIY, Piano - $80
+  if (academyLower === 'art' || 
+      academyLower === 'diy' || 
+      academyLower === 'piano') {
+    return 80
+  }
+  
+  // Korean Language - $40
+  if (academyLower.includes('korean') && academyLower.includes('language')) {
     return 40
   }
   
-  const base = pricing.academyPrices?.[a]
-  console.log(`Regular pricing for academy: ${academy} -> $${base || 0}`)
-  return Number(base || 0)
+  // Kids, Soccer, Pickleball, Senior, Stretch and Strengthen - $40
+  if (academyLower === 'kids' || 
+      academyLower === 'soccer' || 
+      academyLower === 'pickleball' ||
+      academyLower === 'senior' ||
+      academyLower.includes('stretch') ||
+      academyLower.includes('kids') || 
+      academyLower.includes('soccer')) {
+    return 40
+  }
+  
+  // Try to get price from database first
+  if (pricing?.academyPrices?.[a] && pricing.academyPrices[a] > 0) {
+    return Number(pricing.academyPrices[a])
+  }
+  
+  // Default pricing for any other academies
+  return 40
 }
 
 type StudentOption = { id: string; label: string; reg: Registration }
@@ -105,6 +129,7 @@ const PaymentsPage = React.memo(() => {
   const { data: pricing, savePricing } = usePricingSettings()
   const { data: allInvoices } = useInvoices()
   const { data: allPayments } = usePayments()
+
 
   const [student, setStudent] = React.useState<StudentOption | null>(null)
   const [studentInvoices, setStudentInvoices] = React.useState<Invoice[]>([])
@@ -249,6 +274,17 @@ const PaymentsPage = React.memo(() => {
     }
   }, [appliedDiscount, subtotal])
 
+  const lunchAmount = React.useMemo(() => {
+    let amount = 0
+    if (lunchSemester) {
+      amount += Number(pricing.lunch?.semester || 0)
+    }
+    if (lunchSingleQty > 0) {
+      amount += Number(pricing.lunch?.single || 0) * lunchSingleQty
+    }
+    return amount
+  }, [lunchSemester, lunchSingleQty, pricing.lunch])
+
   const total = React.useMemo(() => {
     // Discount only applies to academies, lunch is always paid separately
     const discountedSubtotal = Math.max(0, subtotal - discountAmount)
@@ -346,6 +382,9 @@ const PaymentsPage = React.memo(() => {
     setOpenPricing(false)
     notifySuccess('Pricing updated')
   }
+
+
+
 
   /* ---------- invoice create ---------- */
   const createInvoice = async (mode: 'normal' | 'lunchOnly' = 'normal') => {
@@ -592,234 +631,284 @@ const PaymentsPage = React.memo(() => {
   const generateReceipt = (inv: Invoice) => {
     const doc = new jsPDF({ unit:'pt', format:'a4' })
     const pageWidth = doc.internal.pageSize.getWidth()
-    const margin = 48
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 40
     const now = new Date()
     const issueDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-    // Header - Invoice title (top left)
-    doc.setFont('helvetica','bold')
-    doc.setFontSize(24)
-    doc.text('Invoice', margin, 60)
+      // Modern color scheme
+      const primaryColor = [33, 112, 177] // Blue #2170b1 (logo color)
+      const secondaryColor = [76, 175, 80] // Green
+      const accentColor = [255, 152, 0] // Orange
+      const textColor = [33, 33, 33] // Dark gray
+      const lightGray = [245, 245, 245]
+      const borderColor = [224, 224, 224]
 
-    // Logo (top right) - using the actual IYF logo
-    try {
-      // Try to load the logo from the public assets
-      const logoPath = '/IYF_logo.png'
-      doc.addImage(logoPath, 'PNG', pageWidth - 80, 30, 50, 50)
-    } catch (error) {
-      // Fallback if logo not found
-      doc.setFillColor(200, 200, 200)
-      doc.rect(pageWidth - 80, 30, 50, 50, 'F')
-      doc.setFont('helvetica','normal')
-      doc.setFontSize(8)
-      doc.text('IYF LOGO', pageWidth - 55, 55, { align: 'center' })
-    }
-
-    // Invoice details (left column)
-    doc.setFont('helvetica','normal')
-    doc.setFontSize(10)
-    let yPos = 100
-    doc.text('Invoice number', margin, yPos)
-    doc.text(inv.id, margin + 80, yPos)
-    yPos += 20
-    doc.text('Date of issue', margin, yPos)
-    doc.text(issueDate, margin + 80, yPos)
-
-    // Sender information (left column) - correct IYF Orlando info
-    yPos += 50
-    doc.setFont('helvetica','bold')
-    doc.setFontSize(12)
-    doc.text('IYF Orlando', margin, yPos)
-    doc.setFont('helvetica','normal')
-    doc.setFontSize(10)
-    yPos += 20
-    doc.text('320 S Park Ave', margin, yPos)
-    yPos += 15
-    doc.text('Sanford, FL 32771', margin, yPos)
-    yPos += 15
-    doc.text('Phone: 407-900-3442', margin, yPos)
-    yPos += 15
-    doc.text('Email: orlando@iyfusa.org', margin, yPos)
-    yPos += 15
-    doc.text('Website: www.iyforlando.org', margin, yPos)
-
-    // Recipient information (right column) - get student info from database
-    const rightColumnX = pageWidth - 200
-    let rightYPos = 100
-    doc.setFont('helvetica','bold')
-    doc.setFontSize(12)
-    doc.text('Bill to', rightColumnX, rightYPos)
-    doc.setFont('helvetica','normal')
-    doc.setFontSize(10)
-    rightYPos += 20
-    doc.text(inv.studentName || 'Student Name', rightColumnX, rightYPos)
+      // Header with gradient-like effect
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2])
+      doc.rect(0, 0, pageWidth, 120, 'F')
     
-    // Get student email from registrations data
-    const studentReg = regs.find(r => r.id === inv.studentId)
-    if (studentReg?.email) {
-      rightYPos += 15
-      doc.text(`Email: ${studentReg.email}`, rightColumnX, rightYPos)
-    }
+      // Logo without background
+      try {
+        const logoPath = '/IYF_logo.png'
+        doc.addImage(logoPath, 'PNG', pageWidth - 90, 30, 60, 60)
+      } catch (error) {
+        // If logo fails to load, show text instead
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica','bold')
+        doc.setFontSize(16)
+        doc.text('IYF', pageWidth - 60, 60, { align: 'center' })
+      }
 
-    // Amount due section - removed due date
-    yPos += 60
+    // Invoice title with modern typography
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(32)
+    doc.text('INVOICE', margin, 50)
+    
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(14)
+    doc.text('IYF Orlando Academy', margin, 75)
+    
+    doc.setFontSize(12)
+    doc.text(`Invoice #${inv.id}`, margin, 95)
+
+    // Invoice details card
+    let yPos = 150
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
+    doc.setLineWidth(1)
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 100, 'FD')
+    
+    doc.setTextColor(textColor[0], textColor[1], textColor[2])
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(12)
+    doc.text('Invoice Details', margin + 15, yPos + 20)
+    
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    doc.text('Issue Date:', margin + 15, yPos + 40)
+    doc.text(issueDate, margin + 100, yPos + 40)
+    
+    doc.text('Status:', margin + 15, yPos + 55)
+    const statusColor = inv.status === 'paid' ? secondaryColor : 
+                       inv.status === 'partial' ? accentColor : 
+                       [244, 67, 54] // Red for unpaid
+    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
+    doc.setFont('helvetica','bold')
+    doc.text(inv.status.toUpperCase(), margin + 100, yPos + 55)
+    
+    doc.setTextColor(textColor[0], textColor[1], textColor[2])
+    doc.setFont('helvetica','normal')
+    doc.text('Amount Due:', margin + 15, yPos + 70)
+    const amountDue = inv.balance > 0 ? inv.balance : 0
     doc.setFont('helvetica','bold')
     doc.setFontSize(14)
-    const amountDue = inv.balance > 0 ? inv.balance : 0
-    doc.text(`$${amountDue.toFixed(2)} USD`, margin, yPos)
-    yPos += 30
-    doc.setFont('helvetica','normal')
-    doc.setFontSize(10)
+    doc.text(`$${amountDue.toFixed(2)}`, margin + 100, yPos + 70)
     
-    // Show payment method based on invoice status and method
-    if (inv.status === 'paid' && inv.method) {
-      doc.text('Payment Method:', margin, yPos)
-      yPos += 15
-      if (inv.method === 'cash') {
-        doc.text('• Cash', margin, yPos)
-      } else if (inv.method === 'zelle') {
-        doc.text('• Zelle', margin, yPos)
-      } else if (inv.method === 'discount') {
-        doc.text('• Discount Applied', margin, yPos)
-      } else {
-        doc.text(`• ${String(inv.method).toUpperCase()}`, margin, yPos)
-      }
-    } else if (inv.status === 'partial' && inv.method) {
-      doc.text('Payment Method (Partial):', margin, yPos)
-      yPos += 15
-      if (inv.method === 'cash') {
-        doc.text('• Cash', margin, yPos)
-      } else if (inv.method === 'zelle') {
-        doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
-      } else {
-        doc.text(`• ${String(inv.method).toUpperCase()}`, margin, yPos)
-      }
-      yPos += 20
-      doc.text('Available Payment Methods:', margin, yPos)
-      yPos += 15
-      doc.text('• Cash', margin, yPos)
-      yPos += 12
-      doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
-    } else {
-      // Unpaid invoice - show available payment methods
-      doc.text('Payment Methods:', margin, yPos)
-      yPos += 15
-      doc.text('• Cash', margin, yPos)
-      yPos += 12
-      doc.text('• Zelle: orlando@iyfusa.org', margin, yPos)
+    // Add payment method if available
+    if (inv.method) {
+      doc.setFont('helvetica','normal')
+      doc.setFontSize(10)
+      doc.text('Payment Method:', margin + 15, yPos + 85)
+      const methodText = inv.method === 'cash' ? 'Cash' : 
+                        inv.method === 'zelle' ? 'Zelle' : 
+                        inv.method === 'discount' ? 'Discount' : 
+                        String(inv.method).toUpperCase()
+      doc.setFont('helvetica','bold')
+      doc.text(methodText, margin + 100, yPos + 85)
     }
 
-    // Line separator
-    yPos += 25
-    doc.setLineWidth(0.5)
-    doc.line(margin, yPos, pageWidth - margin, yPos)
-
-    // Line items table
-    yPos += 25
-    const tableStartY = yPos
+    // Company and student info in two columns
+    yPos += 130
     
-    // Table headers
+    // Company info (left column)
+    doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
+    doc.rect(margin, yPos, (pageWidth - 3 * margin) / 2, 120, 'F')
+    
+    doc.setTextColor(textColor[0], textColor[1], textColor[2])
     doc.setFont('helvetica','bold')
-    doc.setFontSize(10)
-    doc.text('Description', margin, yPos)
-    doc.text('Qty', margin + 200, yPos)
-    doc.text('Unit price', margin + 250, yPos)
-    doc.text('Amount', margin + 350, yPos)
+    doc.setFontSize(12)
+    doc.text('From', margin + 15, yPos + 20)
     
-    // Header line
-    yPos += 8
-    doc.line(margin, yPos, pageWidth - margin, yPos)
-    yPos += 15
-
-    // Table rows
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(14)
+    doc.text('IYF Orlando', margin + 15, yPos + 40)
+    
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
+    doc.text('320 S Park Ave', margin + 15, yPos + 60)
+    doc.text('Sanford, FL 32771', margin + 15, yPos + 75)
+    doc.text('Phone: 407-900-3442', margin + 15, yPos + 90)
+    doc.text('orlando@iyfusa.org', margin + 15, yPos + 105)
+
+    // Student info (right column)
+    const rightColumnX = margin + (pageWidth - 3 * margin) / 2 + margin
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
+    doc.rect(rightColumnX, yPos, (pageWidth - 3 * margin) / 2, 120, 'FD')
+    
+    doc.setTextColor(textColor[0], textColor[1], textColor[2])
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(12)
+    doc.text('Bill To', rightColumnX + 15, yPos + 20)
+    
+    const studentReg = regs.find(r => r.id === inv.studentId)
+    
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(10)
+    doc.text('First Name:', rightColumnX + 15, yPos + 40)
+    doc.setFont('helvetica','bold')
+    doc.text(studentReg?.firstName || 'N/A', rightColumnX + 80, yPos + 40)
+    
+    doc.setFont('helvetica','normal')
+    doc.text('Last Name:', rightColumnX + 15, yPos + 55)
+    doc.setFont('helvetica','bold')
+    doc.text(studentReg?.lastName || 'N/A', rightColumnX + 80, yPos + 55)
+    
+    doc.setFont('helvetica','normal')
+    doc.text('Email:', rightColumnX + 15, yPos + 70)
+    doc.setFont('helvetica','bold')
+    doc.text(studentReg?.email || 'N/A', rightColumnX + 80, yPos + 70)
+
+    // Items table with modern design
+    yPos += 150
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2])
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 30, 'F')
+    
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(12)
+    doc.text('Description', margin + 15, yPos + 20)
+    doc.text('Period', margin + 200, yPos + 20)
+    doc.text('Qty', margin + 280, yPos + 20)
+    doc.text('Unit Price', margin + 350, yPos + 20)
+    doc.text('Amount', margin + 450, yPos + 20)
+
+    yPos += 30
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
     
     // Academy items
-    inv.lines.forEach(line => {
-      doc.text(line.academy, margin, yPos)
-      doc.text(`P${line.period}`, margin + 5, yPos + 15)
-      if (line.level) {
-        doc.text(line.level, margin + 5, yPos + 30)
+    inv.lines.forEach((line, index) => {
+      const isEven = index % 2 === 0
+      if (isEven) {
+        doc.setFillColor(250, 250, 250)
+        doc.rect(margin, yPos, pageWidth - 2 * margin, 40, 'F')
       }
-      doc.text(line.qty.toString(), margin + 200, yPos)
-      doc.text(usd(line.unitPrice), margin + 250, yPos)
-      doc.text(usd(line.amount), margin + 350, yPos)
-      yPos += 45
+      
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
+      doc.setFont('helvetica','normal')
+      doc.setFontSize(10)
+      doc.text(line.academy, margin + 15, yPos + 15)
+      doc.text(`P${line.period}`, margin + 200, yPos + 15)
+      doc.text(line.qty.toString(), margin + 280, yPos + 15)
+      doc.text(usd(line.unitPrice), margin + 350, yPos + 15)
+      doc.text(usd(line.amount), margin + 450, yPos + 15)
+      
+      if (line.level) {
+        doc.setFontSize(9)
+        doc.setTextColor(100, 100, 100)
+        doc.text(line.level, margin + 15, yPos + 30)
+      }
+      
+      yPos += 40
     })
 
     // Lunch items
     if (inv.lunchAmount && inv.lunchAmount > 0) {
-      if (inv.lunch?.semesterSelected) {
-        doc.text('Lunch Semester', margin, yPos)
-        doc.text('1', margin + 200, yPos)
-        doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 250, yPos)
-        doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 350, yPos)
-        yPos += 25
+      const isEven = inv.lines.length % 2 === 0
+      if (isEven) {
+        doc.setFillColor(250, 250, 250)
+        doc.rect(margin, yPos, pageWidth - 2 * margin, 40, 'F')
       }
+      
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
+      doc.setFont('helvetica','normal')
+      doc.setFontSize(10)
+      
+      if (inv.lunch?.semesterSelected) {
+        doc.text('Lunch Semester', margin + 15, yPos + 15)
+        doc.text('1', margin + 280, yPos + 15)
+        doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 350, yPos + 15)
+        doc.text(usd(inv.lunch?.prices?.semester || 0), margin + 450, yPos + 15)
+        yPos += 40
+      }
+      
       if (inv.lunch?.singleQty && inv.lunch?.singleQty > 0) {
-        doc.text('Lunch Single-Day', margin, yPos)
-        doc.text(inv.lunch.singleQty.toString(), margin + 200, yPos)
+        doc.text('Lunch Single-Day', margin + 15, yPos + 15)
+        doc.text(inv.lunch.singleQty.toString(), margin + 280, yPos + 15)
         const unitPrice = inv.lunch?.prices?.single || 0
-        doc.text(usd(unitPrice), margin + 250, yPos)
-        doc.text(usd(inv.lunch.singleQty * unitPrice), margin + 350, yPos)
-        yPos += 25
+        doc.text(usd(unitPrice), margin + 350, yPos + 15)
+        doc.text(usd(inv.lunch.singleQty * unitPrice), margin + 450, yPos + 15)
+        yPos += 40
       }
     }
 
-    // Totals section (right aligned)
-    const totalsStartX = pageWidth - 150
-    yPos = Math.max(yPos, tableStartY + 120)
+    // Totals section with modern card design
+    const totalsStartX = pageWidth - 200
+    yPos = Math.max(yPos + 20, 400)
     
+    doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
+    doc.rect(totalsStartX - 15, yPos - 20, 180, 120, 'FD')
+    
+    doc.setTextColor(textColor[0], textColor[1], textColor[2])
     doc.setFont('helvetica','normal')
     doc.setFontSize(10)
     doc.text('Subtotal', totalsStartX, yPos)
-    doc.text(usd(inv.subtotal + (inv.lunchAmount || 0)), totalsStartX + 80, yPos)
+    doc.text(usd(inv.subtotal + (inv.lunchAmount || 0)), totalsStartX + 100, yPos)
     yPos += 20
 
     if (inv.discountAmount && inv.discountAmount > 0) {
       doc.text('Discount', totalsStartX, yPos)
-      doc.text(`-${usd(inv.discountAmount)}`, totalsStartX + 80, yPos)
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2])
+      doc.text(`-${usd(inv.discountAmount)}`, totalsStartX + 100, yPos)
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
       yPos += 20
     }
 
     doc.setFont('helvetica','bold')
-    doc.setFontSize(12)
+    doc.setFontSize(14)
     doc.text('Total', totalsStartX, yPos)
-    doc.text(usd(inv.total), totalsStartX + 80, yPos)
-    yPos += 20
+    doc.text(usd(inv.total), totalsStartX + 100, yPos)
+    yPos += 30
 
-    // Show paid amount and method if there are payments
     if (inv.paid > 0) {
       doc.setFont('helvetica','normal')
       doc.setFontSize(10)
       doc.text('Paid', totalsStartX, yPos)
-      doc.text(usd(inv.paid), totalsStartX + 80, yPos)
-      yPos += 15
-      
-      if (inv.method) {
-        doc.text('Method', totalsStartX, yPos)
-        const methodText = inv.method === 'cash' ? 'Cash' : 
-                          inv.method === 'zelle' ? 'Zelle' : 
-                          inv.method === 'discount' ? 'Discount' : 
-                          String(inv.method).toUpperCase()
-        doc.text(methodText, totalsStartX + 80, yPos)
-        yPos += 20
-      }
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2])
+      doc.text(usd(inv.paid), totalsStartX + 100, yPos)
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
+      yPos += 20
     }
 
+    // Amount due with emphasis
     if (amountDue > 0) {
       doc.setFont('helvetica','bold')
-      doc.setFontSize(12)
-      doc.text('Amount due', totalsStartX, yPos)
-      doc.text(`$${amountDue.toFixed(2)} USD`, totalsStartX + 80, yPos)
+      doc.setFontSize(16)
+      doc.setTextColor(244, 67, 54) // Red
+      doc.text('Amount Due', totalsStartX, yPos)
+      doc.text(`$${amountDue.toFixed(2)}`, totalsStartX + 100, yPos)
     } else {
       doc.setFont('helvetica','bold')
       doc.setFontSize(16)
-      doc.setTextColor(0, 128, 0)
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2])
       doc.text('PAID', totalsStartX, yPos)
-      doc.setTextColor(0, 0, 0)
     }
+
+
+    // Footer
+    const footerY = pageHeight - 40
+    doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
+    doc.rect(0, footerY, pageWidth, 40, 'F')
+    
+    doc.setTextColor(100, 100, 100)
+    doc.setFont('helvetica','normal')
+    doc.setFontSize(8)
+    doc.text('TYF Orlando Academy', pageWidth / 2, footerY + 15, { align: 'center' })
+    doc.text('www.iyforlando.org | orlando@iyfusa.org | 407-900-3442', pageWidth / 2, footerY + 30, { align: 'center' })
 
     // Save file
     const filename = inv.id.startsWith('PREVIEW-') 
@@ -848,17 +937,6 @@ const PaymentsPage = React.memo(() => {
   const composerHasTuition = React.useMemo(() => {
     return lines.some(l => !!l.academy)
   }, [lines])
-
-  const lunchAmount = React.useMemo(() => {
-    let amount = 0
-    if (lunchSemester) {
-      amount += Number(pricing.lunch?.semester || 0)
-    }
-    if (lunchSingleQty > 0) {
-      amount += Number(pricing.lunch?.single || 0) * lunchSingleQty
-    }
-    return amount
-  }, [lunchSemester, lunchSingleQty, pricing.lunch])
 
   const lunchUnitSemester = Number(pricing.lunch?.semester || 0)
   const lunchUnitSingle = Number(pricing.lunch?.single || 0)

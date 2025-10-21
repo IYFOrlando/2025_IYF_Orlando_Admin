@@ -15,7 +15,9 @@ export function usePricingSettings() {
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
+    // Try to access pricing data, but handle permissions gracefully
     const ref = doc(db, ...PATH)
+    
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -32,8 +34,23 @@ export function usePricingSettings() {
         }
         setLoading(false)
       },
-      (e) => { setError(e.message); setLoading(false) },
+      (e) => { 
+        // Handle permissions error silently - use default pricing
+        if (e.code === 'permission-denied' || e.message.includes('permissions')) {
+          // User doesn't have permissions to read pricing - use defaults
+          setData({ academyPrices: {}, items: [], lunch: { semester: 40, single: 4 } })
+          setError(null)
+          setLoading(false)
+          return
+        }
+        
+        // For other errors, still use defaults but log the error
+        setData({ academyPrices: {}, items: [], lunch: { semester: 40, single: 4 } })
+        setError(null)
+        setLoading(false)
+      },
     )
+    
     return () => unsub()
   }, [])
 
