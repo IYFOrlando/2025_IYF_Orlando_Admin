@@ -18,6 +18,8 @@ import InvalidAcademiesReportPage from '../features/reports/pages/InvalidAcademi
 import AttendancePage from '../features/attendance/pages/AttendancePage'
 import ProgressPage from '../features/progress/pages/ProgressPage'
 import AcademiesPage from '../features/academies/pages/AcademiesPage'
+import VolunteersPage from '../features/volunteers/pages/VolunteersPage'
+import EventsPage from '../features/events/pages/EventsPage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
 import '../index.css'
@@ -46,6 +48,8 @@ const router = createBrowserRouter([
       { path: 'attendance', element: <AttendancePage /> },
       { path: 'progress', element: <ProgressPage /> },
       { path: 'classes', element: <AcademiesPage /> },
+      { path: 'volunteers', element: <VolunteersPage /> },
+      { path: 'events', element: <EventsPage /> },
     ],
   },
 ])

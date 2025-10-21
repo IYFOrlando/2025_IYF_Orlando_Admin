@@ -201,7 +201,7 @@ const PaymentsPage = React.memo(() => {
       if (!selectedInvoiceId && invs.length) setSelectedInvoiceId(invs[0].id)
     })
     const up = onSnapshot(qp, (snap) => {
-      const pays = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Payment))
+      const pays = snap.docs.map(d => ({ id: d.id, ...d.data() } as Payment))
         .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
       setStudentPayments(pays)
     })
@@ -215,8 +215,8 @@ const PaymentsPage = React.memo(() => {
   React.useEffect(() => {
     if (!student?.reg) { setLines([]); return }
     const r = student.reg
-    const p1Paid = tuitionFullyPaidForSelected({ ...r, secondPeriod: undefined } as any, studentInvoices)
-    const p2Paid = tuitionFullyPaidForSelected({ ...r, firstPeriod: undefined } as any, studentInvoices)
+    const p1Paid = tuitionFullyPaidForSelected({ ...r, secondPeriod: undefined }, studentInvoices)
+    const p2Paid = tuitionFullyPaidForSelected({ ...r, firstPeriod: undefined }, studentInvoices)
 
     const L: InvoiceLine[] = []
     const a1 = norm(r.firstPeriod?.academy)
@@ -652,7 +652,7 @@ const PaymentsPage = React.memo(() => {
       try {
         const logoPath = '/IYF_logo.png'
         doc.addImage(logoPath, 'PNG', pageWidth - 90, 30, 60, 60)
-      } catch (error) {
+      } catch {
         // If logo fails to load, show text instead
         doc.setTextColor(255, 255, 255)
         doc.setFont('helvetica','bold')
@@ -918,7 +918,7 @@ const PaymentsPage = React.memo(() => {
   }
 
   /* ---------- Payment Records Functions ---------- */
-  const handleRowClick = React.useCallback((params: any) => {
+  const handleRowClick = React.useCallback((params: { row: Payment }) => {
     setSelectedPaymentRecord(params.row)
     setPaymentDetailsOpen(true)
   }, [])
