@@ -3,7 +3,7 @@ import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Typogra
 import QrCodeIcon from '@mui/icons-material/QrCode'
 import PrintIcon from '@mui/icons-material/Print'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
-import type { QRCodeData, VolunteerCode } from '../types'
+import type { QRCodeData } from '../types'
 import { useVolunteerCodes } from '../hooks/useVolunteerCodes'
 import { useVolunteerHours } from '../hooks/useVolunteerHours'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
@@ -23,7 +23,7 @@ export default function QRCodeGenerator({ eventId, eventName, open, onClose }: Q
   const [showAddVolunteer, setShowAddVolunteer] = React.useState(false)
 
   const { data: volunteerCodes, createCode, getVolunteerByCode } = useVolunteerCodes(eventId)
-  const { checkIn, checkOut } = useVolunteerHours(eventId)
+  const { checkIn } = useVolunteerHours(eventId)
 
   const qrData: QRCodeData = {
     type: selectedType,

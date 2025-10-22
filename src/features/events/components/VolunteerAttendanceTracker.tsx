@@ -1,19 +1,18 @@
 import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Stack, Box, Typography, Chip,
-  Grid, Button, TextField, Alert, Divider, Paper, IconButton,
-  Tooltip, Dialog, DialogTitle, DialogContent, DialogActions
+  Grid, Button, TextField, Alert, Divider, Paper,
+  Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material'
 import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid'
 import PersonIcon from '@mui/icons-material/Person'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import CancelIcon from '@mui/icons-material/Cancel'
 import QrCodeIcon from '@mui/icons-material/QrCode'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { useVolunteerAttendance } from '../hooks/useVolunteerAttendance'
 import { useVolunteerApplications } from '../../volunteers/hooks/useVolunteerApplications'
-import type { Event, VolunteerHours, HoursStatus } from '../types'
+import type { Event, HoursStatus } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import Swal from 'sweetalert2'
 
@@ -42,7 +41,6 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
   const [volunteerName, setVolunteerName] = React.useState('')
   const [volunteerEmail, setVolunteerEmail] = React.useState('')
   const [qrDialogOpen, setQrDialogOpen] = React.useState(false)
-  const [addMoreSlots, setAddMoreSlots] = React.useState(false)
 
   // Filter approved volunteers for this event
   const approvedVolunteers = React.useMemo(() => {
@@ -78,14 +76,12 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
         setVolunteerCode('')
         setVolunteerName('')
         setVolunteerEmail('')
-        setAddMoreSlots(true)
       } else {
         // Close dialog and reset
         setCheckInDialogOpen(false)
         setVolunteerCode('')
         setVolunteerName('')
         setVolunteerEmail('')
-        setAddMoreSlots(false)
       }
     } catch (err: any) {
       notifyError(err.message || 'Failed to check in volunteer')
@@ -128,12 +124,10 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
         if (result.isConfirmed) {
           // Keep dialog open and clear fields for next volunteer
           setVolunteerCode('')
-          setAddMoreSlots(true)
         } else {
           // Close dialog and reset
           setQrDialogOpen(false)
           setVolunteerCode('')
-          setAddMoreSlots(false)
         }
       } catch (err: any) {
         notifyError(err.message || 'Failed to check in volunteer')
@@ -352,7 +346,7 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
               onClick={() => setCheckInDialogOpen(true)}
               color="primary"
               size="large"
-              fullWidth={{ xs: true, sm: false }}
+              fullWidth
             >
               Manual Check-In
             </Button>
@@ -362,7 +356,7 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
               onClick={() => setQrDialogOpen(true)}
               color="secondary"
               size="large"
-              fullWidth={{ xs: true, sm: false }}
+              fullWidth
             >
               QR Code Check-In
             </Button>
@@ -371,7 +365,7 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
               startIcon={<RefreshIcon />}
               onClick={() => window.location.reload()}
               size="large"
-              fullWidth={{ xs: true, sm: false }}
+              fullWidth
             >
               Refresh
             </Button>

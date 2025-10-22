@@ -2,7 +2,7 @@ import * as React from 'react'
 import { collection, onSnapshot, query, orderBy, where, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_HOURS_COLLECTION } from '../../../lib/config'
-import type { VolunteerHours, HoursStatus } from '../types'
+import type { VolunteerHours } from '../types'
 
 export function useVolunteerHours(eventId?: string) {
   const [data, setData] = React.useState<VolunteerHours[]>([])
@@ -69,7 +69,7 @@ export function useVolunteerHours(eventId?: string) {
         h.volunteerId === volunteerCode && 
         h.eventId === eventId && 
         h.status === 'checked-in' &&
-        new Date(h.checkInTime?.seconds * 1000).toDateString() === today
+        h.checkInTime?.seconds && new Date(h.checkInTime.seconds * 1000).toDateString() === today
       )
 
       if (existingHours) {

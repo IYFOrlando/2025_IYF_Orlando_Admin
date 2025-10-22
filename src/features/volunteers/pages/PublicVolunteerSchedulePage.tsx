@@ -1,18 +1,16 @@
 import * as React from 'react'
 import {
   Box, Typography, Card, CardContent, Container, Stack,
-  Alert, Button, Grid, Paper, Avatar, Chip, Divider
+  Alert, Grid, Paper, Avatar, Chip, Divider
 } from '@mui/material'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import PeopleIcon from '@mui/icons-material/People'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import { useVolunteerSchedule } from '../hooks/useVolunteerSchedule'
-import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
 
 export default function PublicVolunteerSchedulePage() {
-  const { data: schedule, loading, getPreEventSchedule } = useVolunteerSchedule()
-  const { data: volunteers } = useVolunteerApplications()
+  const { loading, getPreEventSchedule } = useVolunteerSchedule()
   
   const preEventSlots = getPreEventSchedule()
 
@@ -182,7 +180,7 @@ export default function PublicVolunteerSchedulePage() {
                             />
                             <Chip 
                               icon={<ScheduleIcon />}
-                              label={`${dayData.volunteers.reduce((total, v) => total + (v.hours || 0), 0)} total hours`}
+                              label={`${dayData.volunteers.reduce((total: number, v: any) => total + (v.hours || 0), 0)} total hours`}
                               color="secondary"
                               variant="outlined"
                               size="small"
@@ -194,7 +192,7 @@ export default function PublicVolunteerSchedulePage() {
                     
                     <CardContent>
                       <Grid container spacing={2}>
-                        {dayData.volunteers.map((volunteer, volIndex) => (
+                        {dayData.volunteers.map((volunteer: any, volIndex: number) => (
                           <Grid item xs={12} sm={6} md={4} key={volIndex}>
                             <Paper sx={{ 
                               p: 2, 
@@ -210,7 +208,7 @@ export default function PublicVolunteerSchedulePage() {
                                     width: 40,
                                     height: 40
                                   }}>
-                                    {volunteer.name.split(' ').map(n => n[0]).join('')}
+                                    {volunteer.name.split(' ').map((n: string) => n[0]).join('')}
                                   </Avatar>
                                   <Box>
                                     <Typography variant="subtitle1" fontWeight="bold">

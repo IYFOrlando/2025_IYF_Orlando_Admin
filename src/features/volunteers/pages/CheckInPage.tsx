@@ -1,5 +1,4 @@
-import * as React from 'react'
-import { Box, Typography, Container } from '@mui/material'
+import { Box, Container } from '@mui/material'
 import VolunteerCheckInStandalone from '../components/VolunteerCheckInStandalone'
 
 export default function CheckInPage() {

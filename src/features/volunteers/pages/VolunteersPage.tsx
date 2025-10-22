@@ -2,15 +2,12 @@ import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions, Typography, Chip,
-  Grid, MenuItem, FormControl, InputLabel, Select, Divider, Tabs, Tab
+  Grid, MenuItem, FormControl, InputLabel, Select, Tabs, Tab
 } from '@mui/material'
 import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import PersonIcon from '@mui/icons-material/Person'
 import EmailIcon from '@mui/icons-material/Email'
-import PhoneIcon from '@mui/icons-material/Phone'
-import LocationOnIcon from '@mui/icons-material/LocationOn'
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
 import PendingIcon from '@mui/icons-material/Pending'
@@ -99,7 +96,12 @@ function VolunteersPageContent() {
     source: 'website',
     eventInfoAccepted: true,
     termsAccepted: true,
-    status: 'pending' as VolunteerStatus
+    status: 'pending' as VolunteerStatus,
+    // Additional optional fields
+    age: 18,
+    phone: '',
+    confirmEmail: '',
+    city: ''
   })
 
   const filteredApplications = React.useMemo(() => {
@@ -145,26 +147,27 @@ function VolunteersPageContent() {
         return
       }
 
-      await createVolunteer({
-        ...newVolunteer,
-        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 }
-      })
+      await createVolunteer(newVolunteer)
       
       notifySuccess('Volunteer application created successfully')
       setCreateDialogOpen(false)
       setNewVolunteer({
         firstName: '',
         lastName: '',
-        age: 18,
-        gender: '',
-        phone: '',
         email: '',
-        confirmEmail: '',
-        city: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
+        gender: '',
         tshirtSize: '',
-        status: 'pending'
+        emergencyContact: '',
+        emergencyPhone: '',
+        volunteerCode: '',
+        source: 'website',
+        eventInfoAccepted: true,
+        termsAccepted: true,
+        status: 'pending' as VolunteerStatus,
+        age: 18,
+        phone: '',
+        confirmEmail: '',
+        city: ''
       })
     } catch (err) {
       console.error('Error creating volunteer:', err)
@@ -177,16 +180,20 @@ function VolunteersPageContent() {
     setNewVolunteer({
       firstName: application.firstName,
       lastName: application.lastName,
-      age: application.age,
-      gender: application.gender,
-      phone: application.phone,
       email: application.email,
-      confirmEmail: application.email,
-      city: application.city,
-      emergencyContactName: application.emergencyContactName,
-      emergencyContactPhone: application.emergencyContactPhone,
+      gender: application.gender,
       tshirtSize: application.tshirtSize,
-      status: application.status
+      emergencyContact: application.emergencyContact,
+      emergencyPhone: application.emergencyPhone,
+      volunteerCode: application.volunteerCode || '',
+      source: application.source || 'website',
+      eventInfoAccepted: application.eventInfoAccepted || true,
+      termsAccepted: application.termsAccepted || true,
+      status: application.status,
+      age: application.age || 18,
+      phone: application.phone || '',
+      confirmEmail: application.email,
+      city: application.city || ''
     })
     setEditDialogOpen(true)
   }, [])
@@ -211,16 +218,20 @@ function VolunteersPageContent() {
       setNewVolunteer({
         firstName: '',
         lastName: '',
-        age: 18,
-        gender: '',
-        phone: '',
         email: '',
-        confirmEmail: '',
-        city: '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
+        gender: '',
         tshirtSize: '',
-        status: 'pending'
+        emergencyContact: '',
+        emergencyPhone: '',
+        volunteerCode: '',
+        source: 'website',
+        eventInfoAccepted: true,
+        termsAccepted: true,
+        status: 'pending' as VolunteerStatus,
+        age: 18,
+        phone: '',
+        confirmEmail: '',
+        city: ''
       })
     } catch (err) {
       console.error('Error updating volunteer:', err)
@@ -250,7 +261,7 @@ function VolunteersPageContent() {
     }
   }, [deleteVolunteer])
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue)
   }
 
@@ -686,7 +697,7 @@ function VolunteersPageContent() {
                   <Grid item xs={6}>
                     <TextField
                       label="Emergency Contact Name"
-                      value={selectedApplication.emergencyContactName || 'N/A'}
+                      value={selectedApplication.emergencyContact || 'N/A'}
                       fullWidth
                       InputProps={{ readOnly: true }}
                     />
@@ -694,7 +705,7 @@ function VolunteersPageContent() {
                   <Grid item xs={6}>
                     <TextField
                       label="Emergency Contact Phone"
-                      value={selectedApplication.emergencyContactPhone || 'N/A'}
+                      value={selectedApplication.emergencyPhone || 'N/A'}
                       fullWidth
                       InputProps={{ readOnly: true }}
                     />
@@ -951,8 +962,8 @@ function VolunteersPageContent() {
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Emergency Contact Name"
-                value={newVolunteer.emergencyContactName}
-                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyContactName: e.target.value })}
+                value={newVolunteer.emergencyContact}
+                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyContact: e.target.value })}
                 fullWidth
                 required
               />
@@ -960,8 +971,8 @@ function VolunteersPageContent() {
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Emergency Contact Phone"
-                value={newVolunteer.emergencyContactPhone}
-                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyContactPhone: e.target.value })}
+                value={newVolunteer.emergencyPhone}
+                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyPhone: e.target.value })}
                 fullWidth
                 required
               />
@@ -1087,8 +1098,8 @@ function VolunteersPageContent() {
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Emergency Contact Name"
-                value={newVolunteer.emergencyContactName}
-                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyContactName: e.target.value })}
+                value={newVolunteer.emergencyContact}
+                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyContact: e.target.value })}
                 fullWidth
                 required
               />
@@ -1096,8 +1107,8 @@ function VolunteersPageContent() {
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Emergency Contact Phone"
-                value={newVolunteer.emergencyContactPhone}
-                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyContactPhone: e.target.value })}
+                value={newVolunteer.emergencyPhone}
+                onChange={(e) => setNewVolunteer({ ...newVolunteer, emergencyPhone: e.target.value })}
                 fullWidth
                 required
               />

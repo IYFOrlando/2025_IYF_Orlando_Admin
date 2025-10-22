@@ -2,7 +2,7 @@ import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions, Typography, Chip,
-  Grid, MenuItem, FormControl, InputLabel, Select, Divider, Tabs, Tab,
+  Grid, MenuItem, FormControl, InputLabel, Select, Tabs, Tab,
   IconButton, Tooltip, Paper
 } from '@mui/material'
 import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid'
@@ -15,7 +15,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CancelIcon from '@mui/icons-material/Cancel'
 import PendingIcon from '@mui/icons-material/Pending'
 import PlayCircleIcon from '@mui/icons-material/PlayCircle'
-import PauseCircleIcon from '@mui/icons-material/PauseCircle'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
@@ -24,7 +23,7 @@ import { useEvents } from '../hooks/useEvents'
 import { useVolunteerHours } from '../hooks/useVolunteerHours'
 import QRCodeGenerator from '../components/QRCodeGenerator'
 import VolunteerAttendanceTracker from '../components/VolunteerAttendanceTracker'
-import type { Event, VolunteerHours, EventStatus, HoursStatus } from '../types'
+import type { Event, EventStatus, HoursStatus } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
 import Swal from 'sweetalert2'
@@ -77,7 +76,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 function EventsPageContent() {
-  const { data: events, loading: eventsLoading, error: eventsError, createEvent, updateEvent, updateEventStatus } = useEvents()
+  const { data: events, loading: eventsLoading, error: eventsError, createEvent, updateEvent } = useEvents()
   const { data: allHours, loading: hoursLoading, error: hoursError, checkOut } = useVolunteerHours()
   
   const [tabValue, setTabValue] = React.useState(0)
@@ -109,7 +108,7 @@ function EventsPageContent() {
     return allHours.filter(hours => eventIds.includes(hours.eventId))
   }, [allHours, tasteOfKoreaEvents])
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue)
   }
 
@@ -229,15 +228,6 @@ function EventsPageContent() {
     }
   }
 
-  const handleStatusChange = async (eventId: string, newStatus: EventStatus) => {
-    try {
-      await updateEventStatus(eventId, newStatus)
-      notifySuccess('Event status updated successfully')
-    } catch (err) {
-      console.error('Error updating event status:', err)
-      notifyError('Failed to update event status')
-    }
-  }
 
   const eventColumns: GridColDef[] = [
     {

@@ -66,6 +66,7 @@ export interface VolunteerSchedule {
   volunteerCode: string
   volunteerPhone?: string
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+  date?: string
   selectedSlots: Array<{
     id: string
     date: string

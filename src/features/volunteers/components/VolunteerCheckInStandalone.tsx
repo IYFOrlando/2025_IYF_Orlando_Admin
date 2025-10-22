@@ -8,7 +8,6 @@ import QrCodeIcon from '@mui/icons-material/QrCode'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
-import { notifySuccess, notifyError } from '../../../lib/alerts'
 import Swal from 'sweetalert2'
 
 export default function VolunteerCheckInStandalone() {
@@ -198,7 +197,7 @@ export default function VolunteerCheckInStandalone() {
       if (!todayAttendance) {
         // No attendance today - do check-in
         await checkIn(
-          volunteer.volunteerCode,
+          volunteer.volunteerCode || '',
           volunteer.firstName,
           volunteer.email,
           'taste-of-korea-preparation',

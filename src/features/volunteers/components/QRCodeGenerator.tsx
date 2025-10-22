@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Box, Typography, Card, CardContent, TextField, Button, Stack,
-  Alert, Divider, Paper, Grid
+  Alert, Divider, Paper
 } from '@mui/material'
 import QrCodeIcon from '@mui/icons-material/QrCode'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'

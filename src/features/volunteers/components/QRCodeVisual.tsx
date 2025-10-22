@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { Box, Typography, Paper } from '@mui/material'
 
 interface QRCodeVisualProps {

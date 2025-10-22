@@ -3,12 +3,8 @@ import {
   Box, Typography, Card, CardHeader, CardContent, Stack, Chip, Paper, Grid,
   Alert, Button, Avatar, Divider
 } from '@mui/material'
-import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid'
-import PersonIcon from '@mui/icons-material/Person'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import CancelIcon from '@mui/icons-material/Cancel'
-import EventIcon from '@mui/icons-material/Event'
 import AddIcon from '@mui/icons-material/Add'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import ScheduleIcon from '@mui/icons-material/Schedule'
@@ -18,21 +14,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import { useVolunteerSchedule } from '../hooks/useVolunteerSchedule'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
-import type { VolunteerSchedule } from '../types'
 
-const STATUS_COLORS = {
-  'scheduled': 'warning',
-  'confirmed': 'info',
-  'completed': 'success',
-  'cancelled': 'error'
-} as const
-
-const STATUS_ICONS = {
-  'scheduled': <AccessTimeIcon />,
-  'confirmed': <CheckCircleIcon />,
-  'completed': <CheckCircleIcon />,
-  'cancelled': <CancelIcon />
-}
 
 const ATTENDANCE_ICONS = {
   'not-checked-in': <LoginIcon />,
@@ -43,11 +25,10 @@ const ATTENDANCE_ICONS = {
 
 export default function PreEventVolunteerSchedule() {
   // Force cache refresh - timestamp: 1761137000000
-  const { data: schedule, loading, getScheduleStats, getScheduleByDate, getPreEventSchedule } = useVolunteerSchedule()
+  const { data: schedule, loading, getScheduleStats, getPreEventSchedule } = useVolunteerSchedule()
   const { data: attendanceData } = useVolunteerAttendance()
   
   const stats = getScheduleStats()
-  const scheduleByDate = getScheduleByDate()
   const preEventSlots = getPreEventSchedule()
 
   
@@ -146,94 +127,7 @@ export default function PreEventVolunteerSchedule() {
     }
   }, [preEventSlots])
 
-  const preEventSlotsByDate = React.useMemo(() => {
-    const grouped = preEventSlots.reduce((acc, slot) => {
-      if (slot.date) {
-        const date = new Date(slot.date).toLocaleDateString()
-        if (!acc[date]) {
-          acc[date] = []
-        }
-        acc[date].push(slot)
-      }
-      return acc
-    }, {} as Record<string, typeof preEventSlots>)
 
-    return grouped
-  }, [preEventSlots])
-
-  const scheduleColumns: GridColDef[] = [
-    {
-      field: 'volunteerName',
-      headerName: 'Volunteer',
-      width: 200,
-      renderCell: (params) => (
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <PersonIcon fontSize="small" color="action" />
-          <Typography variant="body2">{params.value}</Typography>
-        </Stack>
-      )
-    },
-    {
-      field: 'volunteerCode',
-      headerName: 'Volunteer Code',
-      width: 150,
-      renderCell: (params) => (
-        <Chip 
-          label={params.value || 'N/A'} 
-          size="small" 
-          variant="outlined" 
-          color="primary"
-        />
-      )
-    },
-    {
-      field: 'volunteerEmail',
-      headerName: 'Email',
-      width: 250,
-      renderCell: (params) => (
-        <Typography variant="body2">{params.value || 'N/A'}</Typography>
-      )
-    },
-    {
-      field: 'selectedSlots',
-      headerName: 'Scheduled Slots',
-      width: 200,
-      renderCell: (params) => {
-        const slots = params.value || []
-        const slotCount = Array.isArray(slots) ? slots.length : 0
-        return (
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <EventIcon fontSize="small" color="action" />
-            <Typography variant="body2">{slotCount} slots</Typography>
-          </Stack>
-        )
-      }
-    },
-    {
-      field: 'totalHours',
-      headerName: 'Total Hours',
-      width: 120,
-      renderCell: (params) => (
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <AccessTimeIcon fontSize="small" color="action" />
-          <Typography variant="body2">{params.value || 0}h</Typography>
-        </Stack>
-      )
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 120,
-      renderCell: (params) => (
-        <Chip
-          icon={STATUS_ICONS[params.value as keyof typeof STATUS_ICONS]}
-          label={params.value}
-          color={STATUS_COLORS[params.value as keyof typeof STATUS_COLORS]}
-          size="small"
-        />
-      )
-    }
-  ]
 
   if (loading) {
     return <Alert severity="info">Loading volunteer schedule...</Alert>
@@ -348,7 +242,7 @@ export default function PreEventVolunteerSchedule() {
                         />
                         <Chip 
                           icon={<ScheduleIcon />}
-                          label={`${dayData.volunteers.reduce((total, v) => total + (v.hours || 0), 0)} total hours`}
+                          label={`${dayData.volunteers.reduce((total: number, v: any) => total + (v.hours || 0), 0)} total hours`}
                           color="secondary"
                           variant="outlined"
                           size="small"
@@ -363,7 +257,7 @@ export default function PreEventVolunteerSchedule() {
                   />
                   <CardContent>
                     <Grid container spacing={2}>
-                      {dayData.volunteers.map((volunteer, volIndex) => (
+                      {dayData.volunteers.map((volunteer: any, volIndex: number) => (
                         <Grid item xs={12} sm={6} md={4} key={volIndex}>
                           <Paper sx={{ 
                             p: 2, 
@@ -385,7 +279,7 @@ export default function PreEventVolunteerSchedule() {
                                   width: 40,
                                   height: 40
                                 }}>
-                                  {volunteer.name.split(' ').map(n => n[0]).join('')}
+                                  {volunteer.name.split(' ').map((n: string) => n[0]).join('')}
                                 </Avatar>
                                 <Box>
                                   <Typography variant="subtitle1" fontWeight="bold">

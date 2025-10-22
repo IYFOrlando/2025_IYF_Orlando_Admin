@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_HOURS_COLLECTION } from '../../../lib/config'
 import type { VolunteerHours } from '../../events/types'
@@ -49,7 +49,7 @@ export function useVolunteerTimeSlots() {
   const getTimeSlotsStats = React.useCallback(() => {
     const total = data.length
     const confirmed = data.filter(slot => slot.status === 'checked-in' || slot.status === 'checked-out').length
-    const pending = data.filter(slot => slot.status === 'pending').length
+    const pending = data.filter(slot => slot.status === 'checked-in').length
     const totalHours = data.reduce((sum, slot) => sum + (slot.totalHours || 0), 0)
 
     return {
