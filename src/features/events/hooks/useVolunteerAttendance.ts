@@ -4,7 +4,7 @@ import { db } from '../../../lib/firebase'
 import { VOLUNTEER_HOURS_COLLECTION } from '../../../lib/config'
 import type { VolunteerHours, HoursStatus } from '../types'
 
-export function useVolunteerHours(eventId?: string) {
+export function useVolunteerAttendance(eventId?: string) {
   const [data, setData] = React.useState<VolunteerHours[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<Error | null>(null)
@@ -46,7 +46,7 @@ export function useVolunteerHours(eventId?: string) {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching volunteer hours:', err)
+        console.error('Error fetching volunteer attendance:', err)
         setError(err)
         setLoading(false)
       }
@@ -64,12 +64,17 @@ export function useVolunteerHours(eventId?: string) {
   ) => {
     try {
       // Check if volunteer is already checked in today
-      const today = new Date().toDateString()
-      const existingHours = data.find(h => 
-        h.volunteerId === volunteerCode && 
-        h.eventId === eventId && 
-        h.status === 'checked-in' &&
-        new Date(h.checkInTime?.seconds * 1000).toDateString() === today
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const todayStart = Math.floor(today.getTime() / 1000)
+      const todayEnd = todayStart + 86400 // 24 hours
+
+      const existingHours = data.find(hours => 
+        hours.volunteerId === volunteerCode &&
+        hours.eventId === eventId &&
+        hours.checkInTime &&
+        hours.checkInTime.seconds >= todayStart &&
+        hours.checkInTime.seconds < todayEnd
       )
 
       if (existingHours) {
@@ -83,10 +88,11 @@ export function useVolunteerHours(eventId?: string) {
         eventId,
         eventName,
         checkInTime: serverTimestamp(),
-        status: 'checked-in',
+        status: 'checked-in' as HoursStatus,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
+
       return docRef.id
     } catch (err) {
       console.error('Error checking in volunteer:', err)
@@ -99,23 +105,22 @@ export function useVolunteerHours(eventId?: string) {
       const docRef = doc(db, VOLUNTEER_HOURS_COLLECTION, hoursId)
       const checkOutTime = serverTimestamp()
       
+      // Get the current document to calculate total hours
+      const currentDoc = data.find(h => h.id === hoursId)
+      if (!currentDoc || !currentDoc.checkInTime) {
+        throw new Error('Check-in time not found')
+      }
+
+      const checkInTime = currentDoc.checkInTime.seconds * 1000
+      const checkOutTimeMs = Date.now()
+      const totalHours = Math.round((checkOutTimeMs - checkInTime) / (1000 * 60 * 60) * 100) / 100
+
       await updateDoc(docRef, {
         checkOutTime,
-        status: 'checked-out',
+        totalHours,
+        status: 'checked-out' as HoursStatus,
         updatedAt: serverTimestamp()
       })
-
-      // Calculate total hours
-      const hoursRecord = data.find(h => h.id === hoursId)
-      if (hoursRecord?.checkInTime) {
-        const checkInTime = new Date(hoursRecord.checkInTime.seconds * 1000)
-        const totalHours = (Date.now() - checkInTime.getTime()) / (1000 * 60 * 60) // Convert to hours
-        
-        await updateDoc(docRef, {
-          totalHours: Math.round(totalHours * 100) / 100, // Round to 2 decimal places
-          status: 'completed'
-        })
-      }
 
       return true
     } catch (err) {
@@ -124,19 +129,19 @@ export function useVolunteerHours(eventId?: string) {
     }
   }, [data])
 
-  const updateHours = React.useCallback(async (id: string, updates: Partial<VolunteerHours>) => {
-    try {
-      const docRef = doc(db, VOLUNTEER_HOURS_COLLECTION, id)
-      await updateDoc(docRef, {
-        ...updates,
-        updatedAt: serverTimestamp()
-      })
-      return true
-    } catch (err) {
-      console.error('Error updating volunteer hours:', err)
-      throw err
+  const getAttendanceStats = React.useCallback(() => {
+    const total = data.length
+    const checkedIn = data.filter(h => h.status === 'checked-in').length
+    const checkedOut = data.filter(h => h.status === 'checked-out').length
+    const totalHours = data.reduce((sum, h) => sum + (h.totalHours || 0), 0)
+
+    return {
+      total,
+      checkedIn,
+      checkedOut,
+      totalHours: Math.round(totalHours * 100) / 100
     }
-  }, [])
+  }, [data])
 
   return {
     data,
@@ -144,6 +149,6 @@ export function useVolunteerHours(eventId?: string) {
     error,
     checkIn,
     checkOut,
-    updateHours
+    getAttendanceStats
   }
 }

@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { collection, onSnapshot, query, orderBy, where, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { VOLUNTEER_CODES_COLLECTION } from '../../../lib/config'
+import { generateVolunteerCode } from '../../../lib/volunteerCodes'
 import type { VolunteerCode } from '../types'
-
-const CODES_COLLECTION = 'volunteer_codes'
 
 export function useVolunteerCodes(eventId?: string) {
   const [data, setData] = React.useState<VolunteerCode[]>([])
@@ -14,13 +14,13 @@ export function useVolunteerCodes(eventId?: string) {
     let q
     if (eventId) {
       q = query(
-        collection(db, CODES_COLLECTION),
+        collection(db, VOLUNTEER_CODES_COLLECTION),
         where('eventId', '==', eventId),
         orderBy('createdAt', 'desc')
       )
     } else {
       q = query(
-        collection(db, CODES_COLLECTION),
+        collection(db, VOLUNTEER_CODES_COLLECTION),
         orderBy('createdAt', 'desc')
       )
     }
@@ -52,10 +52,10 @@ export function useVolunteerCodes(eventId?: string) {
     eventId: string
   ) => {
     try {
-      // Generate a simple 4-digit code
-      const code = Math.floor(1000 + Math.random() * 9000).toString()
+      // Generate a random alphanumeric code (6 characters)
+      const code = generateVolunteerCode(6)
       
-      const docRef = await addDoc(collection(db, CODES_COLLECTION), {
+      const docRef = await addDoc(collection(db, VOLUNTEER_CODES_COLLECTION), {
         code,
         volunteerName,
         volunteerEmail,
@@ -72,7 +72,7 @@ export function useVolunteerCodes(eventId?: string) {
 
   const updateCode = React.useCallback(async (id: string, updates: Partial<VolunteerCode>) => {
     try {
-      const docRef = doc(db, CODES_COLLECTION, id)
+      const docRef = doc(db, VOLUNTEER_CODES_COLLECTION, id)
       await updateDoc(docRef, {
         ...updates,
         updatedAt: serverTimestamp()

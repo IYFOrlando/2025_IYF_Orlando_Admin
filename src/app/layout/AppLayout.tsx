@@ -16,7 +16,6 @@ import ClassIcon from '@mui/icons-material/Class'
 import ChecklistIcon from '@mui/icons-material/Checklist'
 import InsightsIcon from '@mui/icons-material/Insights'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
-import EventIcon from '@mui/icons-material/Event'
 import AuthMenu from './AuthMenu'
 import iyfLogo from '../../assets/logo/IYF_logo.png'
 
@@ -32,7 +31,6 @@ const mainItems: Item[] = [
   { to: '/progress', label: 'Progress', icon: <InsightsIcon /> },
   { to: '/classes', label: 'Academies', icon: <ClassIcon /> },
   { to: '/volunteers', label: 'Volunteers', icon: <VolunteerActivismIcon /> },
-  { to: '/events', label: 'Events', icon: <EventIcon /> },
 ]
 
 const reportItems: Item[] = [

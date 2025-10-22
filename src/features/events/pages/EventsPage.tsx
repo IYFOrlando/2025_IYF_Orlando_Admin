@@ -23,8 +23,10 @@ import RestaurantIcon from '@mui/icons-material/Restaurant'
 import { useEvents } from '../hooks/useEvents'
 import { useVolunteerHours } from '../hooks/useVolunteerHours'
 import QRCodeGenerator from '../components/QRCodeGenerator'
+import VolunteerAttendanceTracker from '../components/VolunteerAttendanceTracker'
 import type { Event, VolunteerHours, EventStatus, HoursStatus } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
+import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
 import Swal from 'sweetalert2'
 
 const STATUS_COLORS = {
@@ -74,14 +76,15 @@ function TabPanel(props: TabPanelProps) {
   )
 }
 
-export default function EventsPage() {
-  const { data: events, loading: eventsLoading, error: eventsError, updateEventStatus } = useEvents()
+function EventsPageContent() {
+  const { data: events, loading: eventsLoading, error: eventsError, createEvent, updateEvent, updateEventStatus } = useEvents()
   const { data: allHours, loading: hoursLoading, error: hoursError, checkOut } = useVolunteerHours()
   
   const [tabValue, setTabValue] = React.useState(0)
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null)
   const [qrDialogOpen, setQrDialogOpen] = React.useState(false)
   const [eventDialogOpen, setEventDialogOpen] = React.useState(false)
+  const [editingEvent, setEditingEvent] = React.useState<Event | null>(null)
   const [newEvent, setNewEvent] = React.useState({
     name: '',
     description: '',
@@ -112,7 +115,21 @@ export default function EventsPage() {
 
   const handleCreateEvent = async () => {
     try {
-      // This would be implemented with the createEvent function
+      if (!newEvent.name || !newEvent.date || !newEvent.startTime || !newEvent.endTime || !newEvent.location) {
+        notifyError('Please fill in all required fields')
+        return
+      }
+
+      await createEvent({
+        name: newEvent.name,
+        description: newEvent.description,
+        date: newEvent.date,
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime,
+        location: newEvent.location,
+        status: newEvent.status
+      })
+      
       notifySuccess('Event created successfully')
       setEventDialogOpen(false)
       setNewEvent({
@@ -125,6 +142,7 @@ export default function EventsPage() {
         status: 'upcoming'
       })
     } catch (err) {
+      console.error('Error creating event:', err)
       notifyError('Failed to create event')
     }
   }
@@ -135,6 +153,89 @@ export default function EventsPage() {
       notifySuccess('Volunteer checked out successfully')
     } catch (err) {
       notifyError('Failed to check out volunteer')
+    }
+  }
+
+  const handleEditEvent = (event: Event) => {
+    setEditingEvent(event)
+    setNewEvent({
+      name: event.name,
+      description: event.description || '',
+      date: event.date,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location,
+      status: event.status
+    })
+    setEventDialogOpen(true)
+  }
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent) return
+    
+    try {
+      if (!newEvent.name || !newEvent.date || !newEvent.startTime || !newEvent.endTime || !newEvent.location) {
+        notifyError('Please fill in all required fields')
+        return
+      }
+
+      await updateEvent(editingEvent.id, {
+        name: newEvent.name,
+        description: newEvent.description,
+        date: newEvent.date,
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime,
+        location: newEvent.location,
+        status: newEvent.status
+      })
+      
+      notifySuccess('Event updated successfully')
+      setEventDialogOpen(false)
+      setEditingEvent(null)
+      setNewEvent({
+        name: '',
+        description: '',
+        date: '',
+        startTime: '',
+        endTime: '',
+        location: '',
+        status: 'upcoming'
+      })
+    } catch (err) {
+      console.error('Error updating event:', err)
+      notifyError('Failed to update event')
+    }
+  }
+
+  const handleDeleteEvent = async (event: Event) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete "${event.name}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    })
+
+    if (result.isConfirmed) {
+      try {
+        await updateEvent(event.id, { status: 'cancelled' })
+        notifySuccess('Event cancelled successfully')
+      } catch (err) {
+        console.error('Error deleting event:', err)
+        notifyError('Failed to delete event')
+      }
+    }
+  }
+
+  const handleStatusChange = async (eventId: string, newStatus: EventStatus) => {
+    try {
+      await updateEventStatus(eventId, newStatus)
+      notifySuccess('Event status updated successfully')
+    } catch (err) {
+      console.error('Error updating event status:', err)
+      notifyError('Failed to update event status')
     }
   }
 
@@ -187,7 +288,7 @@ export default function EventsPage() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      width: 200,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={1}>
@@ -203,8 +304,20 @@ export default function EventsPage() {
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit Event">
-            <IconButton size="small">
+            <IconButton 
+              size="small"
+              onClick={() => handleEditEvent(params.row)}
+            >
               <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Event">
+            <IconButton 
+              size="small"
+              onClick={() => handleDeleteEvent(params.row)}
+              color="error"
+            >
+              <DeleteIcon />
             </IconButton>
           </Tooltip>
         </Stack>
@@ -326,7 +439,6 @@ export default function EventsPage() {
         <CardContent>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange}>
-              <Tab label="All Events" />
               <Tab 
                 label={
                   <Stack direction="row" alignItems="center" spacing={1}>
@@ -335,27 +447,11 @@ export default function EventsPage() {
                   </Stack>
                 } 
               />
+              <Tab label="Volunteer Tracking" />
             </Tabs>
           </Box>
 
           <TabPanel value={tabValue} index={0}>
-            <DataGrid
-              rows={events}
-              columns={eventColumns}
-              loading={eventsLoading}
-              slots={{ toolbar: GridToolbar }}
-              slotProps={{
-                toolbar: {
-                  showQuickFilter: true,
-                  quickFilterProps: { debounceMs: 500 }
-                }
-              }}
-              getRowId={(row) => row.id}
-              sx={{ height: 600 }}
-            />
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={1}>
             <Stack spacing={3}>
               {/* Taste of Korea Events */}
               <Paper sx={{ p: 2 }}>
@@ -400,6 +496,49 @@ export default function EventsPage() {
               </Paper>
             </Stack>
           </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
+            <Stack spacing={3}>
+              {tasteOfKoreaEvents.length > 0 ? (
+                tasteOfKoreaEvents.map((event) => (
+                  <VolunteerAttendanceTracker key={event.id} event={event} />
+                ))
+              ) : (
+                <Card>
+                  <CardContent>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        No Taste of Korea events found
+                      </Typography>
+                      <Typography variant="body2">
+                        Create the "Taste of Korea - Pre-Event Preparation Period" event first to track volunteer attendance.
+                      </Typography>
+                    </Alert>
+                    
+                    <Typography variant="h6" gutterBottom>
+                      📋 Instructions to Create the Preparation Period Event:
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Typography variant="body2">
+                        1. Click "Create Event" button above
+                      </Typography>
+                      <Typography variant="body2">
+                        2. Use these details:
+                      </Typography>
+                      <Box sx={{ ml: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        <Typography variant="body2"><strong>Event Name:</strong> Taste of Korea - Pre-Event Preparation Period</Typography>
+                        <Typography variant="body2"><strong>Date:</strong> 2025-10-27</Typography>
+                        <Typography variant="body2"><strong>Start Time:</strong> 09:00</Typography>
+                        <Typography variant="body2"><strong>End Time:</strong> 17:00</Typography>
+                        <Typography variant="body2"><strong>Location:</strong> IYF Orlando Center - 320 S Park Ave, Sanford, FL 32771</Typography>
+                        <Typography variant="body2"><strong>Description:</strong> Volunteer preparation period for Taste of Korea event. Volunteers will help with setup, preparation, and organization tasks from October 27 to November 7, 2025.</Typography>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
+            </Stack>
+          </TabPanel>
         </CardContent>
       </Card>
 
@@ -413,9 +552,21 @@ export default function EventsPage() {
         />
       )}
 
-      {/* Create Event Dialog */}
-      <Dialog open={eventDialogOpen} onClose={() => setEventDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Create New Event</DialogTitle>
+      {/* Create/Edit Event Dialog */}
+      <Dialog open={eventDialogOpen} onClose={() => {
+        setEventDialogOpen(false)
+        setEditingEvent(null)
+        setNewEvent({
+          name: '',
+          description: '',
+          date: '',
+          startTime: '',
+          endTime: '',
+          location: '',
+          status: 'upcoming'
+        })
+      }} maxWidth="md" fullWidth>
+        <DialogTitle>{editingEvent ? 'Edit Event' : 'Create New Event'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -492,12 +643,35 @@ export default function EventsPage() {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEventDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateEvent}>
-            Create Event
+          <Button onClick={() => {
+            setEventDialogOpen(false)
+            setEditingEvent(null)
+            setNewEvent({
+              name: '',
+              description: '',
+              date: '',
+              startTime: '',
+              endTime: '',
+              location: '',
+              status: 'upcoming'
+            })
+          }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={editingEvent ? handleUpdateEvent : handleCreateEvent}
+          >
+            {editingEvent ? 'Update Event' : 'Create Event'}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
+  )
+}
+
+export default function EventsPage() {
+  return (
+    <FirebaseErrorBoundary>
+      <EventsPageContent />
+    </FirebaseErrorBoundary>
   )
 }

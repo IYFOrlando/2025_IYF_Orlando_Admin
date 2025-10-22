@@ -19,7 +19,8 @@ import AttendancePage from '../features/attendance/pages/AttendancePage'
 import ProgressPage from '../features/progress/pages/ProgressPage'
 import AcademiesPage from '../features/academies/pages/AcademiesPage'
 import VolunteersPage from '../features/volunteers/pages/VolunteersPage'
-import EventsPage from '../features/events/pages/EventsPage'
+import CheckInPage from '../features/volunteers/pages/CheckInPage'
+import PublicVolunteerSchedulePage from '../features/volunteers/pages/PublicVolunteerSchedulePage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
 import '../index.css'
@@ -49,8 +50,16 @@ const router = createBrowserRouter([
       { path: 'progress', element: <ProgressPage /> },
       { path: 'classes', element: <AcademiesPage /> },
       { path: 'volunteers', element: <VolunteersPage /> },
-      { path: 'events', element: <EventsPage /> },
     ],
+  },
+  // Public pages (no auth required)
+  {
+    path: '/checkin',
+    element: <CheckInPage />,
+  },
+  {
+    path: '/volunteer-schedule',
+    element: <PublicVolunteerSchedulePage />,
   },
 ])
 

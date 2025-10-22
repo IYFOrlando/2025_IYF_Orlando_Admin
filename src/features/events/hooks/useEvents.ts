@@ -1,9 +1,8 @@
 import * as React from 'react'
 import { collection, onSnapshot, query, orderBy, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { EVENTS_COLLECTION } from '../../../lib/config'
 import type { Event, EventStatus } from '../types'
-
-const EVENTS_COLLECTION = 'events'
 
 export function useEvents() {
   const [data, setData] = React.useState<Event[]>([])
@@ -28,6 +27,16 @@ export function useEvents() {
         setError(null)
       },
       (err) => {
+        // Handle permissions error gracefully
+        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+          // User doesn't have permissions to read events - use empty array
+          setData([])
+          setError(null)
+          setLoading(false)
+          return
+        }
+        
+        // For other errors, still log but don't show to user unless critical
         console.error('Error fetching events:', err)
         setError(err)
         setLoading(false)
