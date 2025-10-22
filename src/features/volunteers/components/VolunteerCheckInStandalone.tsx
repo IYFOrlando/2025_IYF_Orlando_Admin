@@ -40,17 +40,170 @@ export default function VolunteerCheckInStandalone() {
     setLoading(true)
 
     try {
-      // Find volunteer by code
-      const volunteer = approvedVolunteers.find(v => v.volunteerCode === volunteerCode.trim().toUpperCase())
+      // Find volunteer by code (search in ALL volunteers, not just approved ones)
+      const volunteer = volunteers.find(v => v.volunteerCode === volunteerCode.trim().toUpperCase())
       
       if (!volunteer) {
+        const result = await Swal.fire({
+          icon: 'error',
+          title: '❌ Volunteer Code Not Found',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Volunteer Code "${volunteerCode}"</strong> was not found in our system.</p>
+              <p>This could mean:</p>
+              <ul>
+                <li>• The code was entered incorrectly</li>
+                <li>• Your volunteer application is still being processed</li>
+                <li>• You haven't registered as a volunteer yet</li>
+              </ul>
+              <p>What would you like to do?</p>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: '🔄 Try Again',
+          cancelButtonText: '📞 Contact Us',
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#6c757d',
+          showCloseButton: true
+        })
+
+        if (result.dismiss === Swal.DismissReason.cancel) {
+          // Show contact information
+          Swal.fire({
+            icon: 'info',
+            title: '📞 Contact Information',
+            html: `
+              <div style="text-align: left;">
+                <p><strong>IYF Orlando Team</strong></p>
+                <p>📧 Email: <a href="mailto:orlando@iyfusa.org">orlando@iyfusa.org</a></p>
+                <p>📞 Phone: <a href="tel:+14079003442">(407) 900-3442</a></p>
+                <p>📍 Address: 320 S Park Ave, Sanford, FL 32771</p>
+                <p>🌐 Website: <a href="https://www.iyforlando.org" target="_blank">iyforlando.org</a></p>
+              </div>
+            `,
+            confirmButtonText: 'Got it!',
+            confirmButtonColor: '#2170b1',
+            showCloseButton: true
+          })
+        }
+        
+        setVolunteerCode('')
+        return
+      }
+
+      // Check volunteer status
+      if (volunteer.status === 'rejected') {
         Swal.fire({
           icon: 'error',
-          title: '❌ Volunteer Not Found',
-          text: `Volunteer Code "${volunteerCode}" not found. Please check your code and try again.`,
-          confirmButtonText: 'Try Again',
+          title: '❌ Volunteer Application Rejected',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong>, your volunteer application has been rejected.</p>
+              <p>You cannot participate in the Taste of Korea event at this time.</p>
+              <p>If you believe this is an error, please contact us.</p>
+            </div>
+          `,
+          confirmButtonText: '📞 Contact Us',
           confirmButtonColor: '#d33',
           showCloseButton: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Show contact information
+            Swal.fire({
+              icon: 'info',
+              title: '📞 Contact Information',
+              html: `
+                <div style="text-align: left;">
+                  <p><strong>IYF Orlando Team</strong></p>
+                  <p>📧 Email: <a href="mailto:orlando@iyfusa.org">orlando@iyfusa.org</a></p>
+                  <p>📞 Phone: <a href="tel:+14079003442">(407) 900-3442</a></p>
+                  <p>📍 Address: 320 S Park Ave, Sanford, FL 32771</p>
+                  <p>🌐 Website: <a href="https://www.iyforlando.org" target="_blank">iyforlando.org</a></p>
+                </div>
+              `,
+              confirmButtonText: 'Got it!',
+              confirmButtonColor: '#2170b1',
+              showCloseButton: true
+            })
+          }
+        })
+        setVolunteerCode('')
+        return
+      }
+
+      if (volunteer.status === 'inactive') {
+        Swal.fire({
+          icon: 'warning',
+          title: '⚠️ Volunteer Account Inactive',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong>, your volunteer account is currently inactive.</p>
+              <p>You cannot check in until your account is reactivated.</p>
+              <p>Please contact us to reactivate your account.</p>
+            </div>
+          `,
+          confirmButtonText: '📞 Contact Us',
+          confirmButtonColor: '#ffc107',
+          showCloseButton: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Show contact information
+            Swal.fire({
+              icon: 'info',
+              title: '📞 Contact Information',
+              html: `
+                <div style="text-align: left;">
+                  <p><strong>IYF Orlando Team</strong></p>
+                  <p>📧 Email: <a href="mailto:orlando@iyfusa.org">orlando@iyfusa.org</a></p>
+                  <p>📞 Phone: <a href="tel:+14079003442">(407) 900-3442</a></p>
+                  <p>📍 Address: 320 S Park Ave, Sanford, FL 32771</p>
+                  <p>🌐 Website: <a href="https://www.iyforlando.org" target="_blank">iyforlando.org</a></p>
+                </div>
+              `,
+              confirmButtonText: 'Got it!',
+              confirmButtonColor: '#2170b1',
+              showCloseButton: true
+            })
+          }
+        })
+        setVolunteerCode('')
+        return
+      }
+
+      if (volunteer.status === 'pending') {
+        Swal.fire({
+          icon: 'info',
+          title: '⏳ Application Under Review',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong>, your volunteer application is still under review.</p>
+              <p>You cannot check in until your application is approved.</p>
+              <p>Please wait for approval or contact us if you have questions.</p>
+            </div>
+          `,
+          confirmButtonText: '📞 Contact Us',
+          confirmButtonColor: '#17a2b8',
+          showCloseButton: true
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Show contact information
+            Swal.fire({
+              icon: 'info',
+              title: '📞 Contact Information',
+              html: `
+                <div style="text-align: left;">
+                  <p><strong>IYF Orlando Team</strong></p>
+                  <p>📧 Email: <a href="mailto:orlando@iyfusa.org">orlando@iyfusa.org</a></p>
+                  <p>📞 Phone: <a href="tel:+14079003442">(407) 900-3442</a></p>
+                  <p>📍 Address: 320 S Park Ave, Sanford, FL 32771</p>
+                  <p>🌐 Website: <a href="https://www.iyforlando.org" target="_blank">iyforlando.org</a></p>
+                </div>
+              `,
+              confirmButtonText: 'Got it!',
+              confirmButtonColor: '#2170b1',
+              showCloseButton: true
+            })
+          }
         })
         setVolunteerCode('')
         return
@@ -70,19 +223,20 @@ export default function VolunteerCheckInStandalone() {
       if (scheduleSnapshot.empty) {
         const result = await Swal.fire({
           icon: 'info',
-          title: '📅 No Scheduled Hours',
+          title: '📅 No Volunteer Hours Scheduled',
           html: `
             <div style="text-align: left;">
               <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> doesn't have any scheduled volunteer hours yet.</p>
-              <p>You have two options:</p>
+              <p>To participate in the Taste of Korea event, you need to schedule your volunteer hours first.</p>
+              <p>What would you like to do?</p>
               <ul>
-                <li><strong>Schedule your hours</strong> - Go to the volunteer schedule page</li>
-                <li><strong>Contact us</strong> - Get help from our team</li>
+                <li>• <strong>View Schedule</strong> - See available time slots</li>
+                <li>• <strong>Contact Us</strong> - Get help scheduling your hours</li>
               </ul>
             </div>
           `,
           showCancelButton: true,
-          confirmButtonText: '📅 Schedule Hours',
+          confirmButtonText: '📅 View Schedule',
           cancelButtonText: '📞 Contact Us',
           confirmButtonColor: '#2170b1',
           cancelButtonColor: '#6c757d',
