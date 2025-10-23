@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_SCHEDULE_COLLECTION } from '../../../lib/config'
 import type { VolunteerSchedule } from '../types'
@@ -11,17 +11,19 @@ export function useVolunteerSchedule() {
 
   React.useEffect(() => {
     const q = query(
-      collection(db, VOLUNTEER_SCHEDULE_COLLECTION),
-      orderBy('createdAt', 'desc')
+      collection(db, VOLUNTEER_SCHEDULE_COLLECTION)
+      // Removed orderBy to avoid potential issues with missing createdAt field
     )
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        console.log('🔄 useVolunteerSchedule: Data updated, snapshot size:', snapshot.size)
         const schedule = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as VolunteerSchedule[]
+        console.log('📊 useVolunteerSchedule: Processed schedule data:', schedule.length, 'items')
         setData(schedule)
         setLoading(false)
         setError(null)
@@ -80,12 +82,54 @@ export function useVolunteerSchedule() {
     return data
   }, [data])
 
+  const deleteSchedule = React.useCallback(async (id: string) => {
+    try {
+      const docRef = doc(db, VOLUNTEER_SCHEDULE_COLLECTION, id)
+      await deleteDoc(docRef)
+      return true
+    } catch (err) {
+      console.error('Error deleting volunteer schedule:', err)
+      throw err
+    }
+  }, [])
+
+  const updateSchedule = React.useCallback(async (id: string, updates: Partial<VolunteerSchedule>) => {
+    try {
+      const docRef = doc(db, VOLUNTEER_SCHEDULE_COLLECTION, id)
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      })
+      return true
+    } catch (err) {
+      console.error('Error updating volunteer schedule:', err)
+      throw err
+    }
+  }, [])
+
+  const cancelSchedule = React.useCallback(async (id: string) => {
+    try {
+      const docRef = doc(db, VOLUNTEER_SCHEDULE_COLLECTION, id)
+      await updateDoc(docRef, {
+        status: 'cancelled',
+        updatedAt: serverTimestamp()
+      })
+      return true
+    } catch (err) {
+      console.error('Error cancelling volunteer schedule:', err)
+      throw err
+    }
+  }, [])
+
   return {
     data,
     loading,
     error,
     getScheduleStats,
     getScheduleByDate,
-    getPreEventSchedule
+    getPreEventSchedule,
+    deleteSchedule,
+    updateSchedule,
+    cancelSchedule
   }
 }

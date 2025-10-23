@@ -39,6 +39,7 @@ export const SHARED_CONFIG = {
     volunteerHours: "volunteer_hours",
     volunteerSchedule: "volunteer_schedule",
     volunteerCodes: "volunteer_codes",
+    volunteerCommitments: "volunteer_commitments",
     academyInvoices: "academy_invoices",
     academyPayments: "academy_payments",
     academyAttendance: "academy_attendance",

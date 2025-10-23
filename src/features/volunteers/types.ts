@@ -1,48 +1,34 @@
 export interface VolunteerApplication {
   id: string
-  // Personal Information (matching DB structure)
   firstName: string
   lastName: string
   email: string
   gender: string
   tshirtSize: string
-  
-  // Emergency Contact (matching DB structure)
   emergencyContact: string
   emergencyPhone: string
-  
-  // Additional fields from DB
   volunteerCode?: string
   source?: string
   eventInfoAccepted?: boolean
   termsAccepted?: boolean
-  recaptchaToken?: string
-  
-  // Additional fields (optional)
   age?: number
   phone?: string
-  confirmEmail?: string
   city?: string
-  address?: string
   state?: string
-  zipCode?: string
+  country?: string
   availability?: {
     days: string[]
     times: string[]
     commitment: string
+    flexible?: boolean
+    maxHoursPerDay?: number
   }
   interests?: string[]
   skills?: string[]
-  experience?: string
-  motivation?: string
-  references?: Array<{
-    name: string
-    phone: string
-    email?: string
-    relationship: string
-  }>
-  
-  // Status and metadata
+  languages?: string[]
+  backgroundCheckCompleted?: boolean
+  trainingCompleted?: boolean
+  orientationAttended?: boolean
   status: 'pending' | 'approved' | 'rejected' | 'active' | 'inactive'
   notes?: string
   createdAt: {
@@ -53,8 +39,6 @@ export interface VolunteerApplication {
     seconds: number
     nanoseconds: number
   }
-  createdBy?: string
-  updatedBy?: string
 }
 
 export type VolunteerStatus = 'pending' | 'approved' | 'rejected' | 'active' | 'inactive'

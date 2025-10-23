@@ -60,7 +60,8 @@ export function useVolunteerAttendance(eventId?: string) {
     volunteerName: string,
     volunteerEmail: string,
     eventId: string,
-    eventName: string
+    eventName: string,
+    location?: { latitude: number; longitude: number; accuracy?: number; address?: string }
   ) => {
     try {
       // Check if volunteer is already checked in today
@@ -88,6 +89,7 @@ export function useVolunteerAttendance(eventId?: string) {
         eventId,
         eventName,
         checkInTime: serverTimestamp(),
+        checkInLocation: location || null,
         status: 'checked-in' as HoursStatus,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -100,7 +102,10 @@ export function useVolunteerAttendance(eventId?: string) {
     }
   }, [data])
 
-  const checkOut = React.useCallback(async (hoursId: string) => {
+  const checkOut = React.useCallback(async (
+    hoursId: string,
+    location?: { latitude: number; longitude: number; accuracy?: number; address?: string }
+  ) => {
     try {
       const docRef = doc(db, VOLUNTEER_HOURS_COLLECTION, hoursId)
       const checkOutTime = serverTimestamp()
@@ -117,6 +122,7 @@ export function useVolunteerAttendance(eventId?: string) {
 
       await updateDoc(docRef, {
         checkOutTime,
+        checkOutLocation: location || null,
         totalHours,
         status: 'checked-out' as HoursStatus,
         updatedAt: serverTimestamp()

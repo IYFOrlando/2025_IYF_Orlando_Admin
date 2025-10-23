@@ -21,6 +21,7 @@ import AcademiesPage from '../features/academies/pages/AcademiesPage'
 import VolunteersPage from '../features/volunteers/pages/VolunteersPage'
 import CheckInPage from '../features/volunteers/pages/CheckInPage'
 import PublicVolunteerSchedulePage from '../features/volunteers/pages/PublicVolunteerSchedulePage'
+import VolunteerRegistrationPage from '../features/volunteers/pages/VolunteerRegistrationPage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
 import '../index.css'
@@ -60,6 +61,10 @@ const router = createBrowserRouter([
   {
     path: '/volunteer-schedule',
     element: <PublicVolunteerSchedulePage />,
+  },
+  {
+    path: '/volunteer-registration',
+    element: <VolunteerRegistrationPage />,
   },
 ])
 

@@ -1,7 +1,8 @@
 import * as React from 'react'
 import {
   Box, Typography, Card, CardHeader, CardContent, Stack, Chip, Paper, Grid,
-  Alert, Button, Avatar, Divider
+  Alert, Button, Avatar, Divider, IconButton, Tooltip, Dialog, DialogTitle,
+  DialogContent, DialogActions, DialogContentText
 } from '@mui/material'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -12,8 +13,11 @@ import PeopleIcon from '@mui/icons-material/People'
 import LoginIcon from '@mui/icons-material/Login'
 import LogoutIcon from '@mui/icons-material/Logout'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
+import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import { useVolunteerSchedule } from '../hooks/useVolunteerSchedule'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
+import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
 
 
 const ATTENDANCE_ICONS = {
@@ -25,13 +29,108 @@ const ATTENDANCE_ICONS = {
 
 export default function PreEventVolunteerSchedule() {
   // Force cache refresh - timestamp: 1761137000000
-  const { data: schedule, loading, getScheduleStats, getPreEventSchedule } = useVolunteerSchedule()
+  const { data: schedule, loading, getScheduleStats, getPreEventSchedule, deleteSchedule, updateSchedule } = useVolunteerSchedule()
   const { data: attendanceData } = useVolunteerAttendance()
+  const { data: volunteers } = useVolunteerApplications()
+  
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [scheduleToDelete, setScheduleToDelete] = React.useState<{ id: string; name: string } | null>(null)
+  const [cleanupInProgress, setCleanupInProgress] = React.useState(false)
   
   const stats = getScheduleStats()
   const preEventSlots = getPreEventSchedule()
 
-  
+  // Function to check if a volunteer is active
+  const isVolunteerActive = React.useCallback((volunteerCode: string) => {
+    const volunteer = volunteers.find(v => v.volunteerCode === volunteerCode)
+    if (!volunteer) {
+      console.log('⚠️ Volunteer not found in applications:', volunteerCode)
+      return false
+    }
+    
+    const isActive = volunteer.status === 'active' || volunteer.status === 'approved' || volunteer.status === 'pending'
+    console.log(`👤 Volunteer ${volunteerCode} (${volunteer.firstName} ${volunteer.lastName}) status: ${volunteer.status}, active: ${isActive}`)
+    return isActive
+  }, [volunteers])
+
+  // Handle schedule deletion
+  const handleDeleteClick = (scheduleId: string, volunteerName: string) => {
+    setScheduleToDelete({ id: scheduleId, name: volunteerName })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!scheduleToDelete) return
+    
+    try {
+      await deleteSchedule(scheduleToDelete.id)
+      setDeleteDialogOpen(false)
+      setScheduleToDelete(null)
+      // You can add a success notification here if you have a notification system
+      console.log('Schedule deleted successfully')
+    } catch (error) {
+      console.error('Error deleting schedule:', error)
+      // You can add an error notification here
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setScheduleToDelete(null)
+  }
+
+  // Handle edit schedule
+  const handleEditSchedule = (scheduleId: string, volunteerName: string) => {
+    console.log('Edit schedule clicked:', scheduleId, volunteerName)
+    // TODO: Implement edit schedule functionality
+    // For now, just show an alert
+    alert(`Edit schedule for ${volunteerName} (ID: ${scheduleId}) - Feature coming soon!`)
+  }
+
+  // Function to clean up schedules for inactive volunteers or volunteers with no valid slots
+  const cleanupInactiveSchedules = React.useCallback(async () => {
+    const schedulesToCleanup = preEventSlots.filter(schedule => {
+      // Check if volunteer is inactive
+      if (!isVolunteerActive(schedule.volunteerCode)) {
+        return true
+      }
+      
+      // Check if volunteer has no valid slots
+      const hasValidSlots = (schedule.selectedSlots && Array.isArray(schedule.selectedSlots) && schedule.selectedSlots.length > 0) ||
+                           (schedule.slots && Array.isArray(schedule.slots) && schedule.slots.length > 0)
+      
+      if (!hasValidSlots) {
+        console.log(`🧹 Schedule for ${schedule.volunteerName} has no valid slots, marking for cleanup`)
+        return true
+      }
+      
+      return false
+    })
+    
+    if (schedulesToCleanup.length > 0) {
+      setCleanupInProgress(true)
+      console.log(`🧹 Found ${schedulesToCleanup.length} schedules to clean up...`)
+      
+      for (const schedule of schedulesToCleanup) {
+        try {
+          await deleteSchedule(schedule.id)
+          console.log(`✅ Deleted schedule: ${schedule.volunteerName} (${schedule.volunteerCode})`)
+        } catch (error) {
+          console.error(`❌ Error deleting schedule for ${schedule.volunteerName}:`, error)
+        }
+      }
+      
+      setCleanupInProgress(false)
+    }
+  }, [preEventSlots, isVolunteerActive, deleteSchedule])
+
+  // Auto-cleanup when volunteers become inactive
+  React.useEffect(() => {
+    if (volunteers.length > 0 && preEventSlots.length > 0) {
+      cleanupInactiveSchedules()
+    }
+  }, [volunteers, preEventSlots, cleanupInactiveSchedules])
+
   // Function to get check-in/check-out status for a volunteer on a specific date
   const getAttendanceStatus = React.useCallback((volunteerCode: string, slotDate: string) => {
     // Convert slot date to timestamp range for that specific date
@@ -67,11 +166,33 @@ export default function PreEventVolunteerSchedule() {
 
   // Process data for modern calendar view
   const calendarData = React.useMemo(() => {
+    console.log('🔄 Processing calendar data from preEventSlots:', preEventSlots.length, 'slots')
     const dayMap = new Map()
     
-    preEventSlots.forEach(volunteer => {
-      if (volunteer.selectedSlots && Array.isArray(volunteer.selectedSlots)) {
-        volunteer.selectedSlots.forEach(slot => {
+    preEventSlots.forEach((volunteer, index) => {
+      console.log(`📅 Processing volunteer ${index + 1}:`, volunteer.volunteerName, 'ID:', volunteer.id)
+      
+      // Check if volunteer is active first
+      if (!isVolunteerActive(volunteer.volunteerCode)) {
+        console.log(`❌ Skipping inactive volunteer: ${volunteer.volunteerName} (${volunteer.volunteerCode})`)
+        return
+      }
+      
+      // Check both selectedSlots and slots arrays
+      const slotsToProcess = volunteer.selectedSlots && Array.isArray(volunteer.selectedSlots) && volunteer.selectedSlots.length > 0 
+        ? volunteer.selectedSlots 
+        : (volunteer.slots && Array.isArray(volunteer.slots) ? volunteer.slots : [])
+      
+      console.log(`📊 Processing ${slotsToProcess.length} slots for ${volunteer.volunteerName}`)
+      
+      // Skip volunteers with no valid slots
+      if (slotsToProcess.length === 0) {
+        console.log(`⚠️ Skipping volunteer with no valid slots: ${volunteer.volunteerName} (${volunteer.volunteerCode})`)
+        return
+      }
+      
+      if (slotsToProcess.length > 0) {
+        slotsToProcess.forEach((slot, slotIndex) => {
           if (typeof slot === 'object' && slot.date) {
             const dateKey = slot.date
             if (!dayMap.has(dateKey)) {
@@ -84,6 +205,7 @@ export default function PreEventVolunteerSchedule() {
             const attendanceStatus = getAttendanceStatus(volunteer.volunteerCode, slot.date)
             
             dayMap.get(dateKey).volunteers.push({
+              id: volunteer.id, // Add the schedule ID
               name: volunteer.volunteerName,
               code: volunteer.volunteerCode,
               email: volunteer.volunteerEmail,
@@ -93,23 +215,33 @@ export default function PreEventVolunteerSchedule() {
               status: volunteer.status,
               attendanceStatus: attendanceStatus
             })
+            console.log(`✅ Added volunteer to ${dateKey}:`, volunteer.volunteerName)
           }
         })
+      } else {
+        console.log('⚠️ Volunteer has no slots or selectedSlots:', volunteer.volunteerName)
+        console.log('   - selectedSlots:', volunteer.selectedSlots)
+        console.log('   - slots:', volunteer.slots)
       }
     })
     
-    return Array.from(dayMap.values()).sort((a, b) => 
+    const result = Array.from(dayMap.values()).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
-  }, [preEventSlots, getAttendanceStatus])
+    console.log('📊 Final calendar data:', result.length, 'days')
+    return result
+  }, [preEventSlots, getAttendanceStatus, isVolunteerActive])
 
   // Debug logging
   React.useEffect(() => {
     console.log('🔍 PreEventVolunteerSchedule Debug:')
     console.log('- Loading:', loading)
+    console.log('- Schedule data length:', schedule.length)
     console.log('- Schedule data:', schedule)
+    console.log('- PreEvent slots length:', preEventSlots.length)
     console.log('- PreEvent slots:', preEventSlots)
     console.log('- Stats:', stats)
+    console.log('- Calendar data length:', calendarData.length)
     console.log('- Calendar data:', calendarData)
   }, [loading, schedule, preEventSlots, stats, calendarData])
 
@@ -180,6 +312,14 @@ export default function PreEventVolunteerSchedule() {
         </Grid>
       </Grid>
 
+      {/* Cleanup Status */}
+      {cleanupInProgress && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            🧹 Cleaning up schedules for inactive volunteers...
+          </Typography>
+        </Alert>
+      )}
 
       {/* Modern Calendar View */}
       <Card>
@@ -318,6 +458,28 @@ export default function PreEventVolunteerSchedule() {
                                 size="small"
                                 sx={{ alignSelf: 'flex-start' }}
                               />
+                              
+                              {/* Action Buttons */}
+                              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                <Tooltip title="Edit Schedule">
+                                  <IconButton 
+                                    size="small" 
+                                    color="primary"
+                                    onClick={() => handleEditSchedule(volunteer.id, volunteer.name)}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete Schedule">
+                                  <IconButton 
+                                    size="small" 
+                                    color="error"
+                                    onClick={() => handleDeleteClick(volunteer.id, volunteer.name)}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
                             </Stack>
                           </Paper>
                         </Grid>
@@ -330,6 +492,32 @@ export default function PreEventVolunteerSchedule() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Confirmar Eliminación
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            ¿Estás seguro de que quieres eliminar el horario de <strong>{scheduleToDelete?.name}</strong>? 
+            Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancelar
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   )

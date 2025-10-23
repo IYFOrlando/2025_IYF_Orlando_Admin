@@ -6,13 +6,16 @@ import {
 import PersonIcon from '@mui/icons-material/Person'
 import QrCodeIcon from '@mui/icons-material/QrCode'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import LocationOnIcon from '@mui/icons-material/LocationOn'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
+import { useGeolocation } from '../hooks/useGeolocation'
 import Swal from 'sweetalert2'
 
 export default function VolunteerCheckInStandalone() {
   const { data: attendance, checkIn, checkOut } = useVolunteerAttendance()
   const { data: volunteers } = useVolunteerApplications()
+  const { getCurrentLocation, location, error: geoError, loading: geoLoading } = useGeolocation()
   const [volunteerCode, setVolunteerCode] = React.useState('')
   const [loading, setLoading] = React.useState(false)
 
@@ -38,6 +41,15 @@ export default function VolunteerCheckInStandalone() {
     }
 
     setLoading(true)
+
+    // Get current location
+    let currentLocation = null
+    try {
+      currentLocation = await getCurrentLocation()
+    } catch (error) {
+      console.warn('Could not get location:', error)
+      // Continue without location - don't block the check-in/out process
+    }
 
     try {
       // Find volunteer by code (search in ALL volunteers, not just approved ones)
@@ -355,7 +367,8 @@ export default function VolunteerCheckInStandalone() {
           volunteer.firstName,
           volunteer.email,
           'taste-of-korea-preparation',
-          'Taste of Korea - Pre-Event Preparation Period'
+          'Taste of Korea - Pre-Event Preparation Period',
+          currentLocation
         )
         
         Swal.fire({
@@ -370,7 +383,7 @@ export default function VolunteerCheckInStandalone() {
         })
       } else if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) {
         // Has check-in but no check-out - do check-out
-        await checkOut(todayAttendance.id)
+        await checkOut(todayAttendance.id, currentLocation)
         
         Swal.fire({
           icon: 'success',
@@ -479,6 +492,14 @@ export default function VolunteerCheckInStandalone() {
                     startAdornment: <PersonIcon sx={{ mr: 1, color: 'action.active' }} />
                   }}
                 />
+
+                {/* Location Status */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <LocationOnIcon color={location ? 'success' : 'disabled'} />
+                  <Typography variant="body2" color={location ? 'success.main' : 'text.secondary'}>
+                    {location ? `📍 Location: ${location.address || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}` : '📍 Location will be captured automatically'}
+                  </Typography>
+                </Box>
                 
                 <Button
                   type="submit"

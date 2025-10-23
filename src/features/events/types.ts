@@ -33,6 +33,18 @@ export interface VolunteerHours {
     seconds: number
     nanoseconds: number
   }
+  checkInLocation?: {
+    latitude: number
+    longitude: number
+    accuracy?: number
+    address?: string
+  }
+  checkOutLocation?: {
+    latitude: number
+    longitude: number
+    accuracy?: number
+    address?: string
+  }
   totalHours?: number
   status: 'checked-in' | 'checked-out' | 'completed'
   notes?: string
