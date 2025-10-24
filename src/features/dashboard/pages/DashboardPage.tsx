@@ -4,6 +4,7 @@ import {
   TableCell, TableBody, Divider, Stack, Button
 } from '@mui/material'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
+import { useEmailDatabase } from '../../emails/hooks/useEmailDatabase'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { displayYMD } from '../../../lib/date'
@@ -15,6 +16,7 @@ type KoreanLevelRow = { level: string; count: number }
 
 export default function DashboardPage() {
   const { data, loading } = useRegistrations()
+  const { emails, getUniqueEmails, getEmailsBySource, getEmailsByTag } = useEmailDatabase()
 
   const { totals, p1Rows, p2Rows, koreanLevelRows } = React.useMemo(() => {
     const p1 = new Map<string, number>()
@@ -243,6 +245,19 @@ export default function DashboardPage() {
           <CardContent>
             <Typography variant="h6">Total Period 2</Typography>
             <Typography variant="h3" fontWeight={800}>{loading ? '…' : totals.p2Total}</Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+      
+      {/* Email Database Stats */}
+      <Grid item xs={12} md={3}>
+        <Card elevation={0} sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="h6">Email Database</Typography>
+            <Typography variant="h3" fontWeight={800}>{getUniqueEmails().length}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {getEmailsBySource('registrations').length} students, {getEmailsBySource('staff').length} staff
+            </Typography>
           </CardContent>
         </Card>
       </Grid>

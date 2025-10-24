@@ -26,6 +26,8 @@ import type { Registration } from '../../registrations/types'
 import { usePricingSettings } from '../../pricing/hooks/usePricingSettings'
 import { useInvoices } from '../hooks/useInvoices'
 import { usePayments } from '../hooks/usePayments'
+import { useInstructors } from '../hooks/useInstructors'
+import InvoiceDialog from '../components/InvoiceDialog'
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
@@ -129,6 +131,7 @@ const PaymentsPage = React.memo(() => {
   const { data: pricing, savePricing } = usePricingSettings()
   const { data: allInvoices } = useInvoices()
   const { data: allPayments } = usePayments()
+  const { getInstructorByAcademy } = useInstructors()
 
 
   const [student, setStudent] = React.useState<StudentOption | null>(null)
@@ -140,6 +143,11 @@ const PaymentsPage = React.memo(() => {
   const [lines, setLines] = React.useState<InvoiceLine[]>([])
   const [lunchSemester, setLunchSemester] = React.useState<boolean>(false)
   const [lunchSingleQty, setLunchSingleQty] = React.useState<number>(0)
+  
+  // Invoice line editing
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = React.useState(false)
+  const [editingLine, setEditingLine] = React.useState<InvoiceLine | null>(null)
+  const [editingLineIndex, setEditingLineIndex] = React.useState<number>(-1)
   // Removed discountAmount state - only using discount codes now
   const [discountNote, setDiscountNote] = React.useState<string>('')
   const [discountCode, setDiscountCode] = React.useState<string>('')
@@ -222,26 +230,44 @@ const PaymentsPage = React.memo(() => {
     const a1 = norm(r.firstPeriod?.academy)
     if (a1 && a1.toLowerCase() !== 'n/a' && !p1Paid) {
       const unit = priceFor(a1, r.firstPeriod?.level || null, 1, pricing)
+      const instructor = getInstructorByAcademy(a1, r.firstPeriod?.level || null)
       L.push({
         academy: a1,
         period: 1,
         level: isKoreanLanguage(a1) ? mapKoreanLevel(r.firstPeriod?.level) : null,
-        unitPrice: unit, qty: 1, amount: unit
+        unitPrice: unit, 
+        qty: 1, 
+        amount: unit,
+        instructor: instructor ? {
+          name: instructor.name,
+          email: instructor.email || '',
+          phone: instructor.phone || '',
+          credentials: instructor.credentials || ''
+        } : undefined
       })
     }
     const a2 = norm(r.secondPeriod?.academy)
     if (a2 && a2.toLowerCase() !== 'n/a' && !p2Paid) {
       const unit = priceFor(a2, r.secondPeriod?.level || null, 2, pricing)
+      const instructor = getInstructorByAcademy(a2, r.secondPeriod?.level || null)
       L.push({
         academy: a2,
         period: 2,
         level: isKoreanLanguage(a2) ? mapKoreanLevel(r.secondPeriod?.level) : null,
-        unitPrice: unit, qty: 1, amount: unit
+        unitPrice: unit, 
+        qty: 1, 
+        amount: unit,
+        instructor: instructor ? {
+          name: instructor.name,
+          email: instructor.email || '',
+          phone: instructor.phone || '',
+          credentials: instructor.credentials || ''
+        } : undefined
       })
     }
     setLines(L)
     setLunchSemester(false); setLunchSingleQty(0); setDiscountNote('')
-  }, [student?.id, pricing, studentInvoices])
+  }, [student?.id, pricing, studentInvoices, getInstructorByAcademy])
 
   // Process discount code
   const handleDiscountCodeChange = React.useCallback((code: string) => {
@@ -779,7 +805,7 @@ const PaymentsPage = React.memo(() => {
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica','bold')
     doc.setFontSize(12)
-    doc.text('Description', margin + 15, yPos + 20)
+    doc.text('Course & Instructor', margin + 15, yPos + 20)
     doc.text('Period', margin + 200, yPos + 20)
     doc.text('Qty', margin + 280, yPos + 20)
     doc.text('Unit Price', margin + 350, yPos + 20)
@@ -789,17 +815,21 @@ const PaymentsPage = React.memo(() => {
     doc.setFillColor(255, 255, 255)
     doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
     
-    // Academy items
+    // Academy items with instructor information
     inv.lines.forEach((line, index) => {
       const isEven = index % 2 === 0
+      const itemHeight = line.instructor || line.instructionDates ? 80 : 40
+      
       if (isEven) {
         doc.setFillColor(250, 250, 250)
-        doc.rect(margin, yPos, pageWidth - 2 * margin, 40, 'F')
+        doc.rect(margin, yPos, pageWidth - 2 * margin, itemHeight, 'F')
       }
       
       doc.setTextColor(textColor[0], textColor[1], textColor[2])
       doc.setFont('helvetica','normal')
       doc.setFontSize(10)
+      
+      // Basic course information
       doc.text(line.academy, margin + 15, yPos + 15)
       doc.text(`P${line.period}`, margin + 200, yPos + 15)
       doc.text(line.qty.toString(), margin + 280, yPos + 15)
@@ -812,7 +842,49 @@ const PaymentsPage = React.memo(() => {
         doc.text(line.level, margin + 15, yPos + 30)
       }
       
-      yPos += 40
+      // Instructor information
+      if (line.instructor) {
+        doc.setFontSize(9)
+        doc.setTextColor(80, 80, 80)
+        doc.text(`Instructor: ${line.instructor.name}`, margin + 15, yPos + 45)
+        
+        if (line.instructor.credentials) {
+          doc.text(`Credentials: ${line.instructor.credentials}`, margin + 15, yPos + 60)
+        }
+      }
+      
+      // Instruction dates and hours
+      if (line.instructionDates) {
+        const dates = line.instructionDates
+        if (dates.startDate && dates.endDate) {
+          const startDate = new Date(dates.startDate).toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric' 
+          })
+          const endDate = new Date(dates.endDate).toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric' 
+          })
+          doc.setFontSize(9)
+          doc.setTextColor(80, 80, 80)
+          doc.text(`Dates: ${startDate} - ${endDate}`, margin + 200, yPos + 45)
+          
+          if (dates.totalHours > 0) {
+            doc.text(`Hours: ${dates.totalHours}`, margin + 200, yPos + 60)
+          }
+          
+          if (dates.schedule) {
+            doc.text(`Schedule: ${dates.schedule}`, margin + 200, yPos + 75)
+          }
+        }
+      }
+      
+      // Service rate for elective courses
+      if (line.serviceRate && line.serviceRate > 0) {
+        doc.setFontSize(9)
+        doc.setTextColor(80, 80, 80)
+        doc.text(`Service Rate: $${line.serviceRate}/hour`, margin + 350, yPos + 45)
+      }
+      
+      yPos += itemHeight
     })
 
     // Lunch items
@@ -898,6 +970,64 @@ const PaymentsPage = React.memo(() => {
       doc.text('PAID', totalsStartX, yPos)
     }
 
+    // Instructor Summary Section
+    const instructorsWithInfo = inv.lines.filter(line => line.instructor && line.instructor.name)
+    if (instructorsWithInfo.length > 0) {
+      yPos = Math.max(yPos + 50, 500)
+      
+      // Check if we need a new page
+      if (yPos > pageHeight - 200) {
+        doc.addPage()
+        yPos = 50
+      }
+      
+      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
+      doc.rect(margin, yPos, pageWidth - 2 * margin, 30, 'F')
+      
+      doc.setTextColor(textColor[0], textColor[1], textColor[2])
+      doc.setFont('helvetica','bold')
+      doc.setFontSize(14)
+      doc.text('Instructor Information', margin + 15, yPos + 20)
+      
+      yPos += 40
+      
+      // Group instructors by name to avoid duplicates
+      const uniqueInstructors = new Map()
+      instructorsWithInfo.forEach(line => {
+        if (line.instructor) {
+          const key = line.instructor.name
+          if (!uniqueInstructors.has(key)) {
+            uniqueInstructors.set(key, line.instructor)
+          }
+        }
+      })
+      
+      uniqueInstructors.forEach((instructor) => {
+        doc.setFillColor(255, 255, 255)
+        doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
+        doc.rect(margin, yPos, pageWidth - 2 * margin, 60, 'FD')
+        
+        doc.setTextColor(textColor[0], textColor[1], textColor[2])
+        doc.setFont('helvetica','bold')
+        doc.setFontSize(12)
+        doc.text(instructor.name, margin + 15, yPos + 20)
+        
+        doc.setFont('helvetica','normal')
+        doc.setFontSize(10)
+        if (instructor.email) {
+          doc.text(`Email: ${instructor.email}`, margin + 15, yPos + 35)
+        }
+        if (instructor.phone) {
+          doc.text(`Phone: ${instructor.phone}`, margin + 200, yPos + 35)
+        }
+        if (instructor.credentials) {
+          doc.text(`Credentials: ${instructor.credentials}`, margin + 15, yPos + 50)
+        }
+        
+        yPos += 70
+      })
+    }
+
 
     // Footer
     const footerY = pageHeight - 40
@@ -916,6 +1046,32 @@ const PaymentsPage = React.memo(() => {
       : `invoice-${inv.studentName?.replace(/\s+/g,'_')}-${inv.id}.pdf`
     doc.save(filename)
   }
+
+  /* ---------- Invoice Line Editing Functions ---------- */
+  const handleEditLine = React.useCallback((line: InvoiceLine, index: number) => {
+    setEditingLine(line)
+    setEditingLineIndex(index)
+    setInvoiceDialogOpen(true)
+  }, [])
+
+  const handleSaveLine = React.useCallback((updatedLine: InvoiceLine) => {
+    if (editingLineIndex >= 0) {
+      setLines(prev => {
+        const newLines = [...prev]
+        newLines[editingLineIndex] = updatedLine
+        return newLines
+      })
+    }
+    setInvoiceDialogOpen(false)
+    setEditingLine(null)
+    setEditingLineIndex(-1)
+  }, [editingLineIndex])
+
+  const handleCloseInvoiceDialog = React.useCallback(() => {
+    setInvoiceDialogOpen(false)
+    setEditingLine(null)
+    setEditingLineIndex(-1)
+  }, [])
 
   /* ---------- Payment Records Functions ---------- */
   const handleRowClick = React.useCallback((params: { row: Payment }) => {
@@ -1352,10 +1508,37 @@ const PaymentsPage = React.memo(() => {
                     <Stack spacing={1.25}>
                       {lines.map((li, idx) => (
                         <Grid key={`${li.academy}-${li.period}-${idx}`} container spacing={1} alignItems="center">
-                          <Grid item xs={12} sm={7}><Typography variant="body2"><b>{li.academy}</b> — P{li.period}{li.level ? ` — ${li.level}` : ''}</Typography></Grid>
-                          <Grid item xs={4} sm={2}><TextField size="small" label="Unit" value={usd(li.unitPrice)} InputProps={{ readOnly: true }} fullWidth /></Grid>
-                          <Grid item xs={4} sm={1}><TextField size="small" label="Qty" value={li.qty} InputProps={{ readOnly: true }} fullWidth /></Grid>
-                          <Grid item xs={4} sm={2}><TextField size="small" label="Amount" value={usd(li.amount)} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="body2">
+                              <b>{li.academy}</b> — P{li.period}{li.level ? ` — ${li.level}` : ''}
+                              {li.instructor && (
+                                <Chip 
+                                  size="small" 
+                                  label={`Instructor: ${li.instructor.name}`} 
+                                  color="primary" 
+                                  sx={{ ml: 1, fontSize: '0.7rem' }}
+                                />
+                              )}
+                            </Typography>
+                            {li.instructionDates && (
+                              <Typography variant="caption" color="text.secondary">
+                                {li.instructionDates.startDate && li.instructionDates.endDate && (
+                                  `${new Date(li.instructionDates.startDate).toLocaleDateString()} - ${new Date(li.instructionDates.endDate).toLocaleDateString()}`
+                                )}
+                                {li.instructionDates.totalHours > 0 && ` • ${li.instructionDates.totalHours} hours`}
+                              </Typography>
+                            )}
+                          </Grid>
+                          <Grid item xs={3} sm={1.5}><TextField size="small" label="Unit" value={usd(li.unitPrice)} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                          <Grid item xs={3} sm={1}><TextField size="small" label="Qty" value={li.qty} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                          <Grid item xs={3} sm={1.5}><TextField size="small" label="Amount" value={usd(li.amount)} InputProps={{ readOnly: true }} fullWidth /></Grid>
+                          <Grid item xs={3} sm={1}>
+                            <Tooltip title="Edit instructor and schedule information">
+                              <IconButton size="small" onClick={() => handleEditLine(li, idx)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Grid>
                         </Grid>
                       ))}
                       {lines.length === 0 && <Typography variant="body2" color="text.secondary">No tuition items (either fully paid or blocked by an open invoice).</Typography>}
@@ -1688,6 +1871,16 @@ const PaymentsPage = React.memo(() => {
         }}
         paymentData={selectedPaymentRecord}
              />
+
+        {/* Invoice Line Editing Dialog */}
+        <InvoiceDialog
+          open={invoiceDialogOpen}
+          editing={editingLine}
+          onClose={handleCloseInvoiceDialog}
+          onSave={handleSaveLine}
+          academy={editingLine?.academy}
+          level={editingLine?.level}
+        />
      </Grid>
    )
  })

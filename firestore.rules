@@ -129,6 +129,65 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Email database collection - public access for now
+    match /email_database/{document} {
+      allow read, write: if true;
+    }
+    
+    // Registrations collection - public read access for email import
+    match /registrations/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Staff collection - public read access for email import
+    match /staff/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Staff profiles collection - public read access for email import
+    match /staff_profiles/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Teachers collection - public read access for email import
+    match /teachers/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Payments collection - public read access for email import
+    match /payments/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Spring academy collection - public read access for email import
+    match /spring_academy_2025/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // K-drama registration collection - public read access for email import
+    match /k_drama_with_friends_registration/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Trip to korea registration collection - public read access for email import
+    match /trip_to_korea_registration/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Subscribers collection - public read access for email import
+    match /subscribers/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
     // Allow public read/write access to any future registration collections (for frontend forms)
     match /{collection}/{document} {
       allow read, write: if 

@@ -28,6 +28,19 @@ export type InvoiceLine = {
   unitPrice: number
   qty: number
   amount: number
+  instructor?: {
+    name: string
+    email?: string
+    phone?: string
+    credentials?: string
+  }
+  instructionDates?: {
+    startDate: string
+    endDate: string
+    totalHours: number
+    schedule?: string // e.g., "Saturdays 10:00 AM - 12:00 PM"
+  }
+  serviceRate?: number // Rate per hour for elective courses
 }
 
 export type Invoice = {
