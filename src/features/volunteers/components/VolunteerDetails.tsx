@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -13,14 +12,12 @@ import {
   CardHeader,
   Chip,
   Avatar,
-  Divider,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
   IconButton,
   Badge,
-  Paper,
   Stack
 } from '@mui/material'
 import {
@@ -32,7 +29,6 @@ import {
   Work as WorkIcon,
   Security as SecurityIcon,
   ContactPhone as ContactPhoneIcon,
-  Language as LanguageIcon,
   Star as StarIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
@@ -43,7 +39,7 @@ import {
   Download as DownloadIcon,
   Print as PrintIcon
 } from '@mui/icons-material'
-import type { VolunteerApplication, VolunteerStatus } from '../types'
+import type { VolunteerApplication } from '../types'
 
 interface VolunteerDetailsProps {
   open: boolean
@@ -96,17 +92,17 @@ export default function VolunteerDetails({ open, onClose, volunteer, onEdit }: V
     {
       label: 'Background Check',
       completed: volunteer.backgroundCheckCompleted,
-      date: volunteer.backgroundCheckDate
+      date: undefined
     },
     {
       label: 'Training',
       completed: volunteer.trainingCompleted,
-      date: volunteer.trainingDate
+      date: undefined
     },
     {
       label: 'Orientation',
       completed: volunteer.orientationAttended,
-      date: volunteer.orientationDate
+      date: undefined
     }
   ]
 
@@ -426,45 +422,7 @@ export default function VolunteerDetails({ open, onClose, volunteer, onEdit }: V
               </Card>
             </Grid>
 
-            {/* References */}
-            {volunteer.references && volunteer.references.length > 0 && (
-              <Grid item xs={12}>
-                <Card>
-                  <CardHeader
-                    title={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ContactPhoneIcon color="primary" />
-                        <Typography variant="h6">References</Typography>
-                      </Box>
-                    }
-                  />
-                  <CardContent>
-                    <Grid container spacing={2}>
-                      {volunteer.references.map((ref, index) => (
-                        <Grid item xs={12} sm={6} md={4} key={index}>
-                          <Paper sx={{ p: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              {ref.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {ref.relationship}
-                            </Typography>
-                            <Typography variant="body2" gutterBottom>
-                              📞 {ref.phone}
-                            </Typography>
-                            {ref.email && (
-                              <Typography variant="body2">
-                                📧 {ref.email}
-                              </Typography>
-                            )}
-                          </Paper>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
+            {/* References - Not available in current data structure */}
 
             {/* Notes */}
             {volunteer.notes && (

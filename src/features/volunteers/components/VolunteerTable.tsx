@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Box,
   Card,
@@ -14,37 +14,16 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Menu,
-  ListItemIcon,
-  ListItemText,
-  Checkbox,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Paper,
   Avatar,
-  Badge,
   Alert,
-  Skeleton,
-  Stack,
-  Divider
 } from '@mui/material'
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  MoreVert as MoreVertIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Visibility as ViewIcon,
-  Person as PersonIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
-  Work as WorkIcon,
   Security as SecurityIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
@@ -56,7 +35,7 @@ import {
   Add as AddIcon,
   Group as GroupIcon
 } from '@mui/icons-material'
-import { DataGrid, GridColDef, GridActionsCellItem, GridRowParams } from '@mui/x-data-grid'
+import { DataGrid, type GridColDef, GridActionsCellItem } from '@mui/x-data-grid'
 import type { VolunteerApplication, VolunteerStatus } from '../types'
 
 interface VolunteerTableProps {
@@ -109,16 +88,11 @@ export default function VolunteerTable({
   loading,
   error,
   onEdit,
-  onDelete,
-  onView,
-  onStatusChange,
   onCreateNew,
   onRefresh
 }: VolunteerTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<VolunteerStatus | 'all'>('all')
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(25)
   const [selectedRows, setSelectedRows] = useState<string[]>([])
 
   // Filter and search volunteers

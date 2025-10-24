@@ -33,6 +33,7 @@ export interface CollectionsConfig {
   volunteerHours: string
   volunteerSchedule: string
   volunteerCodes: string
+  volunteerCommitments: string
   academyInvoices: string
   academyPayments: string
   academyAttendance: string

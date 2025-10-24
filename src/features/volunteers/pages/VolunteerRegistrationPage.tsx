@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, Container, Typography, Alert } from '@mui/material'
 import VolunteerRegistrationForm from '../components/VolunteerRegistrationForm'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'

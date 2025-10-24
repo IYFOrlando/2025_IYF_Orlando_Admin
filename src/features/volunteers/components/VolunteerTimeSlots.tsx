@@ -29,7 +29,7 @@ const ATTENDANCE_ICONS = {
 
 export default function PreEventVolunteerSchedule() {
   // Force cache refresh - timestamp: 1761137000000
-  const { data: schedule, loading, getScheduleStats, getPreEventSchedule, deleteSchedule, updateSchedule } = useVolunteerSchedule()
+  const { data: schedule, loading, getScheduleStats, getPreEventSchedule, deleteSchedule } = useVolunteerSchedule()
   const { data: attendanceData } = useVolunteerAttendance()
   const { data: volunteers } = useVolunteerApplications()
   
@@ -96,8 +96,7 @@ export default function PreEventVolunteerSchedule() {
       }
       
       // Check if volunteer has no valid slots
-      const hasValidSlots = (schedule.selectedSlots && Array.isArray(schedule.selectedSlots) && schedule.selectedSlots.length > 0) ||
-                           (schedule.slots && Array.isArray(schedule.slots) && schedule.slots.length > 0)
+      const hasValidSlots = (schedule.selectedSlots && Array.isArray(schedule.selectedSlots) && schedule.selectedSlots.length > 0)
       
       if (!hasValidSlots) {
         console.log(`🧹 Schedule for ${schedule.volunteerName} has no valid slots, marking for cleanup`)
@@ -178,10 +177,10 @@ export default function PreEventVolunteerSchedule() {
         return
       }
       
-      // Check both selectedSlots and slots arrays
+      // Check selectedSlots array
       const slotsToProcess = volunteer.selectedSlots && Array.isArray(volunteer.selectedSlots) && volunteer.selectedSlots.length > 0 
-        ? volunteer.selectedSlots 
-        : (volunteer.slots && Array.isArray(volunteer.slots) ? volunteer.slots : [])
+        ? volunteer.selectedSlots
+        : []
       
       console.log(`📊 Processing ${slotsToProcess.length} slots for ${volunteer.volunteerName}`)
       
@@ -192,7 +191,7 @@ export default function PreEventVolunteerSchedule() {
       }
       
       if (slotsToProcess.length > 0) {
-        slotsToProcess.forEach((slot, slotIndex) => {
+        slotsToProcess.forEach((slot: any) => {
           if (typeof slot === 'object' && slot.date) {
             const dateKey = slot.date
             if (!dayMap.has(dateKey)) {
@@ -221,7 +220,6 @@ export default function PreEventVolunteerSchedule() {
       } else {
         console.log('⚠️ Volunteer has no slots or selectedSlots:', volunteer.volunteerName)
         console.log('   - selectedSlots:', volunteer.selectedSlots)
-        console.log('   - slots:', volunteer.slots)
       }
     })
     

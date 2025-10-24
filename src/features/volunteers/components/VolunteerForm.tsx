@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -16,18 +16,12 @@ import {
   Chip,
   Box,
   Typography,
-  Divider,
   IconButton,
-  Tooltip,
-  Alert,
   Autocomplete,
   FormGroup,
   FormLabel,
   RadioGroup,
   Radio,
-  Card,
-  CardContent,
-  CardHeader,
   Accordion,
   AccordionSummary,
   AccordionDetails
@@ -39,8 +33,6 @@ import {
   Work as WorkIcon,
   Security as SecurityIcon,
   ExpandMore as ExpandMoreIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
   Save as SaveIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material'
@@ -126,7 +118,6 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
     interests: [],
     skills: [],
     languages: ['English'],
-    references: [],
     backgroundCheckCompleted: false,
     trainingCompleted: false,
     orientationAttended: false
@@ -149,7 +140,6 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
         interests: volunteer.interests || [],
         skills: volunteer.skills || [],
         languages: volunteer.languages || ['English'],
-        references: volunteer.references || []
       })
     } else if (mode === 'create') {
       setFormData({
@@ -180,7 +170,6 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
         interests: [],
         skills: [],
         languages: ['English'],
-        references: [],
         backgroundCheckCompleted: false,
         trainingCompleted: false,
         orientationAttended: false
@@ -252,31 +241,6 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
     }))
   }
 
-  const addReference = () => {
-    setFormData(prev => ({
-      ...prev,
-      references: [
-        ...(prev.references || []),
-        { name: '', phone: '', email: '', relationship: '' }
-      ]
-    }))
-  }
-
-  const removeReference = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      references: prev.references?.filter((_, i) => i !== index) || []
-    }))
-  }
-
-  const updateReference = (index: number, field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      references: prev.references?.map((ref, i) => 
-        i === index ? { ...ref, [field]: value } : ref
-      ) || []
-    }))
-  }
 
   return (
     <Dialog 
@@ -531,78 +495,7 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
             </AccordionDetails>
           </Accordion>
 
-          {/* References */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ContactIcon color="primary" />
-                <Typography variant="h6">References</Typography>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ mb: 2 }}>
-                <Button
-                  startIcon={<AddIcon />}
-                  onClick={addReference}
-                  variant="outlined"
-                  size="small"
-                >
-                  Add Reference
-                </Button>
-              </Box>
-              {formData.references?.map((ref, index) => (
-                <Card key={index} sx={{ mb: 2 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="subtitle2">Reference {index + 1}</Typography>
-                      <IconButton onClick={() => removeReference(index)} size="small" color="error">
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Name"
-                          value={ref.name}
-                          onChange={(e) => updateReference(index, 'name', e.target.value)}
-                          size="small"
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Phone"
-                          value={ref.phone}
-                          onChange={(e) => updateReference(index, 'phone', e.target.value)}
-                          size="small"
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Email"
-                          type="email"
-                          value={ref.email || ''}
-                          onChange={(e) => updateReference(index, 'email', e.target.value)}
-                          size="small"
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          label="Relationship"
-                          value={ref.relationship}
-                          onChange={(e) => updateReference(index, 'relationship', e.target.value)}
-                          size="small"
-                        />
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              ))}
-            </AccordionDetails>
-          </Accordion>
+          {/* References - Not available in current data structure */}
 
           {/* Compliance & Status */}
           <Accordion>

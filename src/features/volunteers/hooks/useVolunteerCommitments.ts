@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
+import { collection, onSnapshot, query } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_COMMITMENTS_COLLECTION } from '../../../lib/config'
 

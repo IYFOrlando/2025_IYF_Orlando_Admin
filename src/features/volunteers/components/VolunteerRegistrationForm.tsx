@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Card,
@@ -17,7 +17,6 @@ import {
   Step,
   StepLabel,
   Paper,
-  Divider
 } from '@mui/material'
 import {
   Person as PersonIcon,
@@ -83,12 +82,18 @@ export default function VolunteerRegistrationForm({ onSubmit }: VolunteerRegistr
   }
 
   const handleArrayChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: prev[field as keyof typeof prev].includes(value)
-        ? (prev[field as keyof typeof prev] as string[]).filter(item => item !== value)
-        : [...(prev[field as keyof typeof prev] as string[]), value]
-    }))
+    setFormData(prev => {
+      const currentValue = prev[field as keyof typeof prev]
+      if (Array.isArray(currentValue)) {
+        return {
+          ...prev,
+          [field]: currentValue.includes(value)
+            ? currentValue.filter(item => item !== value)
+            : [...currentValue, value]
+        }
+      }
+      return prev
+    })
   }
 
   const validateStep = (step: number): boolean => {

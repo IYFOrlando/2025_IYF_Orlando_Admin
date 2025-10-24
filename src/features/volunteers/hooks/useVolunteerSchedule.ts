@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_SCHEDULE_COLLECTION } from '../../../lib/config'
 import type { VolunteerSchedule } from '../types'

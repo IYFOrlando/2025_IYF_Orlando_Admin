@@ -9,7 +9,7 @@ import PreEventVolunteerSchedule from '../components/VolunteerTimeSlots'
 import VolunteerCheckInOut from '../components/VolunteerCheckInOut'
 import SimpleVolunteerTable from '../components/SimpleVolunteerTable'
 import VolunteerForm from '../components/VolunteerForm'
-import type { VolunteerApplication, VolunteerStatus } from '../types'
+import type { VolunteerApplication } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
 
@@ -36,7 +36,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 function VolunteersPageContent() {
-  const { data: applications, loading, error, createVolunteer, updateVolunteer, updateStatus, deleteVolunteer } = useVolunteerApplications()
+  const { data: applications, loading, error, createVolunteer, updateVolunteer, deleteVolunteer } = useVolunteerApplications()
   const [selectedApplication, setSelectedApplication] = React.useState<VolunteerApplication | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false)
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
@@ -95,28 +95,8 @@ function VolunteersPageContent() {
     setEditDialogOpen(true)
   }
 
-  const handleStatusChange = async (id: string, status: VolunteerStatus) => {
-    try {
-      await updateStatus(id, status)
-      notifySuccess('Volunteer status updated successfully!')
-    } catch (error) {
-      console.error('Error updating volunteer status:', error)
-      notifyError('Failed to update volunteer status')
-    }
-  }
-
   const handleRefresh = () => {
     window.location.reload()
-  }
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue)
-    // Update URL hash for direct navigation
-    if (newValue === 1) {
-      window.location.hash = '#schedule'
-    } else {
-      window.location.hash = ''
-    }
   }
 
   // Debug logging
@@ -168,7 +148,7 @@ function VolunteersPageContent() {
         <CardContent>
           <Tabs
             value={tabValue}
-            onChange={(event, newValue) => setTabValue(newValue)}
+            onChange={(_event, newValue) => setTabValue(newValue)}
             aria-label="volunteer management tabs"
             sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
           >
@@ -197,7 +177,6 @@ function VolunteersPageContent() {
               onEdit={handleEditVolunteerClick}
               onDelete={handleDeleteVolunteer}
               onView={handleViewVolunteer}
-              onStatusChange={handleStatusChange}
               onCreateNew={() => setCreateDialogOpen(true)}
               onRefresh={handleRefresh}
             />

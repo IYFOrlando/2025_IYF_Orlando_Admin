@@ -15,14 +15,9 @@ import Swal from 'sweetalert2'
 export default function VolunteerCheckInStandalone() {
   const { data: attendance, checkIn, checkOut } = useVolunteerAttendance()
   const { data: volunteers } = useVolunteerApplications()
-  const { getCurrentLocation, location, error: geoError, loading: geoLoading } = useGeolocation()
+  const { getCurrentLocation, location } = useGeolocation()
   const [volunteerCode, setVolunteerCode] = React.useState('')
   const [loading, setLoading] = React.useState(false)
-
-  // Filter volunteers for check-in
-  const approvedVolunteers = React.useMemo(() => {
-    return volunteers.filter(v => v.status === 'approved' || v.status === 'active' || v.status === 'pending')
-  }, [volunteers])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -368,7 +363,7 @@ export default function VolunteerCheckInStandalone() {
           volunteer.email,
           'taste-of-korea-preparation',
           'Taste of Korea - Pre-Event Preparation Period',
-          currentLocation
+          currentLocation || undefined
         )
         
         Swal.fire({
@@ -383,7 +378,7 @@ export default function VolunteerCheckInStandalone() {
         })
       } else if (todayAttendance.checkInTime && !todayAttendance.checkOutTime) {
         // Has check-in but no check-out - do check-out
-        await checkOut(todayAttendance.id, currentLocation)
+        await checkOut(todayAttendance.id, currentLocation || undefined)
         
         Swal.fire({
           icon: 'success',
