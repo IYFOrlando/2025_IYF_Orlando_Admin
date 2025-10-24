@@ -3,6 +3,7 @@ export type EmailSource =
   | 'attendance' 
   | 'classes'
   | 'staff'
+  | 'staff_profiles'
   | 'csv'
   | 'manual'
 

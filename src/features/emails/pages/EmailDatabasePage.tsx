@@ -2,10 +2,9 @@ import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Grid, Stack, Button, Chip,
   TextField, Autocomplete, Typography, Box, IconButton, Tooltip,
-  Dialog, DialogTitle, DialogContent, DialogActions, Alert,
+  Dialog, DialogTitle, DialogContent, DialogActions,
   Tabs, Tab, FormControl, InputLabel, Select, MenuItem,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-  Checkbox, FormControlLabel, Switch, Divider
+  FormControlLabel, Switch, Divider
 } from '@mui/material'
 import {
   DataGrid, GridToolbar, type GridColDef
@@ -23,7 +22,6 @@ import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SearchIcon from '@mui/icons-material/Search'
-import FilterListIcon from '@mui/icons-material/FilterList'
 
 import { useEmailDatabase } from '../hooks/useEmailDatabase'
 import type { EmailRecord, EmailSource } from '../types'
@@ -34,7 +32,6 @@ const EmailDatabasePage = React.memo(() => {
   const {
     emails,
     loading,
-    error,
     addEmail,
     updateEmail,
     deleteEmail,
@@ -42,17 +39,16 @@ const EmailDatabasePage = React.memo(() => {
     importFromCSV,
     autoImportAll,
     importFromPastedEmails,
-    importFromInvoices,
     importFromPayments,
     importFromTeachers,
-    removeDuplicateEmails,
-    getUniqueEmails,
-    getEmailsBySource,
-    getEmailsByTag,
+    importFromSpringAcademy,
+    importFromKDrama,
+    importFromTripToKorea,
+    importFromVolunteers,
+    importFromSubscribers,
     searchEmails
   } = useEmailDatabase()
 
-  const [tabValue, setTabValue] = React.useState(0)
   const [mainTabValue, setMainTabValue] = React.useState(0)
   const [importTabValue, setImportTabValue] = React.useState(0)
   const [searchTerm, setSearchTerm] = React.useState('')
@@ -329,28 +325,6 @@ const EmailDatabasePage = React.memo(() => {
     }
   }
 
-  // Handle remove duplicates
-  const handleRemoveDuplicates = async () => {
-    try {
-      const result = await Swal.fire({
-        title: 'Remove Duplicates?',
-        text: 'This will remove all duplicate emails, keeping only the first occurrence of each email address.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, remove duplicates!',
-        cancelButtonText: 'Cancel'
-      })
-
-      if (result.isConfirmed) {
-        const removedCount = await removeDuplicateEmails()
-        notifySuccess(`Removed ${removedCount} duplicate emails`)
-      }
-    } catch (err) {
-      notifyError('Failed to remove duplicates')
-    }
-  }
 
   // Handle CSV file selection
   const handleCsvFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -489,7 +463,6 @@ const EmailDatabasePage = React.memo(() => {
       width: 60,
       sortable: false,
       disableColumnMenu: true,
-      pinned: 'left',
       renderCell: (params) => {
         const currentEmails = 
           mainTabValue === 0 ? filteredEmails : 
@@ -681,7 +654,7 @@ const EmailDatabasePage = React.memo(() => {
             </Stack>
           }
         />
-        <Tabs value={mainTabValue} onChange={(e, newValue) => setMainTabValue(newValue)} sx={{ px: 2 }}>
+        <Tabs value={mainTabValue} onChange={(_, newValue) => setMainTabValue(newValue)} sx={{ px: 2 }}>
           <Tab label="Students & Others" />
           <Tab label="Staff" />
           <Tab label="Volunteers" />
@@ -927,7 +900,7 @@ const EmailDatabasePage = React.memo(() => {
             Import email addresses from system tables or CSV files. Duplicates will be automatically avoided.
           </Typography>
           
-          <Tabs value={importTabValue} onChange={(e, newValue) => setImportTabValue(newValue)} sx={{ mb: 2 }}>
+          <Tabs value={importTabValue} onChange={(_, newValue) => setImportTabValue(newValue)} sx={{ mb: 2 }}>
             <Tab label="Students & Others" />
             <Tab label="Staff" />
           </Tabs>

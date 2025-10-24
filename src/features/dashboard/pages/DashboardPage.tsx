@@ -16,7 +16,7 @@ type KoreanLevelRow = { level: string; count: number }
 
 export default function DashboardPage() {
   const { data, loading } = useRegistrations()
-  const { emails, getUniqueEmails, getEmailsBySource, getEmailsByTag } = useEmailDatabase()
+  const { getUniqueEmails, getEmailsBySource } = useEmailDatabase()
 
   const { totals, p1Rows, p2Rows, koreanLevelRows } = React.useMemo(() => {
     const p1 = new Map<string, number>()

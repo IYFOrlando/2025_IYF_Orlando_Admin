@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { 
-  collection, onSnapshot, query, orderBy, where, 
+  collection, onSnapshot, query, orderBy, 
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
   getDocs, writeBatch
 } from 'firebase/firestore'
@@ -731,7 +731,7 @@ export function useEmailDatabase() {
       })
 
       // Remove duplicates, keeping the first occurrence
-      for (const [emailKey, docs] of emailGroups) {
+      for (const [, docs] of emailGroups) {
         if (docs.length > 1) {
           // Keep the first one, remove the rest
           for (let i = 1; i < docs.length; i++) {

@@ -3,7 +3,7 @@ import * as React from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, Grid, FormControl, InputLabel, Select, MenuItem,
-  Typography, Divider, Box, Autocomplete, Chip
+  Typography, Divider, Box
 } from '@mui/material'
 import { useInstructors } from '../hooks/useInstructors'
 import type { InvoiceLine } from '../types'
@@ -18,7 +18,7 @@ type Props = {
 }
 
 export default function InvoiceDialog({ open, editing, onClose, onSave, academy, level }: Props) {
-  const { instructors, getInstructorByAcademy } = useInstructors()
+  const { getInstructorByAcademy } = useInstructors()
   
   const [formData, setFormData] = React.useState<Partial<InvoiceLine>>({
     academy: academy || '',
@@ -98,6 +98,10 @@ export default function InvoiceDialog({ open, editing, onClose, onSave, academy,
     setFormData(prev => ({
       ...prev,
       instructor: {
+        name: prev.instructor?.name || '',
+        email: prev.instructor?.email || '',
+        phone: prev.instructor?.phone || '',
+        credentials: prev.instructor?.credentials || '',
         ...prev.instructor,
         [field]: value
       }
@@ -108,6 +112,10 @@ export default function InvoiceDialog({ open, editing, onClose, onSave, academy,
     setFormData(prev => ({
       ...prev,
       instructionDates: {
+        startDate: prev.instructionDates?.startDate || '',
+        endDate: prev.instructionDates?.endDate || '',
+        totalHours: prev.instructionDates?.totalHours || 0,
+        schedule: prev.instructionDates?.schedule || '',
         ...prev.instructionDates,
         [field]: value
       }
