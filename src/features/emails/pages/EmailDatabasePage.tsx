@@ -19,6 +19,7 @@ import SchoolIcon from '@mui/icons-material/School'
 import PaymentIcon from '@mui/icons-material/Payment'
 import GroupIcon from '@mui/icons-material/Group'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
+import EventIcon from '@mui/icons-material/Event'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SearchIcon from '@mui/icons-material/Search'
@@ -46,7 +47,7 @@ const EmailDatabasePage = React.memo(() => {
     importFromTripToKorea,
     importFromVolunteers,
     importFromSubscribers,
-    searchEmails
+    importFromEventbrite
   } = useEmailDatabase()
 
   const [mainTabValue, setMainTabValue] = React.useState(0)
@@ -63,6 +64,7 @@ const EmailDatabasePage = React.memo(() => {
   const [importDialogOpen, setImportDialogOpen] = React.useState(false)
   const [csvFile, setCsvFile] = React.useState<File | null>(null)
   const [pastedEmails, setPastedEmails] = React.useState('')
+  const [eventbriteEmails, setEventbriteEmails] = React.useState('')
 
   // Form states
   const [formData, setFormData] = React.useState({
@@ -79,28 +81,26 @@ const EmailDatabasePage = React.memo(() => {
   const filteredEmails = React.useMemo(() => {
     let filtered = emails
 
-    // Exclude staff and volunteer emails from main list
+    // Exclude staff, volunteer, and eventbrite emails from main list
     filtered = filtered.filter(email => 
       email.source !== 'staff' && 
       !email.tags?.includes('staff') &&
       !email.tags?.includes('teacher') &&
-      !email.tags?.includes('volunteer')
+      !email.tags?.includes('volunteer') &&
+      email.source !== 'eventbrite' &&
+      !email.tags?.includes('eventbrite')
     )
 
-    // Remove duplicates (keep first occurrence)
-    const seenEmails = new Set<string>()
-    filtered = filtered.filter(email => {
-      const emailKey = email.email.toLowerCase().trim()
-      if (seenEmails.has(emailKey)) {
-        return false // Skip duplicate
-      }
-      seenEmails.add(emailKey)
-      return true
-    })
-
-    // Search filter
+    // Search filter (apply early)
     if (searchTerm) {
-      filtered = searchEmails(searchTerm)
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(email => 
+        email.email.toLowerCase().includes(searchLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
+        email.source.toLowerCase().includes(searchLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      )
     }
 
     // Source filter
@@ -118,8 +118,19 @@ const EmailDatabasePage = React.memo(() => {
       filtered = filtered.filter(email => email.isActive)
     }
 
+    // Remove duplicates (keep first occurrence) - apply last
+    const seenEmails = new Set<string>()
+    filtered = filtered.filter(email => {
+      const emailKey = email.email.toLowerCase().trim()
+      if (seenEmails.has(emailKey)) {
+        return false // Skip duplicate
+      }
+      seenEmails.add(emailKey)
+      return true
+    })
+
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive, searchEmails])
+  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
 
   // Filter staff emails
   const filteredStaffEmails = React.useMemo(() => {
@@ -132,20 +143,16 @@ const EmailDatabasePage = React.memo(() => {
       email.tags?.includes('teacher')
     )
 
-    // Remove duplicates (keep first occurrence)
-    const seenEmails = new Set<string>()
-    filtered = filtered.filter(email => {
-      const emailKey = email.email.toLowerCase().trim()
-      if (seenEmails.has(emailKey)) {
-        return false // Skip duplicate
-      }
-      seenEmails.add(emailKey)
-      return true
-    })
-
-    // Search filter
+    // Search filter (apply early)
     if (searchTerm) {
-      filtered = searchEmails(searchTerm)
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(email => 
+        email.email.toLowerCase().includes(searchLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
+        email.source.toLowerCase().includes(searchLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      )
     }
 
     // Source filter
@@ -163,8 +170,19 @@ const EmailDatabasePage = React.memo(() => {
       filtered = filtered.filter(email => email.isActive)
     }
 
+    // Remove duplicates (keep first occurrence) - apply last
+    const seenEmails = new Set<string>()
+    filtered = filtered.filter(email => {
+      const emailKey = email.email.toLowerCase().trim()
+      if (seenEmails.has(emailKey)) {
+        return false // Skip duplicate
+      }
+      seenEmails.add(emailKey)
+      return true
+    })
+
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive, searchEmails])
+  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
 
   // Filter volunteer emails
   const filteredVolunteerEmails = React.useMemo(() => {
@@ -175,20 +193,16 @@ const EmailDatabasePage = React.memo(() => {
       email.tags?.includes('volunteer')
     )
 
-    // Remove duplicates (keep first occurrence)
-    const seenEmails = new Set<string>()
-    filtered = filtered.filter(email => {
-      const emailKey = email.email.toLowerCase().trim()
-      if (seenEmails.has(emailKey)) {
-        return false // Skip duplicate
-      }
-      seenEmails.add(emailKey)
-      return true
-    })
-
-    // Search filter
+    // Search filter (apply early)
     if (searchTerm) {
-      filtered = searchEmails(searchTerm)
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(email => 
+        email.email.toLowerCase().includes(searchLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
+        email.source.toLowerCase().includes(searchLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      )
     }
 
     // Source filter
@@ -206,8 +220,70 @@ const EmailDatabasePage = React.memo(() => {
       filtered = filtered.filter(email => email.isActive)
     }
 
+    // Remove duplicates (keep first occurrence) - apply last
+    const seenEmails = new Set<string>()
+    filtered = filtered.filter(email => {
+      const emailKey = email.email.toLowerCase().trim()
+      if (seenEmails.has(emailKey)) {
+        return false // Skip duplicate
+      }
+      seenEmails.add(emailKey)
+      return true
+    })
+
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive, searchEmails])
+  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
+
+  // Filter eventbrite emails
+  const filteredEventbriteEmails = React.useMemo(() => {
+    let filtered = emails
+
+    // Only include eventbrite emails
+    filtered = filtered.filter(email => 
+      email.source === 'eventbrite' || 
+      email.tags?.includes('eventbrite')
+    )
+
+    // Search filter (apply early)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(email => 
+        email.email.toLowerCase().includes(searchLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
+        email.source.toLowerCase().includes(searchLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      )
+    }
+
+    // Source filter
+    if (selectedSource !== 'all') {
+      filtered = filtered.filter(email => email.source === selectedSource)
+    }
+
+    // Tag filter
+    if (selectedTag !== 'all') {
+      filtered = filtered.filter(email => email.tags?.includes(selectedTag))
+    }
+
+    // Active filter
+    if (showOnlyActive) {
+      filtered = filtered.filter(email => email.isActive)
+    }
+
+    // Remove duplicates (keep first occurrence) - apply last
+    const seenEmails = new Set<string>()
+    filtered = filtered.filter(email => {
+      const emailKey = email.email.toLowerCase().trim()
+      if (seenEmails.has(emailKey)) {
+        return false // Skip duplicate
+      }
+      seenEmails.add(emailKey)
+      return true
+    })
+
+    return filtered
+  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
 
   // Get unique tags
   const availableTags = React.useMemo(() => {
@@ -312,6 +388,28 @@ const EmailDatabasePage = React.memo(() => {
       notifySuccess(`Imported ${count} emails from subscribers`)
     } catch (err) {
       notifyError('Failed to import emails from subscribers')
+    }
+  }
+
+  // Handle import from Eventbrite
+  const handleImportFromEventbrite = async () => {
+    try {
+      if (!eventbriteEmails.trim()) {
+        notifyError('Please paste the Eventbrite emails first')
+        return
+      }
+
+      // Parse the pasted emails
+      const emails = eventbriteEmails
+        .split(/[\n\r\t,;]+/)
+        .map(email => email.trim())
+        .filter(email => email && email.includes('@'))
+
+      const count = await importFromEventbrite(emails)
+      notifySuccess(`Imported ${count} emails from Eventbrite`)
+      setEventbriteEmails('')
+    } catch (err) {
+      notifyError('Failed to import emails from Eventbrite')
     }
   }
 
@@ -467,7 +565,8 @@ const EmailDatabasePage = React.memo(() => {
         const currentEmails = 
           mainTabValue === 0 ? filteredEmails : 
           mainTabValue === 1 ? filteredStaffEmails : 
-          filteredVolunteerEmails
+          mainTabValue === 2 ? filteredVolunteerEmails :
+          filteredEventbriteEmails
         const rowIndex = currentEmails.findIndex(email => email.id === params.row.id) + 1
         return (
           <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
@@ -614,6 +713,19 @@ const EmailDatabasePage = React.memo(() => {
             </CardContent>
           </Card>
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <EventIcon color="secondary" sx={{ fontSize: 40 }} />
+                <Box>
+                  <Typography variant="h4">{filteredEventbriteEmails.length}</Typography>
+                  <Typography color="text.secondary">Eventbrite</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Main Content */}
@@ -658,6 +770,7 @@ const EmailDatabasePage = React.memo(() => {
           <Tab label="Students & Others" />
           <Tab label="Staff" />
           <Tab label="Volunteers" />
+          <Tab label="Eventbrite" />
         </Tabs>
         <CardContent>
           {/* Filters */}
@@ -735,7 +848,8 @@ const EmailDatabasePage = React.memo(() => {
               rows={
                 mainTabValue === 0 ? filteredEmails : 
                 mainTabValue === 1 ? filteredStaffEmails : 
-                filteredVolunteerEmails
+                mainTabValue === 2 ? filteredVolunteerEmails :
+                filteredEventbriteEmails
               }
               columns={columns}
               loading={loading}
@@ -956,6 +1070,32 @@ const EmailDatabasePage = React.memo(() => {
                   fullWidth
                 >
                   Import CSV
+                </Button>
+              </Box>
+
+              {/* Eventbrite Import Section */}
+              <Box sx={{ mb: 3, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                <Typography variant="h6" gutterBottom>Import from Eventbrite</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Paste the "Buyer email" list from Eventbrite
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={6}
+                  placeholder="elisao01@yahoo.com&#10;aldamarcondes12@gmail.com&#10;varona40@yahoo.com&#10;..."
+                  value={eventbriteEmails}
+                  onChange={(e) => setEventbriteEmails(e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleImportFromEventbrite}
+                  disabled={!eventbriteEmails.trim()}
+                  fullWidth
+                >
+                  Import Eventbrite Emails
                 </Button>
               </Box>
 

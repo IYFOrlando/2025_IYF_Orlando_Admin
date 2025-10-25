@@ -4,6 +4,7 @@ export type EmailSource =
   | 'classes'
   | 'staff'
   | 'staff_profiles'
+  | 'eventbrite'
   | 'csv'
   | 'manual'
 

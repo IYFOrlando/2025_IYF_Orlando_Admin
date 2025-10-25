@@ -706,6 +706,81 @@ export function useEmailDatabase() {
     }
   }, [])
 
+  // Import from Eventbrite
+  const importFromEventbrite = React.useCallback(async (eventbriteEmails: string[]) => {
+    try {
+      setLoading(true)
+      const batch = writeBatch(db)
+      let importedCount = 0
+
+      // Get existing emails from both email_database and eventbrite_emails collections
+      const existingEmailsRef = collection(db, 'email_database')
+      const existingEmailsSnapshot = await getDocs(existingEmailsRef)
+      const existingEmails = new Set(existingEmailsSnapshot.docs.map(doc => doc.data().email.toLowerCase()))
+
+      const eventbriteEmailsRef = collection(db, 'eventbrite_emails')
+      const eventbriteEmailsSnapshot = await getDocs(eventbriteEmailsRef)
+      const existingEventbriteEmails = new Set(eventbriteEmailsSnapshot.docs.map(doc => doc.data().email.toLowerCase()))
+
+      // Process each email
+      for (const email of eventbriteEmails) {
+        const cleanEmail = email.toLowerCase().trim()
+        
+        if (cleanEmail && cleanEmail.includes('@') && !existingEmails.has(cleanEmail) && !existingEventbriteEmails.has(cleanEmail)) {
+          // Save to eventbrite_emails collection
+          const eventbriteEmailRef = doc(collection(db, 'eventbrite_emails'))
+          batch.set(eventbriteEmailRef, {
+            email: email,
+            firstName: '',
+            lastName: '',
+            source: 'eventbrite',
+            sourceId: 'eventbrite-import',
+            sourceDetails: {
+              importDate: new Date().toISOString(),
+              totalEmails: eventbriteEmails.length
+            },
+            isActive: true,
+            isVerified: false,
+            tags: ['eventbrite', 'event-attendee'],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          })
+
+          // Also save to email_database for unified management
+          const emailRef = doc(collection(db, 'email_database'))
+          batch.set(emailRef, {
+            email: email,
+            firstName: '',
+            lastName: '',
+            source: 'eventbrite',
+            sourceId: 'eventbrite-import',
+            sourceDetails: {
+              importDate: new Date().toISOString(),
+              totalEmails: eventbriteEmails.length
+            },
+            isActive: true,
+            isVerified: false,
+            tags: ['eventbrite', 'event-attendee'],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          })
+
+          existingEmails.add(cleanEmail)
+          existingEventbriteEmails.add(cleanEmail)
+          importedCount++
+        }
+      }
+
+      await batch.commit()
+      setLoading(false)
+      return importedCount
+    } catch (err) {
+      console.error('Error importing from Eventbrite:', err)
+      setLoading(false)
+      throw err
+    }
+  }, [])
+
   // Remove duplicate emails
   const removeDuplicateEmails = React.useCallback(async () => {
     try {
@@ -827,6 +902,7 @@ export function useEmailDatabase() {
     importFromTripToKorea,
     importFromVolunteers,
     importFromSubscribers,
+    importFromEventbrite,
     removeDuplicateEmails,
     getUniqueEmails,
     getEmailsBySource,

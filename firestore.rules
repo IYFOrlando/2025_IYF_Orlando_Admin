@@ -134,6 +134,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    // Eventbrite emails collection - public access for now
+    match /eventbrite_emails/{document} {
+      allow read, write: if true;
+    }
+    
     // Registrations collection - public read access for email import
     match /registrations/{document} {
       allow read: if true;
