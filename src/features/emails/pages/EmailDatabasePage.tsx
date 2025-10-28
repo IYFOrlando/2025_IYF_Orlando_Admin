@@ -47,7 +47,8 @@ const EmailDatabasePage = React.memo(() => {
     importFromTripToKorea,
     importFromVolunteers,
     importFromSubscribers,
-    importFromEventbrite
+    importFromEventbrite,
+    exportEventbriteEmails
   } = useEmailDatabase()
 
   const [mainTabValue, setMainTabValue] = React.useState(0)
@@ -410,6 +411,16 @@ const EmailDatabasePage = React.memo(() => {
       setEventbriteEmails('')
     } catch (err) {
       notifyError('Failed to import emails from Eventbrite')
+    }
+  }
+
+  // Handle export Eventbrite emails
+  const handleExportEventbriteEmails = () => {
+    try {
+      exportEventbriteEmails()
+      notifySuccess('Eventbrite emails exported successfully')
+    } catch (err) {
+      notifyError('Failed to export Eventbrite emails')
     }
   }
 
@@ -1096,6 +1107,19 @@ const EmailDatabasePage = React.memo(() => {
                   fullWidth
                 >
                   Import Eventbrite Emails
+                </Button>
+                
+                {/* Export Eventbrite Emails Button */}
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExportEventbriteEmails}
+                  disabled={filteredEventbriteEmails.length === 0}
+                  fullWidth
+                  sx={{ mt: 2 }}
+                >
+                  Download Eventbrite Emails ({filteredEventbriteEmails.length})
                 </Button>
               </Box>
 

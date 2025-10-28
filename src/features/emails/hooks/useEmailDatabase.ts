@@ -883,6 +883,36 @@ export function useEmailDatabase() {
     }
   }, [])
 
+  // Export Eventbrite emails to CSV
+  const exportEventbriteEmails = React.useCallback(() => {
+    const eventbriteEmails = emails.filter(email => 
+      email.source === 'eventbrite' || 
+      email.tags?.includes('eventbrite')
+    )
+
+    const csvContent = [
+      ['Email', 'First Name', 'Last Name', 'Source', 'Tags', 'Active', 'Notes', 'Created Date'],
+      ...eventbriteEmails.map(email => [
+        email.email,
+        email.firstName || '',
+        email.lastName || '',
+        email.source,
+        email.tags?.join(', ') || '',
+        email.isActive ? 'Yes' : 'No',
+        email.notes || '',
+        email.createdAt ? new Date(email.createdAt.seconds * 1000).toLocaleDateString() : ''
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `eventbrite-emails-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [emails])
+
   return {
     emails,
     loading,
@@ -907,6 +937,7 @@ export function useEmailDatabase() {
     getUniqueEmails,
     getEmailsBySource,
     getEmailsByTag,
-    searchEmails
+    searchEmails,
+    exportEventbriteEmails
   }
 }

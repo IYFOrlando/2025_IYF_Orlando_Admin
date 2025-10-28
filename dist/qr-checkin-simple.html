@@ -323,23 +323,103 @@
                 const today = new Date();
                 const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
                 
+                // Helper function to normalize date strings
+                const normalizeDate = (dateStr) => {
+                    try {
+                        // Handle different date formats
+                        if (dateStr.includes('/')) {
+                            // MM/DD/YYYY or DD/MM/YYYY format
+                            const parts = dateStr.split('/');
+                            if (parts.length === 3) {
+                                const month = parts[0].padStart(2, '0');
+                                const day = parts[1].padStart(2, '0');
+                                const year = parts[2];
+                                return `${year}-${month}-${day}`;
+                            }
+                        } else if (dateStr.includes('-')) {
+                            // Already in YYYY-MM-DD format or similar
+                            return dateStr.split(' ')[0]; // Take only the date part
+                        }
+                        return dateStr;
+                    } catch (error) {
+                        console.error('Error normalizing date:', dateStr, error);
+                        return dateStr;
+                    }
+                };
+                
+                console.log('🔍 Debugging schedule check for:', volunteer.firstName, volunteer.lastName);
+                console.log('📅 Today string:', todayString);
+                console.log('📊 Schedule snapshot size:', scheduleSnapshot.size);
+                
                 let hasTodaySchedule = false;
+                let debugInfo = [];
+                
                 scheduleSnapshot.forEach(doc => {
                     const scheduleData = doc.data();
+                    console.log('📋 Schedule document:', doc.id, scheduleData);
+                    
                     if (scheduleData.selectedSlots && Array.isArray(scheduleData.selectedSlots)) {
-                        scheduleData.selectedSlots.forEach(slot => {
-                            if (typeof slot === 'object' && slot.date === todayString) {
-                                hasTodaySchedule = true;
+                        console.log('⏰ SelectedSlots found:', scheduleData.selectedSlots.length, 'slots');
+                        
+                        scheduleData.selectedSlots.forEach((slot, index) => {
+                            console.log(`🎯 Slot ${index}:`, slot, 'Type:', typeof slot);
+                            
+                            if (typeof slot === 'object' && slot.date) {
+                                const normalizedSlotDate = normalizeDate(slot.date);
+                                const matches = normalizedSlotDate === todayString;
+                                
+                                console.log(`📅 Slot ${index} date:`, slot.date, 'Normalized:', normalizedSlotDate, 'vs Today:', todayString, 'Match:', matches);
+                                
+                                debugInfo.push({
+                                    slotIndex: index,
+                                    slotDate: slot.date,
+                                    normalizedSlotDate: normalizedSlotDate,
+                                    todayString: todayString,
+                                    matches: matches,
+                                    slotData: slot
+                                });
+                                
+                                if (matches) {
+                                    hasTodaySchedule = true;
+                                    console.log('✅ Found matching schedule for today!');
+                                }
+                            } else if (typeof slot === 'string') {
+                                console.log(`📅 Slot ${index} is string:`, slot);
+                                debugInfo.push({
+                                    slotIndex: index,
+                                    slotString: slot,
+                                    isString: true
+                                });
                             }
                         });
+                    } else {
+                        console.log('❌ No selectedSlots or not an array:', scheduleData.selectedSlots);
                     }
                 });
                 
+                console.log('🔍 Debug info:', debugInfo);
+                console.log('✅ Has today schedule:', hasTodaySchedule);
+                
                 if (!hasTodaySchedule) {
+                    // Create debug information for the user
+                    const debugText = debugInfo.length > 0 
+                        ? `<br><br><strong>Debug Info:</strong><br>Today: ${todayString}<br>Found ${debugInfo.length} slots:<br>${debugInfo.map(info => 
+                            info.isString 
+                                ? `- Slot ${info.slotIndex}: "${info.slotString}" (string format)`
+                                : `- Slot ${info.slotIndex}: ${info.slotDate} → ${info.normalizedSlotDate} ${info.matches ? '✅' : '❌'}`
+                        ).join('<br>')}`
+                        : '<br><br><strong>Debug Info:</strong><br>No slots found in schedule data.';
+
                     Swal.fire({
                         icon: 'info',
                         title: '📅 No Hours Scheduled for Today',
-                        text: `${volunteer.firstName} ${volunteer.lastName} has no volunteer hours scheduled for today (${todayString}). Please check your schedule or contact the coordinator.`,
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has no volunteer hours scheduled for today (${todayString}).</p>
+                                <p>Please check your schedule or contact the coordinator.</p>
+                                ${debugText}
+                            </div>
+                        `,
                         confirmButtonText: 'Got it',
                         confirmButtonColor: '#17a2b8',
                         showCloseButton: true
