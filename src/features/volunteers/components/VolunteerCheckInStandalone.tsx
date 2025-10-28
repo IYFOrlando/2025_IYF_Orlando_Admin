@@ -310,7 +310,16 @@ export default function VolunteerCheckInStandalone() {
       console.log('📊 Schedule snapshot size:', scheduleSnapshot.size)
       
       let hasTodaySchedule = false
-      let debugInfo = []
+      let debugInfo: Array<{
+        slotIndex: number
+        slotDate?: string
+        normalizedSlotDate?: string
+        todayString: string
+        matches?: boolean
+        slotData?: any
+        slotString?: string
+        isString?: boolean
+      }> = []
       
       scheduleSnapshot.forEach(doc => {
         const scheduleData = doc.data()
@@ -346,7 +355,8 @@ export default function VolunteerCheckInStandalone() {
               debugInfo.push({
                 slotIndex: index,
                 slotString: slot,
-                isString: true
+                isString: true,
+                todayString: todayString
               })
             }
           })
