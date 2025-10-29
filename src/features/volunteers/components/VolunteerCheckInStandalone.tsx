@@ -598,19 +598,18 @@ export default function VolunteerCheckInStandalone() {
       <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
         {/* Header */}
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Avatar sx={{ 
-            bgcolor: '#2170b1', 
-            width: 80, 
-            height: 80, 
-            mx: 'auto', 
-            mb: 2,
-            fontSize: '2rem',
-            fontWeight: 'bold'
-          }}>
-            IYF
-          </Avatar>
+          <Avatar
+            sx={{
+              width: 80,
+              height: 80,
+              mx: 'auto',
+              mb: 2,
+              boxShadow: 3
+            }}
+            src="https://firebasestorage.googleapis.com/v0/b/iyf-orlando-academy.appspot.com/o/2025%2FTaste_of_korea_2025_fall_edition%2FTOK%20Logo%20circle.png?alt=media&token=a79ad97f-c763-4709-a21b-f511c9b8ccdd"
+          />
           <Typography variant="h4" component="h1" gutterBottom color="primary" fontWeight="bold">
-            🍽️ Taste of Korea
+            Taste of Korea 2025
           </Typography>
           <Typography variant="h6" color="text.secondary" gutterBottom>
             Pre-Event Preparation Period
@@ -620,7 +619,12 @@ export default function VolunteerCheckInStandalone() {
         {/* Instructions */}
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            📱 Instructions:
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            Instructions:
           </Typography>
           <Stack spacing={1}>
             <Typography variant="body2">
@@ -657,7 +661,23 @@ export default function VolunteerCheckInStandalone() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
                   <LocationOnIcon color={location ? 'success' : 'disabled'} />
                   <Typography variant="body2" color={location ? 'success.main' : 'text.secondary'}>
-                    {location ? `📍 Location: ${location.address || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}` : '📍 Location will be captured automatically'}
+                    {location ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        Location: {location.address || `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`}
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        Location will be captured automatically
+                      </>
+                    )}
                   </Typography>
                 </Box>
                 
@@ -685,10 +705,22 @@ export default function VolunteerCheckInStandalone() {
         <Box sx={{ textAlign: 'center', mt: 4 }}>
           <Divider sx={{ mb: 2 }} />
           <Typography variant="body2" color="text.secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
             IYF Orlando - 320 S Park Ave, Sanford, FL 32771
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            📞 (407) 900-3442 | ✉️ orlando@iyfusa.org
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+            </svg>
+            (407) 900-3442 | 
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px', marginLeft: '6px' }}>
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            orlando@iyfusa.org
           </Typography>
         </Box>
       </Paper>
