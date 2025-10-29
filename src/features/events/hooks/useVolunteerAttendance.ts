@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, orderBy, where, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, where, doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_HOURS_COLLECTION } from '../../../lib/config'
 import type { VolunteerHours, HoursStatus } from '../types'
@@ -149,12 +149,39 @@ export function useVolunteerAttendance(eventId?: string) {
     }
   }, [data])
 
+  const updateHours = React.useCallback(async (id: string, updates: Partial<VolunteerHours>) => {
+    try {
+      const docRef = doc(db, VOLUNTEER_HOURS_COLLECTION, id)
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      })
+      return true
+    } catch (err) {
+      console.error('Error updating volunteer hours:', err)
+      throw err
+    }
+  }, [])
+
+  const deleteHours = React.useCallback(async (id: string) => {
+    try {
+      const docRef = doc(db, VOLUNTEER_HOURS_COLLECTION, id)
+      await deleteDoc(docRef)
+      return true
+    } catch (err) {
+      console.error('Error deleting volunteer hours:', err)
+      throw err
+    }
+  }, [])
+
   return {
     data,
     loading,
     error,
     checkIn,
     checkOut,
-    getAttendanceStats
+    getAttendanceStats,
+    updateHours,
+    deleteHours
   }
 }

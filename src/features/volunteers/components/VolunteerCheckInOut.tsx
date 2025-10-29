@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Stack, Box, Typography, Chip,
-  Grid, Button, Alert, Paper
+  Grid, Button, Alert
 } from '@mui/material'
 import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid'
 import PersonIcon from '@mui/icons-material/Person'
@@ -80,34 +80,74 @@ export default function VolunteerCheckInOut() {
       )
     },
     {
+      field: 'eventName',
+      headerName: 'Event',
+      width: 200,
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    {
       field: 'checkInTime',
-      headerName: 'Check-in Time',
-      width: 180,
+      headerName: 'Check-in Date & Time',
+      width: 200,
       renderCell: (params) => {
         if (!params.value) return '-'
         const date = new Date(params.value.seconds * 1000)
         return (
           <Stack direction="row" spacing={1} alignItems="center">
             <AccessTimeIcon fontSize="small" color="action" />
-            <Typography variant="body2">
-              {date.toLocaleTimeString()}
-            </Typography>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                {date.toLocaleDateString()}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {date.toLocaleTimeString()}
+              </Typography>
+            </Box>
           </Stack>
         )
       }
     },
     {
       field: 'checkOutTime',
-      headerName: 'Check-out Time',
-      width: 180,
+      headerName: 'Check-out Date & Time',
+      width: 200,
       renderCell: (params) => {
         if (!params.value) return '-'
         const date = new Date(params.value.seconds * 1000)
         return (
           <Stack direction="row" spacing={1} alignItems="center">
             <CheckCircleIcon fontSize="small" color="action" />
-            <Typography variant="body2">
-              {date.toLocaleTimeString()}
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                {date.toLocaleDateString()}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {date.toLocaleTimeString()}
+              </Typography>
+            </Box>
+          </Stack>
+        )
+      }
+    },
+    {
+      field: 'totalHours',
+      headerName: 'Total Hours Worked',
+      width: 150,
+      renderCell: (params) => {
+        if (!params.value) return '-'
+        const hours = Math.floor(params.value)
+        const minutes = Math.round((params.value - hours) * 60)
+        const formattedHours = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+        
+        return (
+          <Stack direction="row" spacing={1} alignItems="center">
+            <AccessTimeIcon fontSize="small" color="success" />
+            <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'success.main' }}>
+              {formattedHours}
             </Typography>
           </Stack>
         )
@@ -115,8 +155,8 @@ export default function VolunteerCheckInOut() {
     },
     {
       field: 'elapsedTime',
-      headerName: 'Elapsed Time',
-      width: 120,
+      headerName: 'Currently Working',
+      width: 150,
       renderCell: (params) => {
         if (!params.row.checkInTime || params.row.checkOutTime) return '-'
         return (
@@ -125,6 +165,7 @@ export default function VolunteerCheckInOut() {
             size="small" 
             color="warning" 
             variant="outlined"
+            icon={<AccessTimeIcon />}
           />
         )
       }
@@ -197,11 +238,32 @@ export default function VolunteerCheckInOut() {
           <Card>
             <CardContent>
               <Stack direction="row" spacing={2} alignItems="center">
+                <AccessTimeIcon color="primary" />
+                <Box>
+                  <Typography variant="h6" color="primary.main">
+                    {(() => {
+                      const hours = Math.floor(stats.totalHours)
+                      const minutes = Math.round((stats.totalHours - hours) * 60)
+                      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+                    })()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Hours Worked
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Stack direction="row" spacing={2} alignItems="center">
                 <QrCodeIcon color="info" />
                 <Box>
                   <Typography variant="h6">{approvedVolunteers.length}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Available Volunteers
+                    Approved Volunteers
                   </Typography>
                 </Box>
               </Stack>
@@ -244,31 +306,6 @@ export default function VolunteerCheckInOut() {
         </CardContent>
       </Card>
 
-      {/* Available Volunteers */}
-      <Card sx={{ mb: 3 }}>
-        <CardHeader title="Available Volunteers" />
-        <CardContent>
-          <Grid container spacing={2}>
-            {approvedVolunteers.slice(0, 12).map((volunteer) => (
-              <Grid item xs={12} sm={6} md={4} key={volunteer.id}>
-                <Paper sx={{ p: 2, border: 1, borderColor: 'grey.300' }}>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2" fontWeight="bold">
-                      {volunteer.firstName} {volunteer.lastName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      ID: {volunteer.volunteerCode}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {volunteer.email}
-                    </Typography>
-                  </Stack>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </CardContent>
-      </Card>
 
       {/* Today's Attendance */}
       <Card>

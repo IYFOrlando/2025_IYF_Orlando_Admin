@@ -18,6 +18,29 @@ export default function VolunteerCheckInStandalone() {
   const { getCurrentLocation, location } = useGeolocation()
   const [volunteerCode, setVolunteerCode] = React.useState('')
   const [loading, setLoading] = React.useState(false)
+  
+  // IYF Orlando coordinates (320 S Park Ave, Sanford, FL 32771)
+  const IYF_ORLANDO_LAT = 28.8029
+  const IYF_ORLANDO_LNG = -81.2694
+  const MAX_DISTANCE_KM = 2.0 // 2 kilometers radius (more practical)
+
+  // Function to calculate distance between two coordinates
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371 // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
+
+  // Function to check if location is within allowed radius
+  const isLocationValid = (latitude: number, longitude: number): boolean => {
+    const distance = calculateDistance(latitude, longitude, IYF_ORLANDO_LAT, IYF_ORLANDO_LNG)
+    return distance <= MAX_DISTANCE_KM
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,9 +64,60 @@ export default function VolunteerCheckInStandalone() {
     let currentLocation = null
     try {
       currentLocation = await getCurrentLocation()
+      
+      // Verify location is within allowed radius
+      if (currentLocation && !isLocationValid(currentLocation.latitude, currentLocation.longitude)) {
+        const distance = calculateDistance(currentLocation.latitude, currentLocation.longitude, IYF_ORLANDO_LAT, IYF_ORLANDO_LNG)
+        
+        await Swal.fire({
+          icon: 'error',
+          title: '📍 Location Not Allowed',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>You must be at IYF Orlando to check in/out.</strong></p>
+              <p>Your current distance from IYF Orlando: <strong>${distance.toFixed(2)} km</strong></p>
+              <p>Maximum allowed distance: <strong>${MAX_DISTANCE_KM} km</strong></p>
+              <br>
+              <p><strong>📍 IYF Orlando Address:</strong></p>
+              <p>320 S Park Ave, Sanford, FL 32771</p>
+              <br>
+              <p>Please come to the IYF Orlando location to check in or out.</p>
+            </div>
+          `,
+          confirmButtonText: 'Understood',
+          confirmButtonColor: '#d33',
+          showCloseButton: true
+        })
+        
+        setLoading(false)
+        return
+      }
     } catch (error) {
       console.warn('Could not get location:', error)
-      // Continue without location - don't block the check-in/out process
+      
+      await Swal.fire({
+        icon: 'warning',
+        title: '📍 Location Required',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Location access is required for check-in/check-out.</strong></p>
+            <p>This ensures you are physically present at IYF Orlando.</p>
+            <br>
+            <p>Please:</p>
+            <ul>
+              <li>Enable location services in your browser</li>
+              <li>Allow location access when prompted</li>
+              <li>Make sure you are at IYF Orlando (320 S Park Ave, Sanford, FL 32771)</li>
+            </ul>
+          </div>
+        `,
+        confirmButtonText: 'Try Again',
+        confirmButtonColor: '#ff9800',
+        showCloseButton: true
+      })
+      
+      setLoading(false)
+      return
     }
 
     try {
@@ -297,6 +371,12 @@ export default function VolunteerCheckInStandalone() {
           } else if (dateStr.includes('-')) {
             // Already in YYYY-MM-DD format or similar
             return dateStr.split(' ')[0] // Take only the date part
+          } else if (dateStr.includes(',')) {
+            // Handle format like "Tuesday, October 28, 2025"
+            const dateObj = new Date(dateStr)
+            if (!isNaN(dateObj.getTime())) {
+              return dateObj.toISOString().split('T')[0]
+            }
           }
           return dateStr
         } catch (error) {
@@ -305,9 +385,6 @@ export default function VolunteerCheckInStandalone() {
         }
       }
       
-      console.log('🔍 Debugging schedule check for:', volunteer.firstName, volunteer.lastName)
-      console.log('📅 Today string:', todayString)
-      console.log('📊 Schedule snapshot size:', scheduleSnapshot.size)
       
       let hasTodaySchedule = false
       let debugInfo: Array<{
@@ -323,19 +400,15 @@ export default function VolunteerCheckInStandalone() {
       
       scheduleSnapshot.forEach(doc => {
         const scheduleData = doc.data()
-        console.log('📋 Schedule document:', doc.id, scheduleData)
         
         if (scheduleData.selectedSlots && Array.isArray(scheduleData.selectedSlots)) {
-          console.log('⏰ SelectedSlots found:', scheduleData.selectedSlots.length, 'slots')
           
           scheduleData.selectedSlots.forEach((slot: any, index: number) => {
-            console.log(`🎯 Slot ${index}:`, slot, 'Type:', typeof slot)
             
             if (typeof slot === 'object' && slot.date) {
               const normalizedSlotDate = normalizeDate(slot.date)
               const matches = normalizedSlotDate === todayString
               
-              console.log(`📅 Slot ${index} date:`, slot.date, 'Normalized:', normalizedSlotDate, 'vs Today:', todayString, 'Match:', matches)
               
               debugInfo.push({
                 slotIndex: index,
@@ -348,10 +421,8 @@ export default function VolunteerCheckInStandalone() {
               
               if (matches) {
                 hasTodaySchedule = true
-                console.log('✅ Found matching schedule for today!')
               }
             } else if (typeof slot === 'string') {
-              console.log(`📅 Slot ${index} is string:`, slot)
               debugInfo.push({
                 slotIndex: index,
                 slotString: slot,
@@ -360,24 +431,11 @@ export default function VolunteerCheckInStandalone() {
               })
             }
           })
-        } else {
-          console.log('❌ No selectedSlots or not an array:', scheduleData.selectedSlots)
         }
       })
       
-      console.log('🔍 Debug info:', debugInfo)
-      console.log('✅ Has today schedule:', hasTodaySchedule)
       
       if (!hasTodaySchedule) {
-        // Create debug information for the user
-        const debugText = debugInfo.length > 0 
-          ? `<br><br><strong>Debug Info:</strong><br>Today: ${todayString}<br>Found ${debugInfo.length} slots:<br>${debugInfo.map(info => 
-              info.isString 
-                ? `- Slot ${info.slotIndex}: "${info.slotString}" (string format)`
-                : `- Slot ${info.slotIndex}: ${info.slotDate} → ${info.normalizedSlotDate} ${info.matches ? '✅' : '❌'}`
-            ).join('<br>')}`
-          : '<br><br><strong>Debug Info:</strong><br>No slots found in schedule data.'
-
         const result = await Swal.fire({
           icon: 'info',
           title: '📅 No Hours Scheduled for Today',
@@ -386,14 +444,13 @@ export default function VolunteerCheckInStandalone() {
               <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has no volunteer hours scheduled for today (${todayString}).</p>
               <p>You can:</p>
               <ul>
-                <li><strong>Check your schedule</strong> - View all your scheduled hours</li>
+                <li><strong>Schedule your hours</strong> - Choose your volunteer time slots</li>
                 <li><strong>Contact us</strong> - Get help from our team</li>
               </ul>
-              ${debugText}
             </div>
           `,
           showCancelButton: true,
-          confirmButtonText: '📅 View Schedule',
+          confirmButtonText: '📅 Schedule Hours',
           cancelButtonText: '📞 Contact Us',
           confirmButtonColor: '#2170b1',
           cancelButtonColor: '#6c757d',
@@ -401,8 +458,8 @@ export default function VolunteerCheckInStandalone() {
         })
 
         if (result.isConfirmed) {
-          // Redirect to public volunteer schedule page
-          window.open('/volunteer-schedule', '_blank')
+          // Redirect to volunteer schedule page
+          window.open('https://www.iyforlando.org/volunteer-schedule', '_blank')
         } else if (result.dismiss === Swal.DismissReason.cancel) {
           // Show contact information
           Swal.fire({
@@ -410,7 +467,7 @@ export default function VolunteerCheckInStandalone() {
             title: '📞 Contact Information',
             html: `
               <div style="text-align: left;">
-                <p><strong>IYF Orlando Team</strong></p>
+                <p><strong>IYF Orlando</strong></p>
                 <p>📧 Email: <a href="mailto:orlando@iyfusa.org">orlando@iyfusa.org</a></p>
                 <p>📞 Phone: <a href="tel:+14079003442">(407) 900-3442</a></p>
                 <p>📍 Address: 320 S Park Ave, Sanford, FL 32771</p>
@@ -454,7 +511,13 @@ export default function VolunteerCheckInStandalone() {
         Swal.fire({
           icon: 'success',
           title: '✅ Check-in Successful!',
-          text: `${volunteer.firstName} ${volunteer.lastName} has been checked in successfully.`,
+          html: `
+            <div style="text-align: left;">
+              <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has been checked in successfully.</p>
+              <p><strong>📍 Location:</strong> IYF Orlando</p>
+              <p><strong>🕐 Check-in Time:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+          `,
           confirmButtonText: 'Awesome!',
           confirmButtonColor: '#28a745',
           timer: 5000,
@@ -465,10 +528,27 @@ export default function VolunteerCheckInStandalone() {
         // Has check-in but no check-out - do check-out
         await checkOut(todayAttendance.id, currentLocation || undefined)
         
+        // Calculate total hours worked
+        const checkInTime = new Date(todayAttendance.checkInTime.seconds * 1000)
+        const checkOutTime = new Date()
+        const totalHoursDecimal = Math.round(((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)) * 100) / 100
+        
+        // Convert to hours and minutes format
+        const hours = Math.floor(totalHoursDecimal)
+        const minutes = Math.round((totalHoursDecimal - hours) * 60)
+        const totalHoursFormatted = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+        
         Swal.fire({
           icon: 'success',
           title: '✅ Check-out Successful!',
-          text: `${volunteer.firstName} ${volunteer.lastName} has been checked out successfully.`,
+          html: `
+            <div style="text-align: left;">
+              <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has been checked out successfully.</p>
+              <p><strong>📍 Location:</strong> IYF Orlando</p>
+              <p><strong>🕐 Check-out Time:</strong> ${checkOutTime.toLocaleString()}</p>
+              <p><strong>⏱️ Total Hours Worked:</strong> ${totalHoursFormatted}</p>
+            </div>
+          `,
           confirmButtonText: 'Perfect!',
           confirmButtonColor: '#28a745',
           timer: 5000,

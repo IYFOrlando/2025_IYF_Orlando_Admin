@@ -18,6 +18,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import { useVolunteerSchedule } from '../hooks/useVolunteerSchedule'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
+import EditScheduleDialog from './EditScheduleDialog'
 
 
 const ATTENDANCE_ICONS = {
@@ -29,12 +30,14 @@ const ATTENDANCE_ICONS = {
 
 export default function PreEventVolunteerSchedule() {
   // Force cache refresh - timestamp: 1761137000000
-  const { data: schedule, loading, getScheduleStats, getPreEventSchedule, deleteSchedule } = useVolunteerSchedule()
+  const { data: schedule, loading, getScheduleStats, getPreEventSchedule, deleteSchedule, updateSchedule } = useVolunteerSchedule()
   const { data: attendanceData } = useVolunteerAttendance()
   const { data: volunteers } = useVolunteerApplications()
   
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [scheduleToDelete, setScheduleToDelete] = React.useState<{ id: string; name: string } | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false)
+  const [scheduleToEdit, setScheduleToEdit] = React.useState<any>(null)
   const [cleanupInProgress, setCleanupInProgress] = React.useState(false)
   
   const stats = getScheduleStats()
@@ -79,12 +82,24 @@ export default function PreEventVolunteerSchedule() {
     setScheduleToDelete(null)
   }
 
+  // Handle save schedule
+  const handleSaveSchedule = async (scheduleId: string, updates: any) => {
+    try {
+      await updateSchedule(scheduleId, updates)
+      setEditDialogOpen(false)
+      setScheduleToEdit(null)
+    } catch (error) {
+      console.error('Error updating schedule:', error)
+    }
+  }
+
   // Handle edit schedule
-  const handleEditSchedule = (scheduleId: string, volunteerName: string) => {
-    console.log('Edit schedule clicked:', scheduleId, volunteerName)
-    // TODO: Implement edit schedule functionality
-    // For now, just show an alert
-    alert(`Edit schedule for ${volunteerName} (ID: ${scheduleId}) - Feature coming soon!`)
+  const handleEditSchedule = (scheduleId: string, _volunteerName: string) => {
+    const scheduleData = schedule.find(s => s.id === scheduleId)
+    if (scheduleData) {
+      setScheduleToEdit(scheduleData)
+      setEditDialogOpen(true)
+    }
   }
 
   // Function to clean up schedules for inactive volunteers or volunteers with no valid slots
@@ -516,6 +531,17 @@ export default function PreEventVolunteerSchedule() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Edit Schedule Dialog */}
+      <EditScheduleDialog
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false)
+          setScheduleToEdit(null)
+        }}
+        schedule={scheduleToEdit}
+        onSave={handleSaveSchedule}
+      />
 
     </Box>
   )

@@ -205,6 +205,15 @@
                 >
             </div>
             
+            <div class="location-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left;">
+                <h4 style="color: #856404; margin: 0 0 10px 0; font-size: 16px;">📍 Location Notice</h4>
+                <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.4;">
+                    <strong>You must be physically present at IYF Orlando to check in/out.</strong><br>
+                    This system is designed for on-site volunteer check-in only.<br>
+                    <strong>Address:</strong> 320 S Park Ave, Sanford, FL 32771
+                </p>
+            </div>
+            
             <button type="submit" class="btn" id="submitBtn">
                 Process Check-in/Check-out
             </button>
@@ -339,6 +348,12 @@
                         } else if (dateStr.includes('-')) {
                             // Already in YYYY-MM-DD format or similar
                             return dateStr.split(' ')[0]; // Take only the date part
+                        } else if (dateStr.includes(',')) {
+                            // Handle format like "Tuesday, October 28, 2025"
+                            const dateObj = new Date(dateStr);
+                            if (!isNaN(dateObj.getTime())) {
+                                return dateObj.toISOString().split('T')[0];
+                            }
                         }
                         return dateStr;
                     } catch (error) {
@@ -410,20 +425,50 @@
                         ).join('<br>')}`
                         : '<br><br><strong>Debug Info:</strong><br>No slots found in schedule data.';
 
-                    Swal.fire({
+                    const result = await Swal.fire({
                         icon: 'info',
                         title: '📅 No Hours Scheduled for Today',
                         html: `
                             <div style="text-align: left;">
                                 <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has no volunteer hours scheduled for today (${todayString}).</p>
-                                <p>Please check your schedule or contact the coordinator.</p>
+                                <p>You can:</p>
+                                <ul>
+                                    <li><strong>Schedule your hours</strong> - Choose your volunteer time slots</li>
+                                    <li><strong>Contact us</strong> - Get help from our team</li>
+                                </ul>
                                 ${debugText}
                             </div>
                         `,
-                        confirmButtonText: 'Got it',
-                        confirmButtonColor: '#17a2b8',
+                        showCancelButton: true,
+                        confirmButtonText: '📅 Schedule Hours',
+                        cancelButtonText: '📞 Contact Us',
+                        confirmButtonColor: '#2170b1',
+                        cancelButtonColor: '#6c757d',
                         showCloseButton: true
                     });
+
+                    if (result.isConfirmed) {
+                        // Redirect to volunteer schedule page
+                        window.open('https://www.iyforlando.org/volunteer-schedule', '_blank');
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // Show contact information
+                        Swal.fire({
+                            icon: 'info',
+                            title: '📞 Contact Information',
+                            html: `
+                                <div style="text-align: left;">
+                                    <p><strong>IYF Orlando</strong></p>
+                                    <p>📧 Email: <a href="mailto:orlando@iyfusa.org">orlando@iyfusa.org</a></p>
+                                    <p>📞 Phone: <a href="tel:+14079003442">(407) 900-3442</a></p>
+                                    <p>📍 Address: 320 S Park Ave, Sanford, FL 32771</p>
+                                    <p>🌐 Website: <a href="https://www.iyforlando.org" target="_blank">iyforlando.org</a></p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Got it!',
+                            confirmButtonColor: '#2170b1',
+                            showCloseButton: true
+                        });
+                    }
                     
                     // Clear form
                     document.getElementById('volunteerCode').value = '';
@@ -470,7 +515,13 @@
                     Swal.fire({
                         icon: 'success',
                         title: '✅ Check-in Successful!',
-                        text: `${volunteer.firstName} ${volunteer.lastName} has been checked in successfully.`,
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has been checked in successfully.</p>
+                                <p><strong>📍 Location:</strong> IYF Orlando</p>
+                                <p><strong>🕐 Check-in Time:</strong> ${new Date().toLocaleString()}</p>
+                            </div>
+                        `,
                         confirmButtonText: 'Awesome!',
                         confirmButtonColor: '#28a745',
                         timer: 5000,
@@ -488,10 +539,27 @@
                         updatedAt: serverTimestamp()
                     });
                     
+                    // Calculate total hours worked
+                    const checkInTime = new Date(todayAttendance.checkInTime.seconds * 1000);
+                    const checkOutTime = new Date();
+                    const totalHoursDecimal = Math.round(((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)) * 100) / 100;
+                    
+                    // Convert to hours and minutes format
+                    const hours = Math.floor(totalHoursDecimal);
+                    const minutes = Math.round((totalHoursDecimal - hours) * 60);
+                    const totalHoursFormatted = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                    
                     Swal.fire({
                         icon: 'success',
                         title: '✅ Check-out Successful!',
-                        text: `${volunteer.firstName} ${volunteer.lastName} has been checked out successfully.`,
+                        html: `
+                            <div style="text-align: left;">
+                                <p><strong>${volunteer.firstName} ${volunteer.lastName}</strong> has been checked out successfully.</p>
+                                <p><strong>📍 Location:</strong> IYF Orlando</p>
+                                <p><strong>🕐 Check-out Time:</strong> ${checkOutTime.toLocaleString()}</p>
+                                <p><strong>⏱️ Total Hours Worked:</strong> ${totalHoursFormatted}</p>
+                            </div>
+                        `,
                         confirmButtonText: 'Perfect!',
                         confirmButtonColor: '#28a745',
                         timer: 5000,

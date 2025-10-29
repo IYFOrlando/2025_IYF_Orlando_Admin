@@ -315,6 +315,14 @@ function EventsPageContent() {
     }
   ]
 
+  // Helper function to format hours as hours and minutes
+  const formatHours = (totalHours: number) => {
+    if (!totalHours) return 'N/A'
+    const hours = Math.floor(totalHours)
+    const minutes = Math.round((totalHours - hours) * 60)
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+  }
+
   const hoursColumns: GridColDef[] = [
     {
       field: 'volunteerName',
@@ -360,7 +368,7 @@ function EventsPageContent() {
         <Stack direction="row" alignItems="center" spacing={1}>
           <AccessTimeIcon fontSize="small" color="action" />
           <Typography variant="body2">
-            {params.value ? `${params.value}h` : 'N/A'}
+            {formatHours(params.value)}
           </Typography>
         </Stack>
       )

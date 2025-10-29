@@ -11,6 +11,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import QrCodeIcon from '@mui/icons-material/QrCode'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { useVolunteerAttendance } from '../hooks/useVolunteerAttendance'
+import CorrectCheckInDialog from './CorrectCheckInDialog'
 import { useVolunteerApplications } from '../../volunteers/hooks/useVolunteerApplications'
 import type { Event, HoursStatus } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
@@ -33,8 +34,10 @@ interface Props {
 }
 
 export default function VolunteerAttendanceTracker({ event }: Props) {
-  const { data: attendance, loading, checkIn, checkOut, getAttendanceStats } = useVolunteerAttendance(event.id)
+  const { data: attendance, loading, checkIn, checkOut, getAttendanceStats, updateHours, deleteHours } = useVolunteerAttendance(event.id)
   const { data: volunteers } = useVolunteerApplications()
+  const [correctDialogOpen, setCorrectDialogOpen] = React.useState(false)
+  const [hoursToCorrect, setHoursToCorrect] = React.useState<any>(null)
   
   const [checkInDialogOpen, setCheckInDialogOpen] = React.useState(false)
   const [volunteerCode, setVolunteerCode] = React.useState('')
@@ -94,6 +97,36 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
       notifySuccess('Volunteer checked out successfully')
     } catch (err: any) {
       notifyError(err.message || 'Failed to check out volunteer')
+    }
+  }
+
+  // Handle correct check-in/check-out
+  const handleCorrectHours = (hours: any) => {
+    setHoursToCorrect(hours)
+    setCorrectDialogOpen(true)
+  }
+
+  const handleSaveCorrection = async (hoursId: string, updates: any) => {
+    try {
+      await updateHours(hoursId, updates)
+      notifySuccess('Hours corrected successfully')
+      setCorrectDialogOpen(false)
+      setHoursToCorrect(null)
+    } catch (error) {
+      console.error('Error correcting hours:', error)
+      notifyError('Failed to correct hours')
+    }
+  }
+
+  const handleDeleteHours = async (hoursId: string) => {
+    try {
+      await deleteHours(hoursId)
+      notifySuccess('Hours record deleted successfully')
+      setCorrectDialogOpen(false)
+      setHoursToCorrect(null)
+    } catch (error) {
+      console.error('Error deleting hours:', error)
+      notifyError('Failed to delete hours record')
     }
   }
 
@@ -192,14 +225,23 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
       field: 'totalHours',
       headerName: 'Hours Worked',
       width: 120,
-      renderCell: (params) => (
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <AccessTimeIcon fontSize="small" color="action" />
-          <Typography variant="body2">
-            {params.value ? `${params.value}h` : 'N/A'}
-          </Typography>
-        </Stack>
-      )
+      renderCell: (params) => {
+        const formatHours = (totalHours: number) => {
+          if (!totalHours) return 'N/A'
+          const hours = Math.floor(totalHours)
+          const minutes = Math.round((totalHours - hours) * 60)
+          return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+        }
+        
+        return (
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <AccessTimeIcon fontSize="small" color="action" />
+            <Typography variant="body2">
+              {formatHours(params.value)}
+            </Typography>
+          </Stack>
+        )
+      }
     },
     {
       field: 'status',
@@ -217,18 +259,28 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 120,
+      width: 200,
       sortable: false,
       renderCell: (params) => (
-        <Button
-          size="medium"
-          variant="contained"
-          color="warning"
-          disabled={params.row.status !== 'checked-in'}
-          onClick={() => handleCheckOut(params.row.id)}
-        >
-          Check Out
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            size="small"
+            variant="contained"
+            color="warning"
+            disabled={params.row.status !== 'checked-in'}
+            onClick={() => handleCheckOut(params.row.id)}
+          >
+            Check Out
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="primary"
+            onClick={() => handleCorrectHours(params.row)}
+          >
+            Edit
+          </Button>
+        </Stack>
       )
     }
   ]
@@ -288,7 +340,13 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
         </Grid>
         <Grid item xs={6} sm={3}>
           <Paper sx={{ p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
-            <Typography variant="h4" color="success.main" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{stats.totalHours}h</Typography>
+            <Typography variant="h4" color="success.main" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+              {(() => {
+                const hours = Math.floor(stats.totalHours)
+                const minutes = Math.round((stats.totalHours - hours) * 60)
+                return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+              })()}
+            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Total Hours</Typography>
           </Paper>
         </Grid>
@@ -479,6 +537,18 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Correct Check-in/Check-out Dialog */}
+      <CorrectCheckInDialog
+        open={correctDialogOpen}
+        onClose={() => {
+          setCorrectDialogOpen(false)
+          setHoursToCorrect(null)
+        }}
+        volunteerHours={hoursToCorrect}
+        onSave={handleSaveCorrection}
+        onDelete={handleDeleteHours}
+      />
     </Box>
   )
 }
