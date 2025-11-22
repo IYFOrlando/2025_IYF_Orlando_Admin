@@ -1,6 +1,8 @@
 import React from 'react'
 import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material'
 import { Refresh } from '@mui/icons-material'
+import { logger } from '../../lib/logger'
+import { isFirebasePermissionError } from '../../lib/errors'
 
 interface Props {
   children: React.ReactNode
@@ -25,13 +27,7 @@ export class FirebaseErrorBoundary extends React.Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     // Check if it's a Firebase permission error
-    const isFirebasePermissionError = 
-      error.message.includes('permission-denied') ||
-      error.message.includes('Missing or insufficient permissions') ||
-      error.message.includes('permissions')
-
-    // Only show error boundary for non-permission errors
-    if (isFirebasePermissionError) {
+    if (isFirebasePermissionError(error)) {
       return { hasError: false }
     }
 
@@ -40,13 +36,8 @@ export class FirebaseErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Only log non-permission errors
-    const isFirebasePermissionError = 
-      error.message.includes('permission-denied') ||
-      error.message.includes('Missing or insufficient permissions') ||
-      error.message.includes('permissions')
-
-    if (!isFirebasePermissionError) {
-      console.error('FirebaseErrorBoundary caught an error:', error, errorInfo)
+    if (!isFirebasePermissionError(error)) {
+      logger.error('FirebaseErrorBoundary caught an error', { error, errorInfo })
       this.setState({
         error,
         errorInfo

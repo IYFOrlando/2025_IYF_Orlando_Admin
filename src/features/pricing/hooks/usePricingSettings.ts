@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { onSnapshot, doc, setDoc } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import type { PricingDoc } from '../../payments/types'
 
 const PATH = ['settings', 'pricing'] as const
@@ -36,7 +38,7 @@ export function usePricingSettings() {
       },
       (e) => { 
         // Handle permissions error silently - use default pricing
-        if (e.code === 'permission-denied' || e.message.includes('permissions')) {
+        if (isFirebasePermissionError(e)) {
           // User doesn't have permissions to read pricing - use defaults
           setData({ academyPrices: {}, items: [], lunch: { semester: 40, single: 4 } })
           setError(null)
@@ -45,6 +47,7 @@ export function usePricingSettings() {
         }
         
         // For other errors, still use defaults but log the error
+        logger.error('Error fetching pricing settings', e)
         setData({ academyPrices: {}, items: [], lunch: { semester: 40, single: 4 } })
         setError(null)
         setLoading(false)

@@ -18,6 +18,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import { useVolunteerSchedule } from '../hooks/useVolunteerSchedule'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
+import { logger } from '../../../lib/logger'
 import EditScheduleDialog from './EditScheduleDialog'
 
 
@@ -47,12 +48,12 @@ export default function PreEventVolunteerSchedule() {
   const isVolunteerActive = React.useCallback((volunteerCode: string) => {
     const volunteer = volunteers.find(v => v.volunteerCode === volunteerCode)
     if (!volunteer) {
-      console.log('⚠️ Volunteer not found in applications:', volunteerCode)
+      logger.warn('Volunteer not found in applications', { volunteerCode })
       return false
     }
     
     const isActive = volunteer.status === 'active' || volunteer.status === 'approved' || volunteer.status === 'pending'
-    console.log(`👤 Volunteer ${volunteerCode} (${volunteer.firstName} ${volunteer.lastName}) status: ${volunteer.status}, active: ${isActive}`)
+    logger.debug('Volunteer status check', { volunteerCode, status: volunteer.status, isActive })
     return isActive
   }, [volunteers])
 
@@ -70,9 +71,9 @@ export default function PreEventVolunteerSchedule() {
       setDeleteDialogOpen(false)
       setScheduleToDelete(null)
       // You can add a success notification here if you have a notification system
-      console.log('Schedule deleted successfully')
+      logger.info('Schedule deleted successfully')
     } catch (error) {
-      console.error('Error deleting schedule:', error)
+      logger.error('Error deleting schedule', error)
       // You can add an error notification here
     }
   }
@@ -89,7 +90,7 @@ export default function PreEventVolunteerSchedule() {
       setEditDialogOpen(false)
       setScheduleToEdit(null)
     } catch (error) {
-      console.error('Error updating schedule:', error)
+      logger.error('Error updating schedule', error)
     }
   }
 
@@ -114,7 +115,7 @@ export default function PreEventVolunteerSchedule() {
       const hasValidSlots = (schedule.selectedSlots && Array.isArray(schedule.selectedSlots) && schedule.selectedSlots.length > 0)
       
       if (!hasValidSlots) {
-        console.log(`🧹 Schedule for ${schedule.volunteerName} has no valid slots, marking for cleanup`)
+        logger.debug('Schedule has no valid slots, marking for cleanup', { volunteerName: schedule.volunteerName })
         return true
       }
       
@@ -123,14 +124,14 @@ export default function PreEventVolunteerSchedule() {
     
     if (schedulesToCleanup.length > 0) {
       setCleanupInProgress(true)
-      console.log(`🧹 Found ${schedulesToCleanup.length} schedules to clean up...`)
+      logger.debug('Found schedules to clean up', { count: schedulesToCleanup.length })
       
       for (const schedule of schedulesToCleanup) {
         try {
           await deleteSchedule(schedule.id)
-          console.log(`✅ Deleted schedule: ${schedule.volunteerName} (${schedule.volunteerCode})`)
+          logger.info('Deleted schedule', { volunteerName: schedule.volunteerName, volunteerCode: schedule.volunteerCode })
         } catch (error) {
-          console.error(`❌ Error deleting schedule for ${schedule.volunteerName}:`, error)
+          logger.error('Error deleting schedule', { volunteerName: schedule.volunteerName, error })
         }
       }
       
@@ -180,15 +181,15 @@ export default function PreEventVolunteerSchedule() {
 
   // Process data for modern calendar view
   const calendarData = React.useMemo(() => {
-    console.log('🔄 Processing calendar data from preEventSlots:', preEventSlots.length, 'slots')
+    logger.debug('Processing calendar data from preEventSlots', { slots: preEventSlots.length })
     const dayMap = new Map()
     
     preEventSlots.forEach((volunteer, index) => {
-      console.log(`📅 Processing volunteer ${index + 1}:`, volunteer.volunteerName, 'ID:', volunteer.id)
+      logger.debug('Processing volunteer', { index: index + 1, volunteerName: volunteer.volunteerName, id: volunteer.id })
       
       // Check if volunteer is active first
       if (!isVolunteerActive(volunteer.volunteerCode)) {
-        console.log(`❌ Skipping inactive volunteer: ${volunteer.volunteerName} (${volunteer.volunteerCode})`)
+        logger.debug('Skipping inactive volunteer', { volunteerName: volunteer.volunteerName, volunteerCode: volunteer.volunteerCode })
         return
       }
       
@@ -197,11 +198,11 @@ export default function PreEventVolunteerSchedule() {
         ? volunteer.selectedSlots
         : []
       
-      console.log(`📊 Processing ${slotsToProcess.length} slots for ${volunteer.volunteerName}`)
+      logger.debug('Processing slots for volunteer', { slots: slotsToProcess.length, volunteerName: volunteer.volunteerName })
       
       // Skip volunteers with no valid slots
       if (slotsToProcess.length === 0) {
-        console.log(`⚠️ Skipping volunteer with no valid slots: ${volunteer.volunteerName} (${volunteer.volunteerCode})`)
+        logger.debug('Skipping volunteer with no valid slots', { volunteerName: volunteer.volunteerName, volunteerCode: volunteer.volunteerCode })
         return
       }
       
@@ -229,33 +230,33 @@ export default function PreEventVolunteerSchedule() {
               status: volunteer.status,
               attendanceStatus: attendanceStatus
             })
-            console.log(`✅ Added volunteer to ${dateKey}:`, volunteer.volunteerName)
+            logger.debug('Added volunteer to date', { dateKey, volunteerName: volunteer.volunteerName })
           }
         })
       } else {
-        console.log('⚠️ Volunteer has no slots or selectedSlots:', volunteer.volunteerName)
-        console.log('   - selectedSlots:', volunteer.selectedSlots)
+        logger.warn('Volunteer has no slots or selectedSlots', { 
+          volunteerName: volunteer.volunteerName,
+          selectedSlots: volunteer.selectedSlots 
+        })
       }
     })
     
     const result = Array.from(dayMap.values()).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
-    console.log('📊 Final calendar data:', result.length, 'days')
+    logger.debug('Final calendar data', { days: result.length })
     return result
   }, [preEventSlots, getAttendanceStatus, isVolunteerActive])
 
-  // Debug logging
+  // Debug logging (only in development)
   React.useEffect(() => {
-    console.log('🔍 PreEventVolunteerSchedule Debug:')
-    console.log('- Loading:', loading)
-    console.log('- Schedule data length:', schedule.length)
-    console.log('- Schedule data:', schedule)
-    console.log('- PreEvent slots length:', preEventSlots.length)
-    console.log('- PreEvent slots:', preEventSlots)
-    console.log('- Stats:', stats)
-    console.log('- Calendar data length:', calendarData.length)
-    console.log('- Calendar data:', calendarData)
+    logger.debug('PreEventVolunteerSchedule Debug', {
+      loading,
+      scheduleLength: schedule.length,
+      preEventSlotsLength: preEventSlots.length,
+      stats,
+      calendarDataLength: calendarData.length
+    })
   }, [loading, schedule, preEventSlots, stats, calendarData])
 
   const preEventStats = React.useMemo(() => {

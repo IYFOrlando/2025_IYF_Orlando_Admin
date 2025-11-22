@@ -8,6 +8,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import { logger } from '../../../lib/logger'
 import type { VolunteerHours } from '../../events/types'
 
 interface CorrectCheckInDialogProps {
@@ -90,7 +91,7 @@ export default function CorrectCheckInDialog({
       await onSave(volunteerHours.id, updates)
       onClose()
     } catch (error) {
-      console.error('Error updating volunteer hours:', error)
+      logger.error('Error updating volunteer hours', error)
     } finally {
       setLoading(false)
     }
@@ -105,7 +106,7 @@ export default function CorrectCheckInDialog({
         await onDelete(volunteerHours.id)
         onClose()
       } catch (error) {
-        console.error('Error deleting volunteer hours:', error)
+        logger.error('Error deleting volunteer hours', error)
       } finally {
         setLoading(false)
       }

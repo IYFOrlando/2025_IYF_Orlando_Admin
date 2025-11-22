@@ -59,14 +59,10 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
     return []
   }, [form.secondPeriod?.academy])
 
-  const computeAge = (birthdayISO?: string) => {
-    if (!birthdayISO) return ''
-    const bd = new Date(birthdayISO)
-    const t = new Date()
-    let a = t.getFullYear() - bd.getFullYear()
-    const m = t.getMonth() - bd.getMonth()
-    if (m < 0 || (m === 0 && t.getDate() < bd.getDate())) a--
-    return String(a)
+  // Use computeAge from validations utility
+  const getAgeString = (birthdayISO?: string) => {
+    const age = computeAge(birthdayISO)
+    return age === '' ? '' : String(age)
   }
 
   const save = async () => {
@@ -75,7 +71,7 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
         firstName: form.firstName || '',
         lastName: form.lastName || '',
         birthday: form.birthday || '',
-        age: computeAge(form.birthday),
+        age: computeAge(form.birthday) || '',
         gender: form.gender || '',
         cellNumber: form.cellNumber || '',
         email: form.email || '',
@@ -109,7 +105,7 @@ export default function RegistrationDialog({ open, onClose, docId, initial }: Pr
           <Grid item xs={12} md={6}><TextField label="First Name" value={form.firstName || ''} onChange={(e)=>setField('firstName', e.target.value)} /></Grid>
           <Grid item xs={12} md={6}><TextField label="Last Name"  value={form.lastName  || ''} onChange={(e)=>setField('lastName',  e.target.value)} /></Grid>
           <Grid item xs={12} md={6}><TextField label="Birthday" type="date" InputLabelProps={{shrink:true}} value={form.birthday || ''} onChange={(e)=>setField('birthday', e.target.value)} /></Grid>
-          <Grid item xs={12} md={6}><TextField label="Age" value={computeAge(form.birthday)} InputProps={{readOnly:true}} /></Grid>
+          <Grid item xs={12} md={6}><TextField label="Age" value={getAgeString(form.birthday)} InputProps={{readOnly:true}} /></Grid>
           <Grid item xs={12} md={6}>
             <TextField select label="Gender" value={form.gender || ''} onChange={(e)=>setField('gender', e.target.value)}>
               <MenuItem value="">Select</MenuItem><MenuItem value="Male">Male</MenuItem><MenuItem value="Female">Female</MenuItem><MenuItem value="Other">Other</MenuItem>

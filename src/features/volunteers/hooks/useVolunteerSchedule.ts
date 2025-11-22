@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { collection, onSnapshot, query, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import { VOLUNTEER_SCHEDULE_COLLECTION } from '../../../lib/config'
 import type { VolunteerSchedule } from '../types'
 
@@ -18,19 +20,19 @@ export function useVolunteerSchedule() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        console.log('🔄 useVolunteerSchedule: Data updated, snapshot size:', snapshot.size)
+        logger.debug('useVolunteerSchedule: Data updated', { snapshotSize: snapshot.size })
         const schedule = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as VolunteerSchedule[]
-        console.log('📊 useVolunteerSchedule: Processed schedule data:', schedule.length, 'items')
+        logger.debug('useVolunteerSchedule: Processed schedule data', { items: schedule.length })
         setData(schedule)
         setLoading(false)
         setError(null)
       },
       (err) => {
         // Handle permissions error gracefully
-        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+        if (isFirebasePermissionError(err)) {
           // User doesn't have permissions to read volunteer schedule - use empty array
           setData([])
           setError(null)
@@ -39,7 +41,7 @@ export function useVolunteerSchedule() {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching volunteer schedule:', err)
+        logger.error('Error fetching volunteer schedule', err)
         setError(err)
         setLoading(false)
       }
@@ -88,7 +90,7 @@ export function useVolunteerSchedule() {
       await deleteDoc(docRef)
       return true
     } catch (err) {
-      console.error('Error deleting volunteer schedule:', err)
+      logger.error('Error deleting volunteer schedule', err)
       throw err
     }
   }, [])
@@ -102,7 +104,7 @@ export function useVolunteerSchedule() {
       })
       return true
     } catch (err) {
-      console.error('Error updating volunteer schedule:', err)
+      logger.error('Error updating volunteer schedule', err)
       throw err
     }
   }, [])
@@ -116,7 +118,7 @@ export function useVolunteerSchedule() {
       })
       return true
     } catch (err) {
-      console.error('Error cancelling volunteer schedule:', err)
+      logger.error('Error cancelling volunteer schedule', err)
       throw err
     }
   }, [])

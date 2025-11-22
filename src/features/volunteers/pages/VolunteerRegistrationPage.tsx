@@ -57,7 +57,7 @@ export default function VolunteerRegistrationPage() {
       window.location.reload()
       
     } catch (error) {
-      console.error('Error submitting volunteer registration:', error)
+      logger.error('Error submitting volunteer registration', error)
       
       await Swal.fire({
         icon: 'error',

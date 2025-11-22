@@ -10,6 +10,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn'
 import { useVolunteerAttendance } from '../../events/hooks/useVolunteerAttendance'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
 import { useGeolocation } from '../hooks/useGeolocation'
+import { logger } from '../../../lib/logger'
 import Swal from 'sweetalert2'
 
 export default function VolunteerCheckInStandalone() {
@@ -93,7 +94,7 @@ export default function VolunteerCheckInStandalone() {
         return
       }
     } catch (error) {
-      console.warn('Could not get location:', error)
+      logger.warn('Could not get location', error)
       
       await Swal.fire({
         icon: 'warning',
@@ -380,7 +381,7 @@ export default function VolunteerCheckInStandalone() {
           }
           return dateStr
         } catch (error) {
-          console.error('Error normalizing date:', dateStr, error)
+          logger.error('Error normalizing date', { dateStr, error })
           return dateStr
         }
       }
@@ -578,7 +579,7 @@ export default function VolunteerCheckInStandalone() {
 
       setVolunteerCode('')
     } catch (error) {
-      console.error('Error:', error)
+      logger.error('Error in volunteer check-in', error)
       Swal.fire({
         icon: 'error',
         title: '❌ Processing Error',

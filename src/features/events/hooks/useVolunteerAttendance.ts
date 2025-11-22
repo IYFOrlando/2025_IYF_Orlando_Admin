@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import { collection, onSnapshot, query, orderBy, where, doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_HOURS_COLLECTION } from '../../../lib/config'
@@ -37,7 +39,7 @@ export function useVolunteerAttendance(eventId?: string) {
       },
       (err) => {
         // Handle permissions error gracefully
-        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+        if (isFirebasePermissionError(err)) {
           // User doesn't have permissions to read volunteer hours - use empty array
           setData([])
           setError(null)
@@ -46,7 +48,7 @@ export function useVolunteerAttendance(eventId?: string) {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching volunteer attendance:', err)
+        logger.error('Error fetching volunteer attendance', err)
         setError(err)
         setLoading(false)
       }
@@ -97,7 +99,7 @@ export function useVolunteerAttendance(eventId?: string) {
 
       return docRef.id
     } catch (err) {
-      console.error('Error checking in volunteer:', err)
+      logger.error('Error checking in volunteer', err)
       throw err
     }
   }, [data])
@@ -130,7 +132,7 @@ export function useVolunteerAttendance(eventId?: string) {
 
       return true
     } catch (err) {
-      console.error('Error checking out volunteer:', err)
+      logger.error('Error checking out volunteer', err)
       throw err
     }
   }, [data])
@@ -158,7 +160,7 @@ export function useVolunteerAttendance(eventId?: string) {
       })
       return true
     } catch (err) {
-      console.error('Error updating volunteer hours:', err)
+      logger.error('Error updating volunteer hours', err)
       throw err
     }
   }, [])
@@ -169,7 +171,7 @@ export function useVolunteerAttendance(eventId?: string) {
       await deleteDoc(docRef)
       return true
     } catch (err) {
-      console.error('Error deleting volunteer hours:', err)
+      logger.error('Error deleting volunteer hours', err)
       throw err
     }
   }, [])

@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import { VOLUNTEER_APPLICATIONS_COLLECTION } from '../../../lib/config'
 import { generateVolunteerCode } from '../../../lib/volunteerCodes'
 import type { VolunteerApplication, VolunteerStatus } from '../types'
@@ -29,7 +31,7 @@ export function useVolunteerApplications() {
       },
       (err) => {
         // Handle permissions error gracefully
-        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+        if (isFirebasePermissionError(err)) {
           // User doesn't have permissions to read volunteer applications - use empty array
           setData([])
           setError(null)
@@ -38,7 +40,7 @@ export function useVolunteerApplications() {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching volunteer applications:', err)
+        logger.error('Error fetching volunteer applications', err)
         setError(err)
         setLoading(false)
       }
@@ -60,7 +62,7 @@ export function useVolunteerApplications() {
       })
       return docRef.id
     } catch (err) {
-      console.error('Error creating volunteer application:', err)
+      logger.error('Error creating volunteer application', err)
       throw err
     }
   }, [])
@@ -74,7 +76,7 @@ export function useVolunteerApplications() {
       })
       return true
     } catch (err) {
-      console.error('Error updating volunteer application:', err)
+      logger.error('Error updating volunteer application', err)
       throw err
     }
   }, [])
@@ -95,7 +97,7 @@ export function useVolunteerApplications() {
       })
       return true
     } catch (err) {
-      console.error('Error updating volunteer application status:', err)
+      logger.error('Error updating volunteer application status', err)
       throw err
     }
   }, [])
@@ -106,7 +108,7 @@ export function useVolunteerApplications() {
       await deleteDoc(docRef)
       return true
     } catch (err) {
-      console.error('Error deleting volunteer application:', err)
+      logger.error('Error deleting volunteer application', err)
       throw err
     }
   }, [])

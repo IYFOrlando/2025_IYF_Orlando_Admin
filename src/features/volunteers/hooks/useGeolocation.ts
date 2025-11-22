@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { logger } from '../../../lib/logger'
 
 export interface GeolocationData {
   latitude: number
@@ -54,7 +55,7 @@ export function useGeolocation() {
               address = `${data.city}, ${data.principalSubdivision}`
             }
           } catch (err) {
-            console.warn('Could not get address from coordinates:', err)
+            logger.warn('Could not get address from coordinates', err)
           }
 
           const locationData: GeolocationData = {

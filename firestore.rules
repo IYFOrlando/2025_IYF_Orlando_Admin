@@ -129,14 +129,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Email database collection - public access for now
+    // Email database collection - public read, admin write
     match /email_database/{document} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
     
-    // Eventbrite emails collection - public access for now
+    // Eventbrite emails collection - public read, admin write
     match /eventbrite_emails/{document} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
     
     // Registrations collection - public read access for email import

@@ -9,6 +9,7 @@ import PreEventVolunteerSchedule from '../components/VolunteerTimeSlots'
 import VolunteerCheckInOut from '../components/VolunteerCheckInOut'
 import SimpleVolunteerTable from '../components/SimpleVolunteerTable'
 import VolunteerForm from '../components/VolunteerForm'
+import VolunteerReports from '../components/VolunteerReports'
 import type { VolunteerApplication } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
@@ -56,7 +57,7 @@ function VolunteersPageContent() {
       notifySuccess('Volunteer created successfully!')
       setCreateDialogOpen(false)
     } catch (error) {
-      console.error('Error creating volunteer:', error)
+      logger.error('Error creating volunteer', error)
       notifyError('Failed to create volunteer')
     }
   }
@@ -70,7 +71,7 @@ function VolunteersPageContent() {
       setEditDialogOpen(false)
       setSelectedApplication(null)
     } catch (error) {
-      console.error('Error updating volunteer:', error)
+      logger.error('Error updating volunteer', error)
       notifyError('Failed to update volunteer')
     }
   }
@@ -80,7 +81,7 @@ function VolunteersPageContent() {
       await deleteVolunteer(id)
       notifySuccess('Volunteer deleted successfully!')
     } catch (error) {
-      console.error('Error deleting volunteer:', error)
+      logger.error('Error deleting volunteer', error)
       notifyError('Failed to delete volunteer')
     }
   }
@@ -101,9 +102,7 @@ function VolunteersPageContent() {
 
   // Debug logging
   React.useEffect(() => {
-    console.log('VolunteersPage - Loading:', loading)
-    console.log('VolunteersPage - Error:', error)
-    console.log('VolunteersPage - Applications:', applications)
+    // Debug logging removed - use logger.debug() if needed in development
   }, [loading, error, applications])
 
   if (error) {
@@ -167,6 +166,11 @@ function VolunteersPageContent() {
               id="volunteer-tab-2"
               aria-controls="volunteer-tabpanel-2"
             />
+            <Tab 
+              label="Reports" 
+              id="volunteer-tab-3"
+              aria-controls="volunteer-tabpanel-3"
+            />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -188,6 +192,13 @@ function VolunteersPageContent() {
 
           <TabPanel value={tabValue} index={2}>
             <VolunteerCheckInOut />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
+            <VolunteerReports 
+              volunteers={applications}
+              loading={loading}
+            />
           </TabPanel>
         </CardContent>
       </Card>

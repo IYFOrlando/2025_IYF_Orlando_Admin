@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { logger } from '../../../lib/logger'
 import { collection, onSnapshot, query, orderBy, where, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { VOLUNTEER_CODES_COLLECTION } from '../../../lib/config'
@@ -37,7 +38,7 @@ export function useVolunteerCodes(eventId?: string) {
         setError(null)
       },
       (err) => {
-        console.error('Error fetching volunteer codes:', err)
+        logger.error('Error fetching volunteer codes', err)
         setError(err)
         setLoading(false)
       }
@@ -65,7 +66,7 @@ export function useVolunteerCodes(eventId?: string) {
       })
       return docRef.id
     } catch (err) {
-      console.error('Error creating volunteer code:', err)
+      logger.error('Error creating volunteer code', err)
       throw err
     }
   }, [])
@@ -79,7 +80,7 @@ export function useVolunteerCodes(eventId?: string) {
       })
       return true
     } catch (err) {
-      console.error('Error updating volunteer code:', err)
+      logger.error('Error updating volunteer code', err)
       throw err
     }
   }, [])

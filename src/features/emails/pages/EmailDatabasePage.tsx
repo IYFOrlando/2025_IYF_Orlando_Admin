@@ -23,6 +23,7 @@ import EventIcon from '@mui/icons-material/Event'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SearchIcon from '@mui/icons-material/Search'
+import BlockIcon from '@mui/icons-material/Block'
 
 import { useEmailDatabase } from '../hooks/useEmailDatabase'
 import type { EmailRecord, EmailSource } from '../types'
@@ -48,7 +49,8 @@ const EmailDatabasePage = React.memo(() => {
     importFromVolunteers,
     importFromSubscribers,
     importFromEventbrite,
-    exportEventbriteEmails
+    exportEventbriteEmails,
+    markEmailsAsBounced
   } = useEmailDatabase()
 
   const [mainTabValue, setMainTabValue] = React.useState(0)
@@ -63,9 +65,11 @@ const EmailDatabasePage = React.memo(() => {
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
   const [selectedEmail, setSelectedEmail] = React.useState<EmailRecord | null>(null)
   const [importDialogOpen, setImportDialogOpen] = React.useState(false)
+  const [bouncedDialogOpen, setBouncedDialogOpen] = React.useState(false)
   const [csvFile, setCsvFile] = React.useState<File | null>(null)
   const [pastedEmails, setPastedEmails] = React.useState('')
   const [eventbriteEmails, setEventbriteEmails] = React.useState('')
+  const [bouncedEmails, setBouncedEmails] = React.useState('')
 
   // Form states
   const [formData, setFormData] = React.useState({
@@ -78,8 +82,12 @@ const EmailDatabasePage = React.memo(() => {
     isActive: true
   })
 
+  // Memoize search term to avoid unnecessary recalculations
+  const searchTermLower = React.useMemo(() => searchTerm.toLowerCase(), [searchTerm])
+  
   // Filter emails based on current filters
   const filteredEmails = React.useMemo(() => {
+    if (!emails || emails.length === 0) return []
     let filtered = emails
 
     // Exclude staff, volunteer, and eventbrite emails from main list
@@ -93,14 +101,13 @@ const EmailDatabasePage = React.memo(() => {
     )
 
     // Search filter (apply early)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+    if (searchTermLower) {
       filtered = filtered.filter(email => 
-        email.email.toLowerCase().includes(searchLower) ||
-        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
-        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
-        email.source.toLowerCase().includes(searchLower) ||
-        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+        email.email.toLowerCase().includes(searchTermLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchTermLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchTermLower)) ||
+        email.source.toLowerCase().includes(searchTermLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchTermLower)))
       )
     }
 
@@ -131,7 +138,7 @@ const EmailDatabasePage = React.memo(() => {
     })
 
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
+  }, [emails, searchTermLower, selectedSource, selectedTag, showOnlyActive])
 
   // Filter staff emails
   const filteredStaffEmails = React.useMemo(() => {
@@ -145,14 +152,13 @@ const EmailDatabasePage = React.memo(() => {
     )
 
     // Search filter (apply early)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+    if (searchTermLower) {
       filtered = filtered.filter(email => 
-        email.email.toLowerCase().includes(searchLower) ||
-        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
-        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
-        email.source.toLowerCase().includes(searchLower) ||
-        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+        email.email.toLowerCase().includes(searchTermLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchTermLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchTermLower)) ||
+        email.source.toLowerCase().includes(searchTermLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchTermLower)))
       )
     }
 
@@ -183,7 +189,7 @@ const EmailDatabasePage = React.memo(() => {
     })
 
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
+  }, [emails, searchTermLower, selectedSource, selectedTag, showOnlyActive])
 
   // Filter volunteer emails
   const filteredVolunteerEmails = React.useMemo(() => {
@@ -195,14 +201,13 @@ const EmailDatabasePage = React.memo(() => {
     )
 
     // Search filter (apply early)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+    if (searchTermLower) {
       filtered = filtered.filter(email => 
-        email.email.toLowerCase().includes(searchLower) ||
-        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
-        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
-        email.source.toLowerCase().includes(searchLower) ||
-        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+        email.email.toLowerCase().includes(searchTermLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchTermLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchTermLower)) ||
+        email.source.toLowerCase().includes(searchTermLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchTermLower)))
       )
     }
 
@@ -233,7 +238,7 @@ const EmailDatabasePage = React.memo(() => {
     })
 
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
+  }, [emails, searchTermLower, selectedSource, selectedTag, showOnlyActive])
 
   // Filter eventbrite emails
   const filteredEventbriteEmails = React.useMemo(() => {
@@ -246,14 +251,13 @@ const EmailDatabasePage = React.memo(() => {
     )
 
     // Search filter (apply early)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+    if (searchTermLower) {
       filtered = filtered.filter(email => 
-        email.email.toLowerCase().includes(searchLower) ||
-        (email.firstName && email.firstName.toLowerCase().includes(searchLower)) ||
-        (email.lastName && email.lastName.toLowerCase().includes(searchLower)) ||
-        email.source.toLowerCase().includes(searchLower) ||
-        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+        email.email.toLowerCase().includes(searchTermLower) ||
+        (email.firstName && email.firstName.toLowerCase().includes(searchTermLower)) ||
+        (email.lastName && email.lastName.toLowerCase().includes(searchTermLower)) ||
+        email.source.toLowerCase().includes(searchTermLower) ||
+        (email.tags && email.tags.some(tag => tag.toLowerCase().includes(searchTermLower)))
       )
     }
 
@@ -284,7 +288,7 @@ const EmailDatabasePage = React.memo(() => {
     })
 
     return filtered
-  }, [emails, searchTerm, selectedSource, selectedTag, showOnlyActive])
+  }, [emails, searchTermLower, selectedSource, selectedTag, showOnlyActive])
 
   // Get unique tags
   const availableTags = React.useMemo(() => {
@@ -421,6 +425,55 @@ const EmailDatabasePage = React.memo(() => {
       notifySuccess('Eventbrite emails exported successfully')
     } catch (err) {
       notifyError('Failed to export Eventbrite emails')
+    }
+  }
+
+  // Handle mark emails as bounced
+  const handleMarkAsBounced = async () => {
+    if (!bouncedEmails.trim()) {
+      notifyError('Please paste the bounced emails first')
+      return
+    }
+
+    try {
+      // Parse the pasted emails
+      const emails = bouncedEmails
+        .split(/[\n\r\t,;]+/)
+        .map(email => email.trim())
+        .filter(email => email && email.includes('@'))
+
+      if (emails.length === 0) {
+        notifyError('No valid emails found in the pasted text')
+        return
+      }
+
+      const result = await Swal.fire({
+        title: 'Mark Emails as Bounced?',
+        html: `
+          <p>This will mark <strong>${emails.length}</strong> email(s) as inactive (bounced).</p>
+          <p>They will be excluded from future email campaigns.</p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Mark as Bounced',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#d33'
+      })
+
+      if (result.isConfirmed) {
+        const { updatedCount, notFoundCount } = await markEmailsAsBounced(emails)
+        
+        let message = `Marked ${updatedCount} email(s) as bounced.`
+        if (notFoundCount > 0) {
+          message += ` ${notFoundCount} email(s) were not found in the database.`
+        }
+        
+        notifySuccess(message)
+        setBouncedEmails('')
+        setBouncedDialogOpen(false)
+      }
+    } catch (err) {
+      notifyError('Failed to mark emails as bounced')
     }
   }
 
@@ -766,6 +819,14 @@ const EmailDatabasePage = React.memo(() => {
                 onClick={handleExportEmails}
               >
                 Export
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<BlockIcon />}
+                onClick={() => setBouncedDialogOpen(true)}
+              >
+                Mark as Bounced
               </Button>
               <Button
                 variant="contained"
@@ -1229,6 +1290,47 @@ const EmailDatabasePage = React.memo(() => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setImportDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Mark as Bounced Dialog */}
+      <Dialog open={bouncedDialogOpen} onClose={() => setBouncedDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Mark Emails as Bounced</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Paste the list of bounced email addresses below. Each email will be marked as inactive and excluded from future campaigns.
+          </Typography>
+          
+          <TextField
+            fullWidth
+            multiline
+            rows={12}
+            label="Bounced Emails"
+            placeholder="Paste emails here, one per line or separated by commas/semicolons..."
+            value={bouncedEmails}
+            onChange={(e) => setBouncedEmails(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          
+          <Typography variant="caption" color="text.secondary">
+            You can paste emails separated by newlines, commas, or semicolons. Invalid emails will be automatically filtered out.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setBouncedDialogOpen(false)
+            setBouncedEmails('')
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error"
+            onClick={handleMarkAsBounced}
+            disabled={!bouncedEmails.trim()}
+          >
+            Mark as Bounced
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

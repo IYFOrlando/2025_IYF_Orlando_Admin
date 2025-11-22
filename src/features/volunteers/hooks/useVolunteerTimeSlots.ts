@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import { VOLUNTEER_HOURS_COLLECTION } from '../../../lib/config'
 import type { VolunteerHours } from '../../events/types'
 
@@ -28,7 +30,7 @@ export function useVolunteerTimeSlots() {
       },
       (err) => {
         // Handle permissions error gracefully
-        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+        if (isFirebasePermissionError(err)) {
           // User doesn't have permissions to read volunteer hours - use empty array
           setData([])
           setError(null)
@@ -37,7 +39,7 @@ export function useVolunteerTimeSlots() {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching volunteer time slots:', err)
+        logger.error('Error fetching volunteer time slots', err)
         setError(err)
         setLoading(false)
       }

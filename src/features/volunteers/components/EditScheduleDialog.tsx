@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { logger } from '../../../lib/logger'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, FormControl, InputLabel, Select, MenuItem,
@@ -33,7 +34,7 @@ export default function EditScheduleDialog({ open, onClose, schedule, onSave }: 
       })
       onClose()
     } catch (error) {
-      console.error('Error updating schedule:', error)
+      logger.error('Error updating schedule', error)
     } finally {
       setLoading(false)
     }

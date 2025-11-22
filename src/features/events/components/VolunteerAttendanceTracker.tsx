@@ -13,6 +13,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import { useVolunteerAttendance } from '../hooks/useVolunteerAttendance'
 import CorrectCheckInDialog from './CorrectCheckInDialog'
 import { useVolunteerApplications } from '../../volunteers/hooks/useVolunteerApplications'
+import { logger } from '../../../lib/logger'
 import type { Event, HoursStatus } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import Swal from 'sweetalert2'
@@ -33,7 +34,7 @@ interface Props {
   event: Event
 }
 
-export default function VolunteerAttendanceTracker({ event }: Props) {
+const VolunteerAttendanceTracker = React.memo(function VolunteerAttendanceTracker({ event }: Props) {
   const { data: attendance, loading, checkIn, checkOut, getAttendanceStats, updateHours, deleteHours } = useVolunteerAttendance(event.id)
   const { data: volunteers } = useVolunteerApplications()
   const [correctDialogOpen, setCorrectDialogOpen] = React.useState(false)
@@ -113,7 +114,7 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
       setCorrectDialogOpen(false)
       setHoursToCorrect(null)
     } catch (error) {
-      console.error('Error correcting hours:', error)
+      logger.error('Error correcting hours', error)
       notifyError('Failed to correct hours')
     }
   }
@@ -125,7 +126,7 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
       setCorrectDialogOpen(false)
       setHoursToCorrect(null)
     } catch (error) {
-      console.error('Error deleting hours:', error)
+      logger.error('Error deleting hours', error)
       notifyError('Failed to delete hours record')
     }
   }
@@ -551,4 +552,6 @@ export default function VolunteerAttendanceTracker({ event }: Props) {
       />
     </Box>
   )
-}
+})
+
+export default VolunteerAttendanceTracker

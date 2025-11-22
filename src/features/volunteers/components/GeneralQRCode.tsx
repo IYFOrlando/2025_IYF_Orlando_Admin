@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { logger } from '../../../lib/logger'
 import {
   Box, Typography, Card, CardContent, TextField, Button, Stack,
   Alert, Divider, Paper, Chip, Link
@@ -29,7 +30,7 @@ export default function GeneralQRCode() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
-      console.error('Failed to copy QR data:', err)
+        logger.error('Failed to copy QR data', err)
     }
   }
 

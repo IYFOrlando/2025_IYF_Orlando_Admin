@@ -18,6 +18,7 @@ import logoImage from '../../../assets/logo/IYF_logo.png'
 import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
+import { computeAge } from '../../../lib/validations'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -41,11 +42,7 @@ function TabPanel(props: TabPanelProps) {
   )
 }
 
-function computeAge(birthday?: string | null): number | '' {
-  if (!birthday) return ''
-  const age = new Date().getFullYear() - new Date(birthday).getFullYear()
-  return age < 0 ? '' : age
-}
+// computeAge is now imported from validations utility
 
 const AcademiesPage = React.memo(function AcademiesPage() {
   const { data: registrations, loading, error } = useRegistrations()
@@ -58,9 +55,10 @@ const AcademiesPage = React.memo(function AcademiesPage() {
   const [teacherName, setTeacherName] = React.useState('')
   const [teacherEmail, setTeacherEmail] = React.useState('')
   const [teacherPhone, setTeacherPhone] = React.useState('')
+  const [teacherCredentials, setTeacherCredentials] = React.useState('')
 
   // Store teacher information - for Korean: academy_level, for others: academy
-  const [teachers, setTeachers] = React.useState<Record<string, {name: string, email: string, phone: string}>>({})
+  const [teachers, setTeachers] = React.useState<Record<string, {name: string, email: string, phone: string, credentials?: string}>>({})
   const [teachersLoading, setTeachersLoading] = React.useState(true)
 
   // Load teachers from Firebase
@@ -68,14 +66,15 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     const teachersRef = collection(db, 'teachers')
     
     const unsubscribe = onSnapshot(teachersRef, (snapshot) => {
-      const teachersData: Record<string, {name: string, email: string, phone: string}> = {}
+      const teachersData: Record<string, {name: string, email: string, phone: string, credentials?: string}> = {}
       
       snapshot.forEach((doc) => {
         const data = doc.data()
         teachersData[doc.id] = {
           name: data.name || '',
           email: data.email || '',
-          phone: data.phone || ''
+          phone: data.phone || '',
+          credentials: data.credentials || ''
         }
       })
       
@@ -248,6 +247,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
           phone: teacherPhone.trim(),
           academy: selectedAcademy,
           level: selectedLevel || null,
+          credentials: teacherCredentials.trim() || '',
           updatedAt: new Date()
         })
         
@@ -255,13 +255,14 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         setTeacherName('')
         setTeacherEmail('')
         setTeacherPhone('')
+        setTeacherCredentials('')
         setSelectedAcademy('')
         setSelectedLevel('')
              } catch (error) {
          alert('Error saving teacher information. Please try again.')
        }
     }
-  }, [selectedAcademy, selectedLevel, teacherName, teacherEmail, teacherPhone])
+  }, [selectedAcademy, selectedLevel, teacherName, teacherEmail, teacherPhone, teacherCredentials])
 
   const openTeacherDialog = React.useCallback((academyName: string, level?: string) => {
     setSelectedAcademy(academyName)
@@ -270,12 +271,22 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     const existingTeacher = teachers[teacherKey]
     if (existingTeacher) {
       setTeacherName(existingTeacher.name)
-      setTeacherEmail(existingTeacher.email)
-      setTeacherPhone(existingTeacher.phone)
+      setTeacherEmail(existingTeacher.email || '')
+      setTeacherPhone(existingTeacher.phone || '')
+      setTeacherCredentials(existingTeacher.credentials || '')
     } else {
       setTeacherName('')
       setTeacherEmail('')
       setTeacherPhone('')
+      // Set default credentials based on academy type
+      let defaultCredentials = ''
+      const normalizedAcademy = academyName.toLowerCase()
+      if (normalizedAcademy.includes('korean') && normalizedAcademy.includes('cooking')) {
+        defaultCredentials = 'Experience working in Korean Restaurant many years'
+      } else if (normalizedAcademy.includes('korean') && normalizedAcademy.includes('language')) {
+        defaultCredentials = 'Native Korean speaker with many years of experience teaching Korean language'
+      }
+      setTeacherCredentials(defaultCredentials)
     }
     setTeacherDialogOpen(true)
   }, [teachers])
@@ -804,6 +815,26 @@ return (
                 value={teacherPhone} 
                 onChange={e => setTeacherPhone(e.target.value)} 
                 fullWidth 
+              />
+              <TextField 
+                label="Credentials / Background" 
+                value={teacherCredentials} 
+                onChange={e => setTeacherCredentials(e.target.value)} 
+                fullWidth 
+                multiline
+                rows={3}
+                placeholder={
+                  (() => {
+                    const normalized = selectedAcademy.toLowerCase()
+                    if (normalized.includes('korean') && normalized.includes('cooking')) {
+                      return "Experience working in Korean Restaurant many years"
+                    } else if (normalized.includes('korean') && normalized.includes('language')) {
+                      return "e.g., Native Korean speaker with many years of experience teaching Korean language"
+                    }
+                    return "e.g., Certified Teacher, Master's Degree in Education, etc."
+                  })()
+                }
+                helperText="Instructor credentials required for elective courses (courses with service rate)"
               />
             </Stack>
       </DialogContent>

@@ -29,18 +29,19 @@ export type InvoiceLine = {
   qty: number
   amount: number
   instructor?: {
-    name: string
+    firstName: string // Instructor's first name
+    lastName: string // Instructor's last name
     email?: string
     phone?: string
-    credentials?: string
+    credentials?: string // Required for elective courses
   }
   instructionDates?: {
-    startDate: string
-    endDate: string
+    startDate: string // Must include year (YYYY-MM-DD format)
+    endDate: string // Must include year (YYYY-MM-DD format)
     totalHours: number
     schedule?: string // e.g., "Saturdays 10:00 AM - 12:00 PM"
   }
-  serviceRate?: number // Rate per hour for elective courses
+  serviceRate?: number // Rate per hour for elective courses (required for elective courses)
 }
 
 export type Invoice = {
@@ -62,8 +63,8 @@ export type Invoice = {
   balance: number
   status: 'unpaid' | 'partial' | 'paid' | 'exonerated'
   method?: 'cash' | 'zelle' | null
-  createdAt: any
-  updatedAt: any
+  createdAt: any // Firebase Timestamp or Date
+  updatedAt: any // Firebase Timestamp or Date
 }
 
 export type Payment = {

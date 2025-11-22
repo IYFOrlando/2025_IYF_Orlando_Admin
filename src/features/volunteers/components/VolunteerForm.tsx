@@ -38,6 +38,17 @@ import {
 } from '@mui/icons-material'
 import type { VolunteerApplication, VolunteerStatus } from '../types'
 import { generateVolunteerCode } from '../../../lib/volunteerCodes'
+import { logger } from '../../../lib/logger'
+import { isValidEmail, isRequired } from '../../../lib/validations'
+import {
+  GENDER_OPTIONS,
+  TSHIRT_SIZES,
+  VOLUNTEER_STATUS_OPTIONS,
+  SKILL_OPTIONS,
+  INTEREST_OPTIONS,
+  LANGUAGE_OPTIONS,
+  COMMITMENT_OPTIONS
+} from '../../../lib/constants'
 
 interface VolunteerFormProps {
   open: boolean
@@ -46,48 +57,6 @@ interface VolunteerFormProps {
   volunteer?: VolunteerApplication | null
   mode: 'create' | 'edit'
 }
-
-const GENDER_OPTIONS = [
-  { value: 'male', label: 'Male' },
-  { value: 'female', label: 'Female' },
-  { value: 'other', label: 'Other' },
-  { value: 'prefer-not-to-say', label: 'Prefer not to say' }
-]
-
-const TSHIRT_SIZES = [
-  'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'
-]
-
-const STATUS_OPTIONS: { value: VolunteerStatus; label: string; color: string }[] = [
-  { value: 'pending', label: 'Pending Review', color: '#ff9800' },
-  { value: 'approved', label: 'Approved', color: '#2196f3' },
-  { value: 'active', label: 'Active', color: '#4caf50' },
-  { value: 'rejected', label: 'Rejected', color: '#f44336' },
-  { value: 'inactive', label: 'Inactive', color: '#9e9e9e' }
-]
-
-const SKILL_OPTIONS = [
-  'Event Planning', 'Customer Service', 'Marketing', 'Photography', 'Videography',
-  'Social Media', 'Translation', 'Cooking', 'Setup/Cleanup', 'Registration',
-  'Security', 'First Aid', 'Childcare', 'Transportation', 'Technical Support'
-]
-
-const INTEREST_OPTIONS = [
-  'Korean Culture', 'Community Service', 'Event Management', 'Food & Beverage',
-  'Entertainment', 'Education', 'Youth Programs', 'Cultural Exchange',
-  'Volunteer Leadership', 'Non-profit Work'
-]
-
-const LANGUAGE_OPTIONS = [
-  'English', 'Korean', 'Spanish', 'French', 'German', 'Japanese', 'Chinese', 'Portuguese'
-]
-
-const COMMITMENT_OPTIONS = [
-  { value: 'one-time', label: 'One-time Event' },
-  { value: 'short-term', label: 'Short-term (1-3 months)' },
-  { value: 'long-term', label: 'Long-term (3+ months)' },
-  { value: 'flexible', label: 'Flexible' }
-]
 
 export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode }: VolunteerFormProps) {
   const [formData, setFormData] = useState<Partial<VolunteerApplication>>({
@@ -181,15 +150,15 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.firstName?.trim()) newErrors.firstName = 'First name is required'
-    if (!formData.lastName?.trim()) newErrors.lastName = 'Last name is required'
-    if (!formData.email?.trim()) newErrors.email = 'Email is required'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format'
+    if (!isRequired(formData.firstName)) newErrors.firstName = 'First name is required'
+    if (!isRequired(formData.lastName)) newErrors.lastName = 'Last name is required'
+    if (!isRequired(formData.email)) newErrors.email = 'Email is required'
+    else if (!isValidEmail(formData.email || '')) newErrors.email = 'Invalid email format'
     if (!formData.gender) newErrors.gender = 'Gender is required'
     if (!formData.tshirtSize) newErrors.tshirtSize = 'T-shirt size is required'
-    if (!formData.emergencyContact?.trim()) newErrors.emergencyContact = 'Emergency contact is required'
-    if (!formData.emergencyPhone?.trim()) newErrors.emergencyPhone = 'Emergency phone is required'
-    if (!formData.volunteerCode?.trim()) newErrors.volunteerCode = 'Volunteer code is required'
+    if (!isRequired(formData.emergencyContact)) newErrors.emergencyContact = 'Emergency contact is required'
+    if (!isRequired(formData.emergencyPhone)) newErrors.emergencyPhone = 'Emergency phone is required'
+    if (!isRequired(formData.volunteerCode)) newErrors.volunteerCode = 'Volunteer code is required'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -203,7 +172,7 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
       await onSubmit(formData)
       onClose()
     } catch (error) {
-      console.error('Error submitting volunteer form:', error)
+      logger.error('Error submitting volunteer form', error)
     } finally {
       setLoading(false)
     }
@@ -528,7 +497,7 @@ export default function VolunteerForm({ open, onClose, onSubmit, volunteer, mode
                       onChange={(e) => handleInputChange('status', e.target.value)}
                       label="Status"
                     >
-                      {STATUS_OPTIONS.map(option => (
+                      {VOLUNTEER_STATUS_OPTIONS.map(option => (
                         <MenuItem key={option.value} value={option.value}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Box

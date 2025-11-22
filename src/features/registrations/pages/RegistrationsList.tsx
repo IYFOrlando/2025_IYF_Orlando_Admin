@@ -22,6 +22,7 @@ import type { Registration } from '../types'
 
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
+import { computeAge } from '../../../lib/validations'
 import * as XLSX from 'xlsx'
 
 /** Live billing aggregation per student (for Payment status chip) */
@@ -67,19 +68,10 @@ const ACADEMIES = [
 ]
 const KOREAN_LEVELS = ['N/A','Alphabet','Beginner','Intermediate','K-Movie Conversation']
 
-function computeAge(birthday?: string | null): number | '' {
-  if (!birthday) return ''
-  const bd = new Date(birthday)
-  if (isNaN(bd.getTime())) return ''
-  const today = new Date()
-  let age = today.getFullYear() - bd.getFullYear()
-  const m = today.getMonth() - bd.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--
-  return age < 0 ? '' : age
-}
+// computeAge is now imported from validations utility
 
 /** ---------- Page ---------- */
-function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
+const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
   // Get user email for display purposes
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => {
@@ -583,7 +575,7 @@ function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmi
       />
     </Card>
   )
-}
+})
 
 /** ---------- Edit Modal (safe, no inline grid editing) ---------- */
 function EditRegistrationDialog({

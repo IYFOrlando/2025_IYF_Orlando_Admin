@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { collection, onSnapshot, query } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import { VOLUNTEER_COMMITMENTS_COLLECTION } from '../../../lib/config'
 
 export interface VolunteerCommitment {
@@ -43,7 +45,7 @@ export function useVolunteerCommitments() {
       },
       (err) => {
         // Handle permissions error gracefully
-        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+        if (isFirebasePermissionError(err)) {
           // User doesn't have permissions to read volunteer commitments - use empty array
           setData([])
           setError(null)
@@ -52,7 +54,7 @@ export function useVolunteerCommitments() {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching volunteer commitments:', err)
+        logger.error('Error fetching volunteer commitments', err)
         setError(err)
         setLoading(false)
       }

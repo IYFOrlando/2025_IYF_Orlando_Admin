@@ -5,6 +5,8 @@ import {
   getDocs, writeBatch
 } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import type { EmailRecord, EmailSource } from '../types'
 
 export function useEmailDatabase() {
@@ -46,7 +48,15 @@ export function useEmailDatabase() {
         setError(null)
       },
       (err) => {
-        console.error('Error loading emails:', err)
+        // Handle permissions error gracefully
+        if (isFirebasePermissionError(err)) {
+          setEmails([])
+          setError(null)
+          setLoading(false)
+          return
+        }
+        
+        logger.error('Error loading emails', err)
         setError(err.message)
         setLoading(false)
       }
@@ -65,7 +75,7 @@ export function useEmailDatabase() {
       })
       return docRef.id
     } catch (err) {
-      console.error('Error adding email:', err)
+      logger.error('Error adding email', err)
       throw err
     }
   }, [])
@@ -79,7 +89,7 @@ export function useEmailDatabase() {
         updatedAt: serverTimestamp()
       })
     } catch (err) {
-      console.error('Error updating email:', err)
+      logger.error('Error updating email', err)
       throw err
     }
   }, [])
@@ -89,7 +99,7 @@ export function useEmailDatabase() {
     try {
       await deleteDoc(doc(db, 'email_database', id))
     } catch (err) {
-      console.error('Error deleting email:', err)
+      logger.error('Error deleting email', err)
       throw err
     }
   }, [])
@@ -178,7 +188,7 @@ export function useEmailDatabase() {
       setLoading(false)
       return importedCount
     } catch (err) {
-      console.error('Error importing emails:', err)
+      logger.error('Error importing emails', err)
       setLoading(false)
       throw err
     }
@@ -284,7 +294,7 @@ export function useEmailDatabase() {
       setLoading(false)
       return importedCount
     } catch (err) {
-      console.error('Error importing from CSV:', err)
+      logger.error('Error importing from CSV', err)
       setLoading(false)
       throw err
     }
@@ -335,7 +345,7 @@ export function useEmailDatabase() {
       setLoading(false)
       return totalImported
     } catch (err) {
-      console.error('Error in auto-import:', err)
+      logger.error('Error in auto-import', err)
       setLoading(false)
       throw err
     }
@@ -386,7 +396,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from invoices:', err)
+      logger.error('Error importing from invoices', err)
       throw err
     }
   }, [])
@@ -436,7 +446,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from payments:', err)
+      logger.error('Error importing from payments', err)
       throw err
     }
   }, [])
@@ -486,7 +496,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from teachers:', err)
+      logger.error('Error importing from teachers', err)
       throw err
     }
   }, [])
@@ -529,7 +539,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from spring academy:', err)
+      logger.error('Error importing from spring academy', err)
       throw err
     }
   }, [])
@@ -572,7 +582,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from k drama:', err)
+      logger.error('Error importing from k drama', err)
       throw err
     }
   }, [])
@@ -615,7 +625,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from trip to korea:', err)
+      logger.error('Error importing from trip to korea', err)
       throw err
     }
   }, [])
@@ -658,7 +668,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from volunteers:', err)
+      logger.error('Error importing from volunteers', err)
       throw err
     }
   }, [])
@@ -701,7 +711,7 @@ export function useEmailDatabase() {
       await batch.commit()
       return importedCount
     } catch (err) {
-      console.error('Error importing from subscribers:', err)
+      logger.error('Error importing from subscribers', err)
       throw err
     }
   }, [])
@@ -775,7 +785,7 @@ export function useEmailDatabase() {
       setLoading(false)
       return importedCount
     } catch (err) {
-      console.error('Error importing from Eventbrite:', err)
+      logger.error('Error importing from Eventbrite', err)
       setLoading(false)
       throw err
     }
@@ -821,7 +831,7 @@ export function useEmailDatabase() {
       setLoading(false)
       return removedCount
     } catch (err) {
-      console.error('Error removing duplicates:', err)
+      logger.error('Error removing duplicates', err)
       setLoading(false)
       throw err
     }
@@ -877,7 +887,7 @@ export function useEmailDatabase() {
       setLoading(false)
       return importedCount
     } catch (err) {
-      console.error('Error importing pasted emails:', err)
+      logger.error('Error importing pasted emails', err)
       setLoading(false)
       throw err
     }
@@ -913,6 +923,60 @@ export function useEmailDatabase() {
     URL.revokeObjectURL(url)
   }, [emails])
 
+  // Mark emails as bounced (inactive)
+  const markEmailsAsBounced = React.useCallback(async (emailList: string[]) => {
+    try {
+      setLoading(true)
+      const batch = writeBatch(db)
+      let updatedCount = 0
+      let notFoundCount = 0
+
+      // Normalize the email list to lowercase for comparison
+      const normalizedEmailList = emailList.map(email => email.trim().toLowerCase())
+
+      // Get all emails from database
+      const emailsRef = collection(db, 'email_database')
+      const emailsSnapshot = await getDocs(emailsRef)
+      
+      // Create a map of normalized emails to document IDs
+      const emailMap = new Map<string, string>()
+      emailsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        const emailKey = data.email.toLowerCase().trim()
+        emailMap.set(emailKey, doc.id)
+      })
+
+      // Mark each email as bounced
+      for (const email of normalizedEmailList) {
+        const docId = emailMap.get(email)
+        if (docId) {
+          const docRef = doc(collection(db, 'email_database'), docId)
+          const currentDoc = emailsSnapshot.docs.find(d => d.id === docId)
+          const currentData = currentDoc?.data()
+          
+          batch.update(docRef, {
+            isActive: false,
+            notes: currentData?.notes 
+              ? `${currentData.notes}\nBounced: ${new Date().toLocaleDateString()}`
+              : `Bounced: ${new Date().toLocaleDateString()}`,
+            updatedAt: serverTimestamp()
+          })
+          updatedCount++
+        } else {
+          notFoundCount++
+        }
+      }
+
+      await batch.commit()
+      setLoading(false)
+      return { updatedCount, notFoundCount }
+    } catch (err) {
+      logger.error('Error marking emails as bounced', err)
+      setLoading(false)
+      throw err
+    }
+  }, [])
+
   return {
     emails,
     loading,
@@ -938,6 +1002,7 @@ export function useEmailDatabase() {
     getEmailsBySource,
     getEmailsByTag,
     searchEmails,
-    exportEventbriteEmails
+    exportEventbriteEmails,
+    markEmailsAsBounced
   }
 }

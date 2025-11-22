@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { collection, onSnapshot, query, orderBy, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
 import { EVENTS_COLLECTION } from '../../../lib/config'
 import type { Event, EventStatus } from '../types'
 
@@ -28,7 +30,7 @@ export function useEvents() {
       },
       (err) => {
         // Handle permissions error gracefully
-        if (err.code === 'permission-denied' || err.message.includes('permissions')) {
+        if (isFirebasePermissionError(err)) {
           // User doesn't have permissions to read events - use empty array
           setData([])
           setError(null)
@@ -37,7 +39,7 @@ export function useEvents() {
         }
         
         // For other errors, still log but don't show to user unless critical
-        console.error('Error fetching events:', err)
+        logger.error('Error fetching events', err)
         setError(err)
         setLoading(false)
       }
@@ -55,7 +57,7 @@ export function useEvents() {
       })
       return docRef.id
     } catch (err) {
-      console.error('Error creating event:', err)
+      logger.error('Error creating event', err)
       throw err
     }
   }, [])
@@ -69,7 +71,7 @@ export function useEvents() {
       })
       return true
     } catch (err) {
-      console.error('Error updating event:', err)
+      logger.error('Error updating event', err)
       throw err
     }
   }, [])
@@ -83,7 +85,7 @@ export function useEvents() {
       })
       return true
     } catch (err) {
-      console.error('Error updating event status:', err)
+      logger.error('Error updating event status', err)
       throw err
     }
   }, [])

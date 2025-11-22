@@ -23,6 +23,7 @@ import { useEvents } from '../hooks/useEvents'
 import { useVolunteerHours } from '../hooks/useVolunteerHours'
 import QRCodeGenerator from '../components/QRCodeGenerator'
 import VolunteerAttendanceTracker from '../components/VolunteerAttendanceTracker'
+import { logger } from '../../../lib/logger'
 import type { Event, EventStatus, HoursStatus } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
@@ -141,7 +142,7 @@ function EventsPageContent() {
         status: 'upcoming'
       })
     } catch (err) {
-      console.error('Error creating event:', err)
+      logger.error('Error creating event', err)
       notifyError('Failed to create event')
     }
   }
@@ -201,7 +202,7 @@ function EventsPageContent() {
         status: 'upcoming'
       })
     } catch (err) {
-      console.error('Error updating event:', err)
+      logger.error('Error updating event', err)
       notifyError('Failed to update event')
     }
   }
@@ -222,7 +223,7 @@ function EventsPageContent() {
         await updateEvent(event.id, { status: 'cancelled' })
         notifySuccess('Event cancelled successfully')
       } catch (err) {
-        console.error('Error deleting event:', err)
+        logger.error('Error deleting event', err)
         notifyError('Failed to delete event')
       }
     }

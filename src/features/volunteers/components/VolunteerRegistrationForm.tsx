@@ -24,6 +24,7 @@ import {
   CheckCircle as CheckCircleIcon,
   ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material'
+import { isValidEmail, isRequired } from '../../../lib/validations'
 
 interface VolunteerRegistrationFormProps {
   onSubmit: (data: any) => void
@@ -100,16 +101,16 @@ export default function VolunteerRegistrationForm({ onSubmit }: VolunteerRegistr
     const newErrors: Record<string, string> = {}
 
     if (step === 0) {
-      if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
-      if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
-      if (!formData.email.trim()) newErrors.email = 'Email is required'
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format'
-      if (!formData.phone.trim()) newErrors.phone = 'Phone number is required'
+      if (!isRequired(formData.firstName)) newErrors.firstName = 'First name is required'
+      if (!isRequired(formData.lastName)) newErrors.lastName = 'Last name is required'
+      if (!isRequired(formData.email)) newErrors.email = 'Email is required'
+      else if (!isValidEmail(formData.email)) newErrors.email = 'Invalid email format'
+      if (!isRequired(formData.phone)) newErrors.phone = 'Phone number is required'
       if (!formData.age) newErrors.age = 'Age is required'
       if (!formData.gender) newErrors.gender = 'Gender is required'
       if (!formData.tshirtSize) newErrors.tshirtSize = 'T-shirt size is required'
-      if (!formData.emergencyContact.trim()) newErrors.emergencyContact = 'Emergency contact is required'
-      if (!formData.emergencyPhone.trim()) newErrors.emergencyPhone = 'Emergency phone is required'
+      if (!isRequired(formData.emergencyContact)) newErrors.emergencyContact = 'Emergency contact is required'
+      if (!isRequired(formData.emergencyPhone)) newErrors.emergencyPhone = 'Emergency phone is required'
     }
 
     if (step === 1) {
