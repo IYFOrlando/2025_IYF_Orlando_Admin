@@ -28,13 +28,18 @@ export type FirebaseErrorCode = typeof FirebaseErrorCode[keyof typeof FirebaseEr
  * Custom error class for Firebase operations
  */
 export class FirebaseError extends Error {
+  code: FirebaseErrorCode | string
+  originalError?: any
+  
   constructor(
     message: string,
-    public code: FirebaseErrorCode | string,
-    public originalError?: any
+    code: FirebaseErrorCode | string,
+    originalError?: any
   ) {
     super(message)
     this.name = 'FirebaseError'
+    this.code = code
+    this.originalError = originalError
   }
 }
 
@@ -42,13 +47,18 @@ export class FirebaseError extends Error {
  * Custom error class for validation errors
  */
 export class ValidationError extends Error {
+  field?: string
+  value?: any
+  
   constructor(
     message: string,
-    public field?: string,
-    public value?: any
+    field?: string,
+    value?: any
   ) {
     super(message)
     this.name = 'ValidationError'
+    this.field = field
+    this.value = value
   }
 }
 
@@ -56,12 +66,15 @@ export class ValidationError extends Error {
  * Custom error class for business logic errors
  */
 export class BusinessLogicError extends Error {
+  context?: Record<string, any>
+  
   constructor(
     message: string,
-    public context?: Record<string, any>
+    context?: Record<string, any>
   ) {
     super(message)
     this.name = 'BusinessLogicError'
+    this.context = context
   }
 }
 

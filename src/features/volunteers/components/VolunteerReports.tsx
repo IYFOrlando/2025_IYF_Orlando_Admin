@@ -58,11 +58,11 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
     
     // Header
     doc.setFontSize(18)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.text('IYF Orlando', 105, 35, { align: 'center' })
     doc.setFontSize(16)
     doc.text('T-Shirt Size Report', 105, 45, { align: 'center' })
-    doc.setFont(undefined, 'normal')
+    doc.setFont('helvetica', 'normal')
     
     doc.setFontSize(10)
     doc.setTextColor(100, 100, 100)
@@ -77,7 +77,9 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
     const summaryData = Object.entries(tshirtSizeAnalytics.distribution)
       .sort(([a], [b]) => {
         const order = TSHIRT_SIZE_ORDER
-        return (order.indexOf(a) === -1 ? 999 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 999 : order.indexOf(b))
+        const aIndex = order.indexOf(a as any) === -1 ? 999 : order.indexOf(a as any)
+        const bIndex = order.indexOf(b as any) === -1 ? 999 : order.indexOf(b as any)
+        return aIndex - bIndex
       })
       .map(([size, count]) => [
         size,
@@ -100,10 +102,10 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
         fillColor: [41, 128, 185],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        textAlign: 'center'
+        halign: 'center'
       },
       bodyStyles: {
-        textAlign: 'center'
+        halign: 'center'
       },
       columnStyles: {
         0: { cellWidth: 60 },
@@ -126,9 +128,9 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
     
     // Header for second page
     doc.setFontSize(18)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.text('Volunteer List', 105, 20, { align: 'center' })
-    doc.setFont(undefined, 'normal')
+    doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
     doc.setTextColor(100, 100, 100)
     doc.text(`Total Volunteers: ${filteredVolunteers.length}`, 105, 28, { align: 'center' })
@@ -146,10 +148,10 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
         fillColor: [41, 128, 185],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        textAlign: 'center'
+        halign: 'center'
       },
       bodyStyles: {
-        textAlign: 'left'
+        halign: 'left'
       },
       columnStyles: {
         0: { cellWidth: 15, halign: 'center' },
@@ -272,7 +274,9 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
             {Object.entries(tshirtSizeAnalytics.distribution)
               .sort(([a], [b]) => {
                 const order = TSHIRT_SIZE_ORDER
-                return (order.indexOf(a) === -1 ? 999 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 999 : order.indexOf(b))
+                const aIndex = order.indexOf(a as any) === -1 ? 999 : order.indexOf(a as any)
+                const bIndex = order.indexOf(b as any) === -1 ? 999 : order.indexOf(b as any)
+                return aIndex - bIndex
               })
               .map(([size, count]) => (
                 <TableRow key={size}>

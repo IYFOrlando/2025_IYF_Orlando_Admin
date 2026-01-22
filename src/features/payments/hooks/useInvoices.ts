@@ -15,10 +15,13 @@ export function useInvoices() {
     const q = query(collection(db, INV_COLLECTION), orderBy('createdAt', 'desc'))
     const unsub = onSnapshot(q,
       (snap) => {
-        setData(snap.docs.map(d => ({ 
-          id: d.id, 
-          ...(d.data() as Invoice) 
-        } as Invoice)))
+        setData(snap.docs.map(d => {
+          const data = d.data() as Invoice
+          return { 
+            ...data,
+            id: d.id
+          } as Invoice
+        }))
         setLoading(false)
         setError(null)
       },

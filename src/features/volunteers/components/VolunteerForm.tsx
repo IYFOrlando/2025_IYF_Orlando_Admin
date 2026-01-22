@@ -36,7 +36,7 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material'
-import type { VolunteerApplication, VolunteerStatus } from '../types'
+import type { VolunteerApplication } from '../types'
 import { generateVolunteerCode } from '../../../lib/volunteerCodes'
 import { logger } from '../../../lib/logger'
 import { isValidEmail, isRequired } from '../../../lib/validations'

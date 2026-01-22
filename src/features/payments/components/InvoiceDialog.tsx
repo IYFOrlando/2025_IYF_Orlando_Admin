@@ -74,9 +74,9 @@ export default function InvoiceDialog({ open, editing, onClose, onSave, academy,
         instructor: editing.instructor ? {
           firstName,
           lastName,
-          email: instructor.email || '',
-          phone: instructor.phone || '',
-          credentials: instructor.credentials || ''
+          email: editing.instructor.email || '',
+          phone: editing.instructor.phone || '',
+          credentials: editing.instructor.credentials || ''
         } : {
           firstName: '',
           lastName: '',

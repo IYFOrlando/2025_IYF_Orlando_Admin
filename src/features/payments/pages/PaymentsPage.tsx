@@ -33,7 +33,7 @@ import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import { logger } from '../../../lib/logger'
-import { DISCOUNT_CODES, getDiscountByCode, ACADEMY_DEFAULT_PRICES, isKoreanCookingAcademy, isKoreanLanguageAcademy, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../../../lib/constants'
+import { getDiscountByCode, ACADEMY_DEFAULT_PRICES, isKoreanCookingAcademy, isKoreanLanguageAcademy, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../../../lib/constants'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import {
@@ -191,10 +191,13 @@ const PaymentsPage = React.memo(() => {
     const qp = query(collection(db, PAY), where('studentId', '==', student.id))
     
     const ui = onSnapshot(qi, (snap) => {
-      const invs = snap.docs.map(d => ({ 
-        id: d.id, 
-        ...(d.data() as Invoice) 
-      } as Invoice))
+      const invs = snap.docs.map(d => {
+        const data = d.data() as Invoice
+        return { 
+          ...data,
+          id: d.id
+        } as Invoice
+      })
         .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
       setStudentInvoices(invs)
       // Only set first invoice if no invoice is currently selected
@@ -206,10 +209,13 @@ const PaymentsPage = React.memo(() => {
     })
     
     const up = onSnapshot(qp, (snap) => {
-      const pays = snap.docs.map(d => ({ 
-        id: d.id, 
-        ...(d.data() as Payment) 
-      } as Payment))
+      const pays = snap.docs.map(d => {
+        const data = d.data() as Payment
+        return { 
+          ...data,
+          id: d.id
+        } as Payment
+      })
         .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
       setStudentPayments(pays)
     }, (err) => {
@@ -1706,6 +1712,7 @@ const PaymentsPage = React.memo(() => {
       
       uniqueInstructors.forEach((data, key) => {
         const instructor = data.instructor
+        if (!instructor) return // Skip if instructor is undefined
         const instructorLines = data.lines
         
         // Calculate height needed

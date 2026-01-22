@@ -9,7 +9,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { logger } from './logger'
 import { isFirebasePermissionError, FirebaseError, FirebaseErrorCode } from './errors'
 
 /**
@@ -33,15 +32,15 @@ const missingVars = Object.entries(requiredEnvVars)
 
 if (missingVars.length > 0) {
   const errorMessage = `Missing required Firebase environment variables: ${missingVars.join(', ')}. Please check your .env file or environment configuration.`
-  logger.error('Firebase configuration error', { missingVars })
   
   // In development, throw error to catch early
   if (import.meta.env.DEV) {
+    console.error('Firebase configuration error', { missingVars })
     throw new Error(errorMessage)
   }
   
   // In production, log but continue (may fail later)
-  logger.warn('Firebase may not work correctly due to missing configuration')
+  console.warn('Firebase may not work correctly due to missing configuration')
 }
 
 // Use only environment variables (no hardcoded values)
@@ -59,4 +58,7 @@ const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
 export const auth = getAuth(app)
 
-logger.debug('Firebase initialized', { projectId: firebaseConfig.projectId })
+// Log initialization (only in development)
+if (import.meta.env.DEV) {
+  console.debug('Firebase initialized', { projectId: firebaseConfig.projectId })
+}
