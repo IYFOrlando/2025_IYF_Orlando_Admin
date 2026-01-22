@@ -9,7 +9,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { isFirebasePermissionError, FirebaseError, FirebaseErrorCode } from './errors'
 
 /**
  * Validates required Firebase environment variables
