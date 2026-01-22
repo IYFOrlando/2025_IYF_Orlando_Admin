@@ -51,7 +51,7 @@ export function isRequired(value: string | number | null | undefined): boolean {
   if (typeof value === 'string') {
     return value.trim().length > 0
   }
-  return value !== null && value !== undefined && value !== ''
+  return value !== null && value !== undefined && String(value) !== ''
 }
 
 /**

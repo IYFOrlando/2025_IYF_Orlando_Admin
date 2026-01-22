@@ -12,6 +12,7 @@ import VolunteerForm from '../components/VolunteerForm'
 import VolunteerReports from '../components/VolunteerReports'
 import type { VolunteerApplication } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
+import { logger } from '../../../lib/logger'
 import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
 
 interface TabPanelProps {

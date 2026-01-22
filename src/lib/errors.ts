@@ -8,19 +8,21 @@
 /**
  * Firebase-specific error codes
  */
-export enum FirebaseErrorCode {
-  PERMISSION_DENIED = 'permission-denied',
-  UNAVAILABLE = 'unavailable',
-  UNAUTHENTICATED = 'unauthenticated',
-  NOT_FOUND = 'not-found',
-  ALREADY_EXISTS = 'already-exists',
-  FAILED_PRECONDITION = 'failed-precondition',
-  ABORTED = 'aborted',
-  OUT_OF_RANGE = 'out-of-range',
-  UNIMPLEMENTED = 'unimplemented',
-  INTERNAL = 'internal',
-  DATA_LOSS = 'data-loss'
-}
+export const FirebaseErrorCode = {
+  PERMISSION_DENIED: 'permission-denied',
+  UNAVAILABLE: 'unavailable',
+  UNAUTHENTICATED: 'unauthenticated',
+  NOT_FOUND: 'not-found',
+  ALREADY_EXISTS: 'already-exists',
+  FAILED_PRECONDITION: 'failed-precondition',
+  ABORTED: 'aborted',
+  OUT_OF_RANGE: 'out-of-range',
+  UNIMPLEMENTED: 'unimplemented',
+  INTERNAL: 'internal',
+  DATA_LOSS: 'data-loss'
+} as const
+
+export type FirebaseErrorCode = typeof FirebaseErrorCode[keyof typeof FirebaseErrorCode]
 
 /**
  * Custom error class for Firebase operations
@@ -33,7 +35,6 @@ export class FirebaseError extends Error {
   ) {
     super(message)
     this.name = 'FirebaseError'
-    Object.setPrototypeOf(this, FirebaseError.prototype)
   }
 }
 
@@ -48,7 +49,6 @@ export class ValidationError extends Error {
   ) {
     super(message)
     this.name = 'ValidationError'
-    Object.setPrototypeOf(this, ValidationError.prototype)
   }
 }
 
@@ -62,7 +62,6 @@ export class BusinessLogicError extends Error {
   ) {
     super(message)
     this.name = 'BusinessLogicError'
-    Object.setPrototypeOf(this, BusinessLogicError.prototype)
   }
 }
 

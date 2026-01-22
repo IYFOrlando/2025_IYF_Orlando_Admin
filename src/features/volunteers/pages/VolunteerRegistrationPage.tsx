@@ -2,6 +2,7 @@ import { Box, Container, Typography, Alert } from '@mui/material'
 import VolunteerRegistrationForm from '../components/VolunteerRegistrationForm'
 import { useVolunteerApplications } from '../hooks/useVolunteerApplications'
 import { generateVolunteerCode } from '../../../lib/volunteerCodes'
+import { logger } from '../../../lib/logger'
 import Swal from 'sweetalert2'
 
 export default function VolunteerRegistrationPage() {

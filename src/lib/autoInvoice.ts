@@ -84,7 +84,7 @@ function normalizeAcademy(academy?: string): string {
  */
 function getAcademyPrice(
   academy: string | undefined,
-  level: string | undefined,
+  _level: string | undefined,
   pricing: PricingDoc | null
 ): number {
   if (!academy || academy === 'N/A') return 0
@@ -295,7 +295,7 @@ export async function processPendingRegistrations(): Promise<number> {
     const registrationsSnapshot = await getDocs(registrationsRef)
     
     let processed = 0
-    const pricing = await getPricing()
+    await getPricing() // Ensure pricing is loaded
     
     for (const docSnap of registrationsSnapshot.docs) {
       const registration = { id: docSnap.id, ...docSnap.data() } as Registration

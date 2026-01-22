@@ -7,6 +7,7 @@ import { db } from '../../../lib/firebase'
 import { REG_COLLECTION } from '../../../lib/config'
 import { doc, updateDoc } from 'firebase/firestore'
 import { Alert as SAlert } from '../../../lib/alerts'
+import { computeAge } from '../../../lib/validations'
 import type { Registration } from '../types'
 
 const STATES = [
