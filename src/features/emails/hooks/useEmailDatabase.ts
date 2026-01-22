@@ -7,6 +7,7 @@ import {
 import { db } from '../../../lib/firebase'
 import { logger } from '../../../lib/logger'
 import { isFirebasePermissionError } from '../../../lib/errors'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import type { EmailRecord, EmailSource } from '../types'
 
 export function useEmailDatabase() {
@@ -362,7 +363,7 @@ export function useEmailDatabase() {
       const existingEmailsSnapshot = await getDocs(existingEmailsRef)
       const existingEmails = new Set(existingEmailsSnapshot.docs.map(doc => doc.data().email.toLowerCase()))
 
-      const invoicesRef = collection(db, 'academy_invoices')
+      const invoicesRef = collection(db, COLLECTIONS_CONFIG.academyInvoices)
       const invoicesSnapshot = await getDocs(invoicesRef)
       
       invoicesSnapshot.forEach((docSnapshot) => {

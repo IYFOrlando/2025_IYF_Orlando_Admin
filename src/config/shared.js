@@ -46,6 +46,7 @@ export const SHARED_CONFIG = {
     academyProgress: "academy_progress",
     academyClasses: "academy_classes",
     academyPricing: "academy_pricing",
+    academies2026Spring: "academies_2026_spring", // Academy data with prices and schedules
     settings: "settings",
   },
   

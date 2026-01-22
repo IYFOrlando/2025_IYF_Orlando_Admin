@@ -9,6 +9,10 @@
 - [x] Actualizado auto-invoice para procesar nueva estructura
 - [x] Actualizado dashboard para mostrar datos de 2026
 - [x] Actualizadas reglas de Firestore para nueva colección
+- [x] **Script de actualización de precios creado** (`scripts/update-prices-cli.cjs`) - Usa Firebase CLI token
+- [x] **Precios verificados y confirmados** - Todos los precios están correctos
+- [x] **Academias actualizadas con datos reales de maestros** - 6 academias actualizadas con información de maestros
+- [x] **Script de actualización de maestros creado** (`scripts/update-academies-teachers-data.cjs`) - Mapea maestros a academias
 
 ### 2. Sincronización Frontend-Admin
 - [x] Frontend usa colección correcta: `2026-iyf_orlando_academy_spring_semester`
@@ -109,6 +113,10 @@ El sistema está **100% funcional** para 2026:
 - ✅ Invoices se generan automáticamente
 - ✅ Dashboard muestra datos correctos
 - ✅ Precios y academias actualizados
+- ✅ **Script de actualización de precios** (`update-prices-cli.cjs`) - Funciona con Firebase CLI
+- ✅ **Precios verificados** - Todos correctos (Art: $100, English: $50, Kids: $50, Korean: $50, Piano: $100, Pickleball: $50, Soccer: $50, Taekwondo: $100)
+- ✅ **Academias con datos de maestros** - 6 academias actualizadas (Art, Kids Academy, Piano, Pickleball, Soccer, Korean Language con niveles)
+- ⚠️ **Academias pendientes de maestros**: Taekwondo, English
 - ✅ **Email con link al invoice real** (implementado)
 - ✅ **Email de Zelle corregido** (implementado)
 

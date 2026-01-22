@@ -20,7 +20,14 @@ export function mapKoreanLevel(level?: string) {
   if (v.includes('movie') || v.includes('k-movie') || v.startsWith('adv') || v.includes('conversation')) return 'K-Movie Conversation'
   return 'Unknown'
 }
+/**
+ * Format number as USD currency
+ * Assumes input is in cents (as stored in Firestore)
+ * Converts to dollars for display
+ */
 export function usd(n?: number | null) {
   if (n == null || Number.isNaN(n)) return ''
-  return `$${Number(n).toFixed(2)}`
+  // Convert from cents to dollars
+  const dollars = Number(n) / 100
+  return `$${dollars.toFixed(2)}`
 }

@@ -18,11 +18,13 @@ import { usePricingSettings } from '../../pricing/hooks/usePricingSettings'
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../../payments/types'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
 import { notifySuccess } from '../../../lib/alerts'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-const INV = 'academy_invoices'
-const PAY = 'academy_payments'
+// Use shared configuration instead of hardcoded values
+const INV = COLLECTIONS_CONFIG.academyInvoices
+const PAY = COLLECTIONS_CONFIG.academyPayments
 
 function priceFor(academy?: string, _level?: string | null, _period?: 1 | 2, pricing?: PricingDoc) {
   if (!academy || !pricing) return 0

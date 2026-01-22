@@ -40,6 +40,7 @@ export interface CollectionsConfig {
   academyProgress: string
   academyClasses: string
   academyPricing: string
+  academies2026Spring: string
   settings: string
 }
 

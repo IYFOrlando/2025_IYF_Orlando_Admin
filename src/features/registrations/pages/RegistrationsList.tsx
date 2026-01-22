@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Box, Card, CardHeader, CardContent, Alert, IconButton, Chip, Stack, Tooltip, Button,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid, Typography
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
@@ -17,6 +17,7 @@ import { db, auth } from '../../../lib/firebase'
 import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 
 import type { Registration } from '../types'
 
@@ -30,7 +31,7 @@ type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'
 function useInvoiceAggByStudent() {
   const [map, setMap] = React.useState<Map<string, BillingAgg>>(new Map())
   React.useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'academy_invoices'), (snap) => {
+    const unsub = onSnapshot(collection(db, COLLECTIONS_CONFIG.academyInvoices), (snap) => {
       const agg = new Map<string, BillingAgg>()
       for (const d of snap.docs) {
         const inv: any = d.data()
@@ -166,24 +167,79 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
 
       { field: 'cellNumber', headerName: 'Phone', minWidth: 140 },
 
-      // Period 1 (display only; edit via modal)
+      // 2026 Structure: Selected Academies (new)
       {
-        field: 'p1Academy', headerName: 'P1 Academy', minWidth: 180, flex: 1,
-        valueGetter: (params) => params.row?.firstPeriod?.academy || ''
-      },
-      {
-        field: 'p1Level', headerName: 'P1 Level', minWidth: 170, flex: 1,
-        valueGetter: (params) => params.row?.firstPeriod?.level || ''
-      },
-
-      // Period 2
-      {
-        field: 'p2Academy', headerName: 'P2 Academy', minWidth: 180, flex: 1,
-        valueGetter: (params) => params.row?.secondPeriod?.academy || ''
-      },
-      {
-        field: 'p2Level', headerName: 'P2 Level', minWidth: 170, flex: 1,
-        valueGetter: (params) => params.row?.secondPeriod?.level || ''
+        field: 'selectedAcademies',
+        headerName: 'Academies',
+        minWidth: 300,
+        flex: 2,
+        sortable: false,
+        valueGetter: (params) => {
+          const reg = params.row as any
+          // Check for new 2026 structure first
+          if (reg.selectedAcademies && Array.isArray(reg.selectedAcademies) && reg.selectedAcademies.length > 0) {
+            return reg.selectedAcademies
+              .map((a: any) => {
+                const parts = [a.academy || '']
+                if (a.level && a.level !== 'N/A') parts.push(a.level)
+                if (a.schedule) parts.push(`(${a.schedule})`)
+                return parts.filter(Boolean).join(' - ')
+              })
+              .join(' | ')
+          }
+          // Fallback to legacy structure for old registrations
+          const p1 = reg.firstPeriod?.academy ? `${reg.firstPeriod.academy}${reg.firstPeriod.level ? ` (${reg.firstPeriod.level})` : ''}` : ''
+          const p2 = reg.secondPeriod?.academy ? `${reg.secondPeriod.academy}${reg.secondPeriod.level ? ` (${reg.secondPeriod.level})` : ''}` : ''
+          const parts = [p1, p2].filter(Boolean)
+          return parts.length > 0 ? parts.join(' | ') : ''
+        },
+        renderCell: (params: GridRenderCellParams) => {
+          const reg = params.row as any
+          // Check for new 2026 structure first
+          if (reg.selectedAcademies && Array.isArray(reg.selectedAcademies) && reg.selectedAcademies.length > 0) {
+            return (
+              <Box sx={{ py: 0.5 }}>
+                {reg.selectedAcademies.map((academy: any, idx: number) => (
+                  <Chip
+                    key={idx}
+                    label={`${academy.academy || 'N/A'}${academy.level && academy.level !== 'N/A' ? ` - ${academy.level}` : ''}`}
+                    size="small"
+                    sx={{ mr: 0.5, mb: 0.5 }}
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            )
+          }
+          // Fallback to legacy structure
+          const chips = []
+          if (reg.firstPeriod?.academy) {
+            chips.push(
+              <Chip
+                key="p1"
+                label={`P1: ${reg.firstPeriod.academy}${reg.firstPeriod.level ? ` (${reg.firstPeriod.level})` : ''}`}
+                size="small"
+                sx={{ mr: 0.5, mb: 0.5 }}
+                color="default"
+                variant="outlined"
+              />
+            )
+          }
+          if (reg.secondPeriod?.academy) {
+            chips.push(
+              <Chip
+                key="p2"
+                label={`P2: ${reg.secondPeriod.academy}${reg.secondPeriod.level ? ` (${reg.secondPeriod.level})` : ''}`}
+                size="small"
+                sx={{ mr: 0.5, mb: 0.5 }}
+                color="default"
+                variant="outlined"
+              />
+            )
+          }
+          return chips.length > 0 ? <Box sx={{ py: 0.5 }}>{chips}</Box> : <span style={{ color: '#999' }}>No academies</span>
+        }
       },
 
       { field: 'city', headerName: 'City', minWidth: 140 },
@@ -321,6 +377,16 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
           'Age': computeAge(row.birthday) || '',
           'Birthday': row.birthday || '',
           'Phone': row.cellNumber || '',
+          // 2026: Selected Academies (new structure)
+          'Academies': (row as any).selectedAcademies && Array.isArray((row as any).selectedAcademies) 
+            ? (row as any).selectedAcademies.map((a: any) => {
+                const parts = [a.academy || '']
+                if (a.level && a.level !== 'N/A') parts.push(a.level)
+                if (a.schedule) parts.push(`(${a.schedule})`)
+                return parts.filter(Boolean).join(' - ')
+              }).join(' | ')
+            : '',
+          // Legacy: Period 1 & 2 (for old registrations)
           'P1 Academy': row.firstPeriod?.academy || '',
           'P1 Level': row.firstPeriod?.level || '',
           'P2 Academy': row.secondPeriod?.academy || '',
@@ -633,10 +699,20 @@ function EditRegistrationDialog({
     setCity(row.city || '')
     setStateVal(row.state || '')
     setZip(row.zipCode || '')
-    setP1Academy(row.firstPeriod?.academy || '')
-    setP1Level(row.firstPeriod?.level || 'N/A')
-    setP2Academy(row.secondPeriod?.academy || '')
-    setP2Level(row.secondPeriod?.level || 'N/A')
+    // For 2026: selectedAcademies takes precedence, but keep period support for legacy data
+    if ((row as any).selectedAcademies && Array.isArray((row as any).selectedAcademies)) {
+      // New 2026 structure - don't populate period fields
+      setP1Academy('')
+      setP1Level('N/A')
+      setP2Academy('')
+      setP2Level('N/A')
+    } else {
+      // Legacy structure
+      setP1Academy(row.firstPeriod?.academy || '')
+      setP1Level(row.firstPeriod?.level || 'N/A')
+      setP2Academy(row.secondPeriod?.academy || '')
+      setP2Level(row.secondPeriod?.level || 'N/A')
+    }
   },[row?.id])
 
   const age = computeAge(birthday)
@@ -656,10 +732,16 @@ function EditRegistrationDialog({
         city: city.trim(),
         state: stateVal,
         zipCode: zip.trim(),
-        firstPeriod: { academy: p1Academy || '', level: p1Academy === 'Korean Language' ? p1Level : 'N/A' },
-        secondPeriod: { academy: p2Academy || '', level: p2Academy === 'Korean Language' ? p2Level : 'N/A' },
         updatedAt: serverTimestamp()
       }
+      
+      // Only update periods if this is a legacy registration (not 2026 structure)
+      if (!(row as any)?.selectedAcademies || !Array.isArray((row as any).selectedAcademies)) {
+        payload.firstPeriod = { academy: p1Academy || '', level: p1Academy === 'Korean Language' ? p1Level : 'N/A' }
+        payload.secondPeriod = { academy: p2Academy || '', level: p2Academy === 'Korean Language' ? p2Level : 'N/A' }
+      }
+      // Note: For 2026 registrations with selectedAcademies, we don't modify the academies here
+      // as they should be managed through the frontend registration form
       await updateDoc(doc(db, REG_COLLECTION, row.id), payload)
       notifySuccess('Saved', 'Registration updated')
       onClose()
@@ -700,13 +782,41 @@ function EditRegistrationDialog({
           </Grid>
           <Grid item xs={12} md={3}><TextField label="Zip" value={zip} onChange={e=>setZip(e.target.value)} fullWidth disabled={!isAdmin}/></Grid>
 
-          <Grid item xs={12}><strong>Period 1</strong></Grid>
-          <Grid item xs={12} md={6}>{academySelect('P1 Academy', p1Academy, setP1Academy)}</Grid>
-          <Grid item xs={12} md={6}>{levelSelect('P1 Level', p1Academy, p1Level, setP1Level)}</Grid>
+          {/* Show selectedAcademies for 2026 registrations (read-only) */}
+          {(row as any)?.selectedAcademies && Array.isArray((row as any).selectedAcademies) && (row as any).selectedAcademies.length > 0 ? (
+            <>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Selected Academies (2026)</Typography>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  This registration uses the new 2026 structure. Academies cannot be edited here. Use the frontend registration form to update.
+                </Alert>
+                <Stack spacing={1}>
+                  {(row as any).selectedAcademies.map((academy: any, idx: number) => (
+                    <Box key={idx} sx={{ p: 1, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                      <Typography variant="body2"><strong>Academy:</strong> {academy.academy || 'N/A'}</Typography>
+                      {academy.level && academy.level !== 'N/A' && (
+                        <Typography variant="body2"><strong>Level:</strong> {academy.level}</Typography>
+                      )}
+                      {academy.schedule && (
+                        <Typography variant="body2"><strong>Schedule:</strong> {academy.schedule}</Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+              </Grid>
+            </>
+          ) : (
+            <>
+              {/* Legacy structure: Period 1 & 2 */}
+              <Grid item xs={12}><strong>Period 1</strong></Grid>
+              <Grid item xs={12} md={6}>{academySelect('P1 Academy', p1Academy, setP1Academy)}</Grid>
+              <Grid item xs={12} md={6}>{levelSelect('P1 Level', p1Academy, p1Level, setP1Level)}</Grid>
 
-          <Grid item xs={12}><strong>Period 2</strong></Grid>
-          <Grid item xs={12} md={6}>{academySelect('P2 Academy', p2Academy, setP2Academy)}</Grid>
-          <Grid item xs={12} md={6}>{levelSelect('P2 Level', p2Academy, p2Level, setP2Level)}</Grid>
+              <Grid item xs={12}><strong>Period 2</strong></Grid>
+              <Grid item xs={12} md={6}>{academySelect('P2 Academy', p2Academy, setP2Academy)}</Grid>
+              <Grid item xs={12} md={6}>{levelSelect('P2 Level', p2Academy, p2Level, setP2Level)}</Grid>
+            </>
+          )}
         </Grid>
       </DialogContent>
       <DialogActions>

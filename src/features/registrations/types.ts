@@ -1,4 +1,9 @@
 export type Period = { academy?: string; level?: string }
+export type SelectedAcademy = {
+  academy?: string
+  level?: string
+  schedule?: string
+}
 export type Registration = {
   id: string
   firstName?: string
@@ -13,8 +18,9 @@ export type Registration = {
   address?: string
   zipCode?: string
   age?: number | string
-  firstPeriod?: Period
-  secondPeriod?: Period
+  firstPeriod?: Period // Legacy: for old registrations
+  secondPeriod?: Period // Legacy: for old registrations
+  selectedAcademies?: SelectedAcademy[] // 2026: new structure with array of academies
   createdAt?: any
   isDuplicate?: boolean // Mark duplicate registrations
 }

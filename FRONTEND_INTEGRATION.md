@@ -15,7 +15,7 @@ Conectar la página web pública de registro con este admin dashboard para que:
 
 ### 1. Configuración de Firebase
 
-```javascript
+```javascript 
 // firebase.js o config.js
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'

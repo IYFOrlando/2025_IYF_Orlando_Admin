@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Tabs, Tab, Typography, Chip, Accordion, AccordionSummary, AccordionDetails
+  Typography, Chip, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -9,46 +9,39 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SchoolIcon from '@mui/icons-material/School'
 import PrintIcon from '@mui/icons-material/Print'
 import PersonIcon from '@mui/icons-material/Person'
+import { collection, doc, setDoc, onSnapshot, query, orderBy } from 'firebase/firestore'
 
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import type { Registration } from '../../registrations/types'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import logoImage from '../../../assets/logo/IYF_logo.png'
-import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 import { computeAge } from '../../../lib/validations'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 
-interface TabPanelProps {
-  children?: React.ReactNode
-  index: number
-  value: number
+type Academy = {
+  id: string
+  name: string
+  price: number
+  schedule: string
+  hasLevels: boolean
+  levels?: Array<{ name: string; schedule: string; order: number }>
+  order: number
+  enabled: boolean
+  description: string
+  teacher?: {
+    name: string
+    email: string
+    phone: string
+    credentials?: string
+  }
 }
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`academy-tabpanel-${index}`}
-      aria-labelledby={`academy-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
-    </div>
-  )
-}
-
-// computeAge is now imported from validations utility
 
 const AcademiesPage = React.memo(function AcademiesPage() {
   const { data: registrations, loading, error } = useRegistrations()
   
-     // Remove debug useEffect - no longer needed
-  const [tabValue, setTabValue] = React.useState(0)
   const [teacherDialogOpen, setTeacherDialogOpen] = React.useState(false)
   const [selectedAcademy, setSelectedAcademy] = React.useState<string>('')
   const [selectedLevel, setSelectedLevel] = React.useState<string>('')
@@ -58,115 +51,143 @@ const AcademiesPage = React.memo(function AcademiesPage() {
   const [teacherCredentials, setTeacherCredentials] = React.useState('')
 
   // Store teacher information - for Korean: academy_level, for others: academy
-  const [teachers, setTeachers] = React.useState<Record<string, {name: string, email: string, phone: string, credentials?: string}>>({})
+  const [teachers, setTeachers] = React.useState<Record<string, {name: string, email: string, phone: string, credentials?: string, academy?: string, level?: string | null}>>({})
   const [teachersLoading, setTeachersLoading] = React.useState(true)
+
+  // Load academies from Firestore
+  const [academies, setAcademies] = React.useState<Academy[]>([])
+  const [academiesLoading, setAcademiesLoading] = React.useState(true)
 
   // Load teachers from Firebase
   React.useEffect(() => {
     const teachersRef = collection(db, 'teachers')
     
     const unsubscribe = onSnapshot(teachersRef, (snapshot) => {
-      const teachersData: Record<string, {name: string, email: string, phone: string, credentials?: string}> = {}
+      const teachersData: Record<string, {name: string, email: string, phone: string, credentials?: string, academy?: string, level?: string | null}> = {}
       
       snapshot.forEach((doc) => {
         const data = doc.data()
-        teachersData[doc.id] = {
+        const teacherInfo = {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
-          credentials: data.credentials || ''
+          credentials: data.credentials || '',
+          academy: data.academy || '',
+          level: data.level || null
+        }
+        
+        // Store by document ID (primary key)
+        teachersData[doc.id] = teacherInfo
+        
+        // Also store by academy name (for easier lookup)
+        if (data.academy) {
+          const academyKey = data.level ? `${data.academy}_${data.level}` : data.academy
+          if (!teachersData[academyKey] || teachersData[academyKey].name === '') {
+            teachersData[academyKey] = teacherInfo
+          }
         }
       })
       
       setTeachers(teachersData)
       setTeachersLoading(false)
-         }, () => {
-       setTeachersLoading(false)
-     })
+    }, () => {
+      setTeachersLoading(false)
+    })
 
     return () => unsubscribe()
   }, [])
 
-
-
-
-
-  // Define Period 1 and Period 2 academies based on what's in the data (excluding Korean Language)
-  const period1Academies = React.useMemo(() => {
-    const p1Set = new Set<string>()
-    registrations?.forEach(reg => {
-      const p1Academy = reg?.firstPeriod?.academy?.trim()
-      if (p1Academy && p1Academy.toLowerCase() !== 'n/a' && !p1Academy.toLowerCase().includes('korean language')) {
-        p1Set.add(p1Academy)
-      }
-    })
-    return Array.from(p1Set).sort()
-  }, [registrations])
-
-  const period2Academies = React.useMemo(() => {
-    const p2Set = new Set<string>()
-    registrations?.forEach(reg => {
-      const p2Academy = reg?.secondPeriod?.academy?.trim()
-      if (p2Academy && p2Academy.toLowerCase() !== 'n/a' && !p2Academy.toLowerCase().includes('korean language')) {
-        p2Set.add(p2Academy)
-      }
-    })
-    return Array.from(p2Set).sort()
-  }, [registrations])
-
-  // Get all Korean academies (from both periods) - excluding Korean Cooking
-  const koreanAcademies = React.useMemo(() => {
-    const koreanSet = new Set<string>()
-    registrations?.forEach(reg => {
-      const p1Academy = reg?.firstPeriod?.academy?.trim()
-      const p2Academy = reg?.secondPeriod?.academy?.trim()
-      
-      if (p1Academy && p1Academy.toLowerCase().includes('korean') && !p1Academy.toLowerCase().includes('cooking')) {
-        koreanSet.add(normalizeAcademy(p1Academy))
-      }
-      if (p2Academy && p2Academy.toLowerCase().includes('korean') && !p2Academy.toLowerCase().includes('cooking')) {
-        koreanSet.add(normalizeAcademy(p2Academy))
-      }
-    })
-    return Array.from(koreanSet).sort()
-  }, [registrations])
-
-  // Get registrations for a specific academy and period
-  const getRegistrationsForAcademy = React.useCallback((academyName: string, period: 'p1' | 'p2') => {
-    return registrations?.filter(reg => {
-      if (period === 'p1') {
-        const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || null)
-        return p1Academy === normalizeAcademy(academyName)
-      } else {
-        const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || null)
-        return p2Academy === normalizeAcademy(academyName)
-      }
-    }) || []
-  }, [registrations])
-
-  // Get all registrations for a Korean academy (both periods combined)
-  const getKoreanRegistrationsAllPeriods = React.useCallback((academyName: string) => {
-    const result = registrations?.filter(reg => {
-      const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || null)
-      const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || null)
-      const matches = p1Academy === normalizeAcademy(academyName) || p2Academy === normalizeAcademy(academyName)
-      
-      
-      
-      return matches
-    }) || []
+  // Load academies from academies_2026_spring collection
+  React.useEffect(() => {
+    const academiesRef = collection(db, COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring')
+    const q = query(academiesRef, orderBy('order', 'asc'))
     
-    return result
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const academiesData: Academy[] = []
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        academiesData.push({
+          id: doc.id,
+          name: data.name || '',
+          price: data.price || 0,
+          schedule: data.schedule || '',
+          hasLevels: data.hasLevels || false,
+          levels: data.levels || [],
+          order: data.order || 999,
+          enabled: data.enabled !== false,
+          description: data.description || '',
+          teacher: data.teacher || undefined
+        })
+      })
+      
+      setAcademies(academiesData.filter(a => a.enabled))
+      setAcademiesLoading(false)
+    }, () => {
+      setAcademiesLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  // Get registrations for a specific academy (using selectedAcademies - 2026 structure)
+  const getRegistrationsForAcademy = React.useCallback((academyName: string, level?: string) => {
+    return registrations?.filter(reg => {
+      // NEW STRUCTURE (2026): Check selectedAcademies array
+      if ((reg as any).selectedAcademies && Array.isArray((reg as any).selectedAcademies)) {
+        return (reg as any).selectedAcademies.some((academyData: any) => {
+          const matchesAcademy = normalizeAcademy(academyData.academy || '') === normalizeAcademy(academyName)
+          if (level) {
+            const matchesLevel = normalizeLevel(academyData.level || '') === normalizeLevel(level)
+            return matchesAcademy && matchesLevel
+          }
+          return matchesAcademy
+        })
+      }
+      
+      // LEGACY STRUCTURE: Support firstPeriod/secondPeriod for backward compatibility
+      const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || '')
+      const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || '')
+      const matchesAcademy = p1Academy === normalizeAcademy(academyName) || p2Academy === normalizeAcademy(academyName)
+      
+      if (level) {
+        const p1Level = normalizeLevel(reg?.firstPeriod?.level || '')
+        const p2Level = normalizeLevel(reg?.secondPeriod?.level || '')
+        const matchesLevel = p1Level === normalizeLevel(level) || p2Level === normalizeLevel(level)
+        return matchesAcademy && matchesLevel
+      }
+      
+      return matchesAcademy
+    }) || []
   }, [registrations])
 
   // For Korean Language, group by levels
-  const getKoreanRegistrationsByLevel = React.useCallback((academyName: string, period: 'p1' | 'p2') => {
-    const registrations = getRegistrationsForAcademy(academyName, period)
+  const getKoreanRegistrationsByLevel = React.useCallback((academyName: string) => {
+    const registrations = getRegistrationsForAcademy(academyName)
     const byLevel: Record<string, Registration[]> = {}
     
     registrations.forEach(reg => {
-      const level = period === 'p1' ? reg?.firstPeriod?.level : reg?.secondPeriod?.level
-      const normalizedLevel = normalizeLevel(level || null)
+      let level: string | null = null
+      
+      // NEW STRUCTURE (2026): Get level from selectedAcademies
+      if ((reg as any).selectedAcademies && Array.isArray((reg as any).selectedAcademies)) {
+        const academyData = (reg as any).selectedAcademies.find((a: any) => 
+          normalizeAcademy(a.academy || '') === normalizeAcademy(academyName)
+        )
+        level = academyData?.level || null
+      } else {
+        // LEGACY STRUCTURE
+        const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || '')
+        const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || '')
+        
+        if (p1Academy === normalizeAcademy(academyName)) {
+          level = reg?.firstPeriod?.level || null
+        } else if (p2Academy === normalizeAcademy(academyName)) {
+          level = reg?.secondPeriod?.level || null
+        }
+      }
+      
+      const normalizedLevel = normalizeLevel(level)
       if (!byLevel[normalizedLevel]) {
         byLevel[normalizedLevel] = []
       }
@@ -175,44 +196,6 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     
     return byLevel
   }, [getRegistrationsForAcademy])
-
-
-
-  // For Korean Language, group by levels (all periods combined)
-  const getKoreanRegistrationsByLevelAllPeriods = React.useCallback((academyName: string) => {
-    const registrations = getKoreanRegistrationsAllPeriods(academyName)
-    const byLevel: Record<string, Registration[]> = {}
-    
-    registrations.forEach(reg => {
-      // Check both periods and add student to ALL levels where they are registered
-      const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || null)
-      const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || null)
-      
-      // Add to First Period level if Korean Language
-      if (p1Academy === normalizeAcademy(academyName) && reg?.firstPeriod?.level) {
-        const normalizedLevel = normalizeLevel(reg.firstPeriod.level)
-        if (!byLevel[normalizedLevel]) {
-          byLevel[normalizedLevel] = []
-        }
-        byLevel[normalizedLevel].push(reg)
-      }
-      
-      // Add to Second Period level if Korean Language (can be same student, different level)
-      if (p2Academy === normalizeAcademy(academyName) && reg?.secondPeriod?.level) {
-        const normalizedLevel = normalizeLevel(reg.secondPeriod.level)
-        if (!byLevel[normalizedLevel]) {
-          byLevel[normalizedLevel] = []
-        }
-        byLevel[normalizedLevel].push(reg)
-      }
-      
-      
-    })
-    
-    return byLevel
-  }, [getKoreanRegistrationsAllPeriods])
-
-  
 
   const studentCols = React.useMemo<GridColDef[]>(()=>[
     { 
@@ -239,7 +222,6 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       const teacherKey = selectedLevel ? `${selectedAcademy}_${selectedLevel}` : selectedAcademy
       
       try {
-        // Save to Firebase
         const teacherRef = doc(db, 'teachers', teacherKey)
         await setDoc(teacherRef, {
           name: teacherName.trim(),
@@ -258,9 +240,9 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         setTeacherCredentials('')
         setSelectedAcademy('')
         setSelectedLevel('')
-             } catch (error) {
-         alert('Error saving teacher information. Please try again.')
-       }
+      } catch (error) {
+        alert('Error saving teacher information. Please try again.')
+      }
     }
   }, [selectedAcademy, selectedLevel, teacherName, teacherEmail, teacherPhone, teacherCredentials])
 
@@ -278,7 +260,6 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       setTeacherName('')
       setTeacherEmail('')
       setTeacherPhone('')
-      // Set default credentials based on academy type
       let defaultCredentials = ''
       const normalizedAcademy = academyName.toLowerCase()
       if (normalizedAcademy.includes('korean') && normalizedAcademy.includes('cooking')) {
@@ -292,45 +273,59 @@ const AcademiesPage = React.memo(function AcademiesPage() {
   }, [teachers])
 
   const getTeacherForAcademy = React.useCallback((academyName: string, level?: string) => {
+    // Try multiple lookup strategies
     const teacherKey = level ? `${academyName}_${level}` : academyName
-    return teachers[teacherKey]
+    
+    // Strategy 1: Direct key match
+    if (teachers[teacherKey]) {
+      return teachers[teacherKey]
+    }
+    
+    // Strategy 2: Search by academy and level in teacher data
+    for (const [, teacher] of Object.entries(teachers)) {
+      if (teacher.academy && normalizeAcademy(teacher.academy) === normalizeAcademy(academyName)) {
+        if (level) {
+          if (teacher.level && normalizeLevel(teacher.level) === normalizeLevel(level)) {
+            return teacher
+          }
+        } else {
+          // No level specified, return if teacher has no level or level is null
+          if (!teacher.level || teacher.level === null) {
+            return teacher
+          }
+        }
+      }
+    }
+    
+    return undefined
   }, [teachers])
 
-
-
-  const generatePDF = React.useCallback((academyName: string, period: 'p1' | 'p2' | 'all', registrations: Registration[], level?: string) => {
+  const generatePDF = React.useCallback((academyName: string, registrations: Registration[], level?: string) => {
     const doc = new jsPDF()
     const teacher = getTeacherForAcademy(academyName, level)
     
-    // Add IYF logo
     const logoSize = 30
     const logoX = 20
     const logoY = 15
     
-         // Add logo image
-     try {
-       doc.addImage(logoImage, 'JPEG', logoX, logoY, logoSize, logoSize)
-     } catch (error) {
-       // Logo could not be added, continue without it
-     }
+    try {
+      doc.addImage(logoImage, 'JPEG', logoX, logoY, logoSize, logoSize)
+    } catch (error) {
+      // Logo could not be added, continue without it
+    }
     
-        // Header - with title
     doc.setFontSize(16)
     doc.text('IYF Orlando - Academy Report', 105, 25, { align: 'center' })
     
     doc.setFontSize(20)
     doc.text(`${academyName}`, 105, 40, { align: 'center' })
     
-    doc.setFontSize(14)
-    doc.text(`${period === 'p1' ? 'Period 1' : period === 'p2' ? 'Period 2' : 'All Periods'}`, 105, 50, { align: 'center' })
-    
     if (level) {
       doc.setFontSize(12)
-      doc.text(`Level: ${level}`, 105, 60, { align: 'center' })
+      doc.text(`Level: ${level}`, 105, 50, { align: 'center' })
     }
     
-    // Teacher info - simple design
-    let startY = 75
+    let startY = 65
     if (teacher) {
       doc.setFontSize(11)
       doc.text(`Teacher: ${teacher.name}`, 20, startY)
@@ -347,9 +342,8 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       startY += 25
     }
     
-    // Student table
     const tableData = registrations.map((reg, index) => [
-      (index + 1).toString(), // Number column
+      (index + 1).toString(),
       reg.firstName || '',
       reg.lastName || '',
       computeAge(reg.birthday) || '',
@@ -370,18 +364,16 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 15, halign: 'center' } // Number column styling
+        0: { cellWidth: 15, halign: 'center' }
       },
       margin: { top: 10 }
     })
     
-    // Summary after table
     const tableEndY = (doc as any).lastAutoTable.finalY || startY + (registrations.length * 10) + 20
     doc.setFontSize(11)
     doc.setTextColor(0, 0, 0)
     doc.text(`Total Students: ${registrations.length}`, 20, tableEndY + 10)
     
-    // Footer
     const pageCount = doc.getNumberOfPages()
     doc.setFontSize(9)
     doc.setTextColor(100, 100, 100)
@@ -389,24 +381,28 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     doc.text(`Page ${pageCount}`, 190, doc.internal.pageSize.height - 10, { align: 'right' })
     
     const filename = level 
-      ? `${academyName}_${period}_${level}_report.pdf`
-      : `${academyName}_${period}_report.pdf`
+      ? `${academyName}_${level}_report.pdf`
+      : `${academyName}_report.pdf`
     doc.save(filename)
   }, [getTeacherForAcademy])
 
-  const renderAcademySection = React.useCallback((academyName: string, period: 'p1' | 'p2') => {
-    const isKorean = academyName.toLowerCase().includes('korean') && !academyName.toLowerCase().includes('cooking')
-    
-    if (isKorean) {
-      const koreanByLevel = getKoreanRegistrationsByLevel(academyName, period)
-      const levels = Object.keys(koreanByLevel).sort()
+  const renderAcademySection = React.useCallback((academy: Academy) => {
+    if (academy.hasLevels && academy.levels && academy.levels.length > 0) {
+      // Academy with levels (like Korean Language)
+      const koreanByLevel = getKoreanRegistrationsByLevel(academy.name)
+      const levels = academy.levels.sort((a, b) => a.order - b.order)
       
       return (
-        <Accordion key={academyName} defaultExpanded={false}>
+        <Accordion key={academy.id} defaultExpanded={false}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
               <SchoolIcon color="primary" />
-              <Typography variant="h6">{academyName}</Typography>
+              <Typography variant="h6">{academy.name}</Typography>
+              <Chip 
+                label={`$${academy.price}`} 
+                size="small" 
+                color="primary" 
+              />
               <Chip 
                 label={`${Object.values(koreanByLevel).reduce((sum, regs) => sum + regs.length, 0)} students`} 
                 size="small" 
@@ -421,29 +417,35 @@ const AcademiesPage = React.memo(function AcademiesPage() {
                 startIcon={<PrintIcon />}
                 variant="contained"
                 size="small"
-                onClick={() => generatePDF(academyName, period, Object.values(koreanByLevel).flat())}
+                onClick={() => generatePDF(academy.name, Object.values(koreanByLevel).flat())}
               >
                 Export All Levels PDF
               </Button>
             </Stack>
             
             {levels.map(level => {
-              const levelRegistrations = koreanByLevel[level]
-              const teacher = getTeacherForAcademy(academyName, level)
+              const levelRegistrations = koreanByLevel[normalizeLevel(level.name)] || []
+              const teacher = getTeacherForAcademy(academy.name, level.name)
 
-return (
-                <Box key={level} sx={{ mb: 3 }}>
+              return (
+                <Box key={level.name} sx={{ mb: 3 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography variant="h6" color="primary">
-                      Level: {level}
-                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="h6" color="primary">
+                        {level.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        ({level.schedule})
+                      </Typography>
+                    </Stack>
                     <Stack direction="row" spacing={1} alignItems="center">
                       {teacher && (
                         <Chip 
-                          label={`Teacher: ${teacher.name}`} 
+                          label={`Teacher: ${teacher.name}${teacher.email ? ` (${teacher.email})` : ''}`} 
                           size="small" 
                           color="secondary" 
                           variant="outlined"
+                          title={teacher.phone ? `Phone: ${teacher.phone}` : undefined}
                         />
                       )}
                       <Chip label={`${levelRegistrations.length} students`} size="small" />
@@ -451,7 +453,7 @@ return (
                         startIcon={<PersonIcon />}
                         variant="outlined"
                         size="small"
-                        onClick={() => openTeacherDialog(academyName, level)}
+                        onClick={() => openTeacherDialog(academy.name, level.name)}
                       >
                         {teacher ? 'Edit Teacher' : 'Add Teacher'}
                       </Button>
@@ -459,7 +461,7 @@ return (
                         startIcon={<PrintIcon />}
                         variant="outlined"
                         size="small"
-                        onClick={() => generatePDF(academyName, period, levelRegistrations, level)}
+                        onClick={() => generatePDF(academy.name, levelRegistrations, level.name)}
                       >
                         Export PDF
                       </Button>
@@ -519,15 +521,21 @@ return (
         </Accordion>
       )
     } else {
-      const academyRegistrations = getRegistrationsForAcademy(academyName, period)
-      const teacher = getTeacherForAcademy(academyName)
+      // Academy without levels
+      const academyRegistrations = getRegistrationsForAcademy(academy.name)
+      const teacher = getTeacherForAcademy(academy.name)
       
       return (
-        <Accordion key={academyName} defaultExpanded={false}>
+        <Accordion key={academy.id} defaultExpanded={false}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
               <SchoolIcon color="primary" />
-              <Typography variant="h6">{academyName}</Typography>
+              <Typography variant="h6">{academy.name}</Typography>
+              <Chip 
+                label={`$${academy.price}`} 
+                size="small" 
+                color="primary" 
+              />
               <Chip 
                 label={`${academyRegistrations.length} students`} 
                 size="small" 
@@ -536,10 +544,11 @@ return (
               />
               {teacher && (
                 <Chip 
-                  label={`Teacher: ${teacher.name}`} 
+                  label={`Teacher: ${teacher.name}${teacher.email ? ` (${teacher.email})` : ''}`} 
                   size="small" 
                   color="secondary" 
                   variant="outlined"
+                  title={teacher.phone ? `Phone: ${teacher.phone}` : undefined}
                 />
               )}
             </Stack>
@@ -550,19 +559,23 @@ return (
                 startIcon={<PersonIcon />}
                 variant="outlined"
                 size="small"
-                onClick={() => openTeacherDialog(academyName)}
+                onClick={() => openTeacherDialog(academy.name)}
               >
                 {teacher ? 'Edit Teacher' : 'Add Teacher'}
               </Button>
-          <Button
+              <Button
                 startIcon={<PrintIcon />}
-            variant="contained"
+                variant="contained"
                 size="small"
-                onClick={() => generatePDF(academyName, period, academyRegistrations)}
-          >
+                onClick={() => generatePDF(academy.name, academyRegistrations)}
+              >
                 Export PDF
-          </Button>
-        </Stack>
+              </Button>
+            </Stack>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Schedule: {academy.schedule}
+            </Typography>
 
             <Typography variant="h6" gutterBottom>Student List</Typography>
             <Box sx={{ 
@@ -573,13 +586,13 @@ return (
               position: 'relative',
               minHeight: 0
             }}>
-          <DataGrid
+              <DataGrid
                 rows={academyRegistrations}
                 columns={studentCols}
-            loading={loading}
-            disableRowSelectionOnClick
-            getRowId={(r)=>r.id}
-            slots={{ toolbar: GridToolbar }}
+                loading={loading}
+                disableRowSelectionOnClick
+                getRowId={(r)=>r.id}
+                slots={{ toolbar: GridToolbar }}
                 density="compact"
                 initialState={{
                   sorting: {
@@ -610,183 +623,34 @@ return (
                     backgroundColor: '#f8f9fa'
                   }
                 }}
-          />
-        </Box>
+              />
+            </Box>
           </AccordionDetails>
         </Accordion>
       )
     }
   }, [getKoreanRegistrationsByLevel, getRegistrationsForAcademy, getTeacherForAcademy, openTeacherDialog, generatePDF, studentCols, loading])
 
-  const renderKoreanAcademySection = React.useCallback((academyName: string) => {
-    const koreanByLevel = getKoreanRegistrationsByLevelAllPeriods(academyName)
-    const levels = Object.keys(koreanByLevel).sort()
-    
-    return (
-      <Accordion key={academyName} defaultExpanded={false}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
-            <SchoolIcon color="primary" />
-            <Typography variant="h6">{academyName}</Typography>
-            <Chip 
-              label={`${Object.values(koreanByLevel).reduce((sum, regs) => sum + regs.length, 0)} students`} 
-              size="small" 
-              color="primary" 
-              variant="outlined"
-            />
-          </Stack>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <Button
-              startIcon={<PrintIcon />}
-              variant="contained"
-              size="small"
-              onClick={() => generatePDF(academyName, 'all', Object.values(koreanByLevel).flat())}
-            >
-              Export All Levels PDF
-            </Button>
-          </Stack>
-          
-          {levels.map(level => {
-            const levelRegistrations = koreanByLevel[level]
-            const teacher = getTeacherForAcademy(academyName, level)
-            
-            return (
-              <Box key={level} sx={{ mb: 3 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                  <Typography variant="h6" color="primary">
-                    Level: {level}
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    {teacher && (
-                      <Chip 
-                        label={`Teacher: ${teacher.name}`} 
-                        size="small" 
-                        color="secondary" 
-                        variant="outlined"
-                      />
-                    )}
-                    <Chip label={`${levelRegistrations.length} students`} size="small" />
-                    <Button
-                      startIcon={<PersonIcon />}
-                      variant="outlined"
-                      size="small"
-                      onClick={() => openTeacherDialog(academyName, level)}
-                    >
-                      {teacher ? 'Edit Teacher' : 'Add Teacher'}
-                    </Button>
-                    <Button
-                      startIcon={<PrintIcon />}
-                      variant="outlined"
-                      size="small"
-                      onClick={() => generatePDF(academyName, 'all', levelRegistrations, level)}
-                    >
-                      Export PDF
-                    </Button>
-                  </Stack>
-                </Stack>
-                <Box sx={{ 
-                  height: 300, 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  minHeight: 0
-                }}>
-                  <DataGrid
-                    rows={levelRegistrations}
-                    columns={studentCols}
-                    loading={loading}
-                    disableRowSelectionOnClick
-                    getRowId={(r)=>r.id}
-                    slots={{ toolbar: GridToolbar }}
-                    density="compact"
-                    initialState={{
-                      sorting: {
-                        sortModel: [{ field: 'lastName', sort: 'asc' }]
-                      }
-                    }}
-                    paginationMode="client"
-                    pageSizeOptions={[]}
-                    sx={{
-                      flex: 1,
-                      minHeight: 0,
-                      '& .MuiDataGrid-root': {
-                        border: 'none'
-                      },
-                      '& .MuiDataGrid-cell': {
-                        borderBottom: '1px solid #e0e0e0',
-                        cursor: 'default'
-                      },
-                      '& .MuiDataGrid-columnHeaders': {
-                        backgroundColor: '#f5f5f5',
-                        borderBottom: '2px solid #e0e0e0'
-                      },
-                      '& .MuiDataGrid-footerContainer': {
-                        borderTop: '2px solid #e0e0e0',
-                        backgroundColor: '#f5f5f5'
-                      },
-                      '& .MuiDataGrid-row:hover': {
-                        backgroundColor: '#f8f9fa'
-                      }
-                    }}
-                  />
-                </Box>
-              </Box>
-            )
-          })}
-        </AccordionDetails>
-      </Accordion>
-    )
-  }, [getKoreanRegistrationsByLevelAllPeriods, getTeacherForAcademy, openTeacherDialog, generatePDF, studentCols, loading])
-
   return (
     <Card elevation={0} sx={{ borderRadius:3 }}>
       <CardHeader 
         title="Academies" 
-        subheader="View student registrations organized by academy and period. All records shown without pagination." 
+        subheader="View student registrations organized by academy. All records shown without pagination." 
       />
       <CardContent>
         {error && <Alert severity="error" sx={{ mb:1 }}>{error}</Alert>}
         {teachersLoading && <Alert severity="info" sx={{ mb:1 }}>Loading teacher information...</Alert>}
+        {academiesLoading && <Alert severity="info" sx={{ mb:1 }}>Loading academies...</Alert>}
 
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                     <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-            <Tab label={`Period 1 (${period1Academies.length} academies)`} />
-            <Tab label={`Period 2 (${period2Academies.length} academies)`} />
-            <Tab label={`Korean Language (${koreanAcademies.length} academies)`} />
-          </Tabs>
-        </Box>
-        
-                 
+        {academies.length === 0 && !academiesLoading && (
+          <Alert severity="warning" sx={{ mb:1 }}>
+            No academies found. Please ensure academies are configured in the academies_2026_spring collection.
+          </Alert>
+        )}
 
-        <TabPanel value={tabValue} index={0}>
-          <Stack spacing={2}>
-            {period1Academies.map((academyName) => renderAcademySection(academyName, 'p1'))}
-            {period1Academies.length === 0 && (
-              <Alert severity="info">No academies available in Period 1</Alert>
-            )}
-          </Stack>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={1}>
-          <Stack spacing={2}>
-            {period2Academies.map((academyName) => renderAcademySection(academyName, 'p2'))}
-            {period2Academies.length === 0 && (
-              <Alert severity="info">No academies available in Period 2</Alert>
-            )}
-          </Stack>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
-          <Stack spacing={2}>
-            {koreanAcademies.map((academyName) => renderKoreanAcademySection(academyName))}
-            {koreanAcademies.length === 0 && (
-              <Alert severity="info">No Korean academies available</Alert>
-            )}
-          </Stack>
-        </TabPanel>
+        <Stack spacing={2}>
+          {academies.map((academy) => renderAcademySection(academy))}
+        </Stack>
 
         {/* Teacher Dialog */}
         <Dialog open={teacherDialogOpen} onClose={() => setTeacherDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -794,7 +658,7 @@ return (
             {teachers[selectedLevel ? `${selectedAcademy}_${selectedLevel}` : selectedAcademy] ? 'Edit Teacher' : 'Add Teacher'} 
             {selectedLevel ? ` - ${selectedAcademy} (${selectedLevel})` : ` - ${selectedAcademy}`}
           </DialogTitle>
-      <DialogContent dividers>
+          <DialogContent dividers>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField 
                 label="Teacher Name" 
@@ -837,14 +701,14 @@ return (
                 helperText="Instructor credentials required for elective courses (courses with service rate)"
               />
             </Stack>
-      </DialogContent>
-      <DialogActions>
+          </DialogContent>
+          <DialogActions>
             <Button onClick={() => setTeacherDialogOpen(false)}>Cancel</Button>
             <Button variant="contained" onClick={handleTeacherSave} disabled={!teacherName.trim()}>
               Save
             </Button>
-      </DialogActions>
-    </Dialog>
+          </DialogActions>
+        </Dialog>
       </CardContent>
     </Card>
   )
