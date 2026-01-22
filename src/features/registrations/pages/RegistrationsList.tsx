@@ -204,6 +204,24 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
       },
 
       {
+        field: 'isDuplicate',
+        headerName: 'Duplicate',
+        width: 110,
+        sortable: true,
+        filterable: true,
+        renderCell: (p: GridRenderCellParams) => {
+          if (p.row.isDuplicate) {
+            return (
+              <Tooltip title="This registration was flagged as a duplicate when created">
+                <Chip label="Duplicate" color="warning" size="small" />
+              </Tooltip>
+            )
+          }
+          return null
+        }
+      },
+
+      {
         field: 'paymentStatus',
         headerName: 'Payment',
         width: 170,
@@ -249,7 +267,7 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
                       const res = await confirmDelete('Delete registration?', 'This will permanently remove this record.')
                       if (!res.isConfirmed) return
                       try {
-                        await deleteDoc(doc(db,'fall_academy_2025', String(p.id)))
+                        await deleteDoc(doc(db, REG_COLLECTION, String(p.id)))
                         notifySuccess('Deleted', 'Registration removed')
                       } catch (e:any) {
                         notifyError('Delete failed', e?.message)
@@ -503,7 +521,7 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
 
                            sortingOrder={['desc','asc']}
               initialState={{
-                columns: { columnVisibilityModel: { address:false, gender:false } },
+                columns: { columnVisibilityModel: { address:false, gender:false, isDuplicate:false } },
                 sorting: {
                   sortModel: [{ field: 'createdAt', sort: 'desc' }]
                 }
@@ -512,7 +530,9 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
               pageSizeOptions={[]}
              getRowClassName={(params) => {
                const st = byStudent.get(String(params.id))?.status || 'unpaid'
-               return st === 'paid' ? 'row-paid' : (st === 'partial' ? 'row-partial' : '')
+               const isDup = params.row.isDuplicate === true
+               const statusClass = st === 'paid' ? 'row-paid' : (st === 'partial' ? 'row-partial' : '')
+               return isDup ? `${statusClass} row-duplicate`.trim() : statusClass
              }}
                            sx={{
                 border: 'none',
@@ -521,6 +541,12 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
                 },
                 '& .MuiDataGrid-main': {
                   border: 'none'
+                },
+                '& .row-duplicate': {
+                  backgroundColor: '#fff3cd !important',
+                  '&:hover': {
+                    backgroundColor: '#ffe69c !important'
+                  }
                 },
                 '& .MuiDataGrid-virtualScroller': {
                   overflow: 'auto !important'

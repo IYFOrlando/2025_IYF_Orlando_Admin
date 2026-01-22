@@ -1,0 +1,378 @@
+{
+  "collection": "volunteer_schedule",
+  "exportedAt": "2025-11-20T02:41:17.981Z",
+  "count": 12,
+  "documents": [
+    {
+      "id": "0pLCFFa3S9qmonzxLjZN",
+      "createdAt": "2025-10-28T18:41:48.624Z",
+      "updatedAt": "2025-10-28T18:41:48.624Z",
+      "selectedSlots": [
+        {
+          "startTime": "4:00 PM",
+          "endTime": "8:00 PM",
+          "hours": 4,
+          "date": "Saturday, November 1, 2025",
+          "id": "Saturday__November_1__2025_4_00_PM_8_00_PM"
+        }
+      ],
+      "volunteerName": "Sani Mae",
+      "volunteerCode": "K3Q716",
+      "volunteerEmail": "sanithoon2004@gmail.com",
+      "totalHours": 4
+    },
+    {
+      "id": "5gWZeWctum3p65PuYA0H",
+      "volunteerCode": "KKXJ8T",
+      "volunteerEmail": "rubyalazo@aol.com",
+      "volunteerName": "Ruby Lazo",
+      "totalHours": 6,
+      "createdAt": "2025-10-25T01:35:27.549Z",
+      "selectedSlots": [
+        {
+          "endTime": "10:00 PM",
+          "id": "Friday__November_7__2025_6_00_PM_10_00_PM",
+          "startTime": "6:00 PM",
+          "date": "Friday, November 7, 2025",
+          "hours": 4
+        },
+        {
+          "date": "Sunday, November 2, 2025",
+          "id": "Sunday__November_2__2025_5_00_PM_7_00_PM",
+          "startTime": "5:00 PM",
+          "endTime": "7:00 PM",
+          "hours": 2
+        }
+      ],
+      "updatedAt": "2025-10-28T18:13:47.482Z"
+    },
+    {
+      "id": "6qUdfMzcNT7dsILZNUer",
+      "updatedAt": "2025-10-24T02:43:01.208Z",
+      "volunteerName": "Tevin Im",
+      "totalHours": 6,
+      "createdAt": "2025-10-24T02:43:01.208Z",
+      "volunteerCode": "9WCD59",
+      "selectedSlots": [
+        {
+          "endTime": "8:00 PM",
+          "id": "Monday__October_27__2025_6_00_PM_8_00_PM",
+          "date": "Monday, October 27, 2025",
+          "hours": 2,
+          "startTime": "6:00 PM"
+        },
+        {
+          "hours": 1,
+          "date": "Tuesday, October 28, 2025",
+          "id": "Tuesday__October_28__2025_7_00_PM_8_00_PM",
+          "endTime": "8:00 PM",
+          "startTime": "7:00 PM"
+        },
+        {
+          "date": "Monday, November 3, 2025",
+          "hours": 2,
+          "startTime": "6:00 PM",
+          "id": "Monday__November_3__2025_6_00_PM_8_00_PM",
+          "endTime": "8:00 PM"
+        },
+        {
+          "startTime": "7:00 PM",
+          "hours": 1,
+          "id": "Tuesday__November_4__2025_7_00_PM_8_00_PM",
+          "date": "Tuesday, November 4, 2025",
+          "endTime": "8:00 PM"
+        }
+      ],
+      "volunteerEmail": "imtevin@gmail.com"
+    },
+    {
+      "id": "INFa2u9Tlf0IpziKhlsZ",
+      "updatedAt": "2025-10-27T16:05:58.646Z",
+      "volunteerEmail": "sprottsusane@gmail.com",
+      "createdAt": "2025-10-27T16:05:58.646Z",
+      "selectedSlots": [
+        {
+          "startTime": "11:00 AM",
+          "date": "Tuesday, October 28, 2025",
+          "endTime": "2:00 PM",
+          "id": "Tuesday__October_28__2025_11_00_AM_2_00_PM",
+          "hours": 3
+        },
+        {
+          "endTime": "2:00 PM",
+          "hours": 3,
+          "startTime": "11:00 AM",
+          "id": "Thursday__October_30__2025_11_00_AM_2_00_PM",
+          "date": "Thursday, October 30, 2025"
+        },
+        {
+          "id": "Monday__November_3__2025_11_00_AM_2_00_PM",
+          "startTime": "11:00 AM",
+          "hours": 3,
+          "date": "Monday, November 3, 2025",
+          "endTime": "2:00 PM"
+        },
+        {
+          "date": "Tuesday, November 4, 2025",
+          "endTime": "2:00 PM",
+          "startTime": "11:00 AM",
+          "id": "Tuesday__November_4__2025_11_00_AM_2_00_PM",
+          "hours": 3
+        },
+        {
+          "endTime": "2:00 PM",
+          "hours": 3,
+          "id": "Thursday__November_6__2025_11_00_AM_2_00_PM",
+          "startTime": "11:00 AM",
+          "date": "Thursday, November 6, 2025"
+        }
+      ],
+      "volunteerName": "Susan Sprott",
+      "volunteerCode": "TO4XIS",
+      "totalHours": 15
+    },
+    {
+      "id": "JCqSVzsIkZ0J6HKU9G3q",
+      "selectedSlots": [
+        {
+          "startTime": "10:00 AM",
+          "id": "Monday__October_27__2025_10_00_AM_8_00_PM",
+          "date": "Monday, October 27, 2025",
+          "hours": 10,
+          "endTime": "8:00 PM"
+        }
+      ],
+      "volunteerCode": "3239HO",
+      "totalHours": 10,
+      "createdAt": "2025-10-24T02:27:30.528Z",
+      "volunteerEmail": "sefiekix94@gmail.com",
+      "volunteerName": "Sefora Acevedo",
+      "updatedAt": "2025-10-24T02:28:20.407Z"
+    },
+    {
+      "id": "KTzjHyvf4069mJLMm0ZB",
+      "updatedAt": "2025-10-29T18:00:04.475Z",
+      "volunteerEmail": "loudchirp@gmail.com",
+      "createdAt": "2025-10-29T18:00:04.475Z",
+      "selectedSlots": [
+        {
+          "id": "Sunday__November_2__2025_11_00_AM_2_00_PM",
+          "date": "Sunday, November 2, 2025",
+          "endTime": "2:00 PM",
+          "hours": 3,
+          "startTime": "11:00 AM"
+        }
+      ],
+      "totalHours": 3,
+      "volunteerName": "Dylan McRorie",
+      "volunteerCode": "B8OLV0"
+    },
+    {
+      "id": "ejkzqiiZtF7WsiymZbSj",
+      "createdAt": "2025-10-30T14:51:49.265Z",
+      "selectedSlots": [
+        {
+          "startTime": "8:00 PM",
+          "date": "Wednesday, November 5, 2025",
+          "id": "Wednesday__November_5__2025_8_00_PM_10_00_PM",
+          "hours": 2,
+          "endTime": "10:00 PM"
+        },
+        {
+          "id": "Thursday__November_6__2025_8_00_PM_10_00_PM",
+          "hours": 2,
+          "startTime": "8:00 PM",
+          "date": "Thursday, November 6, 2025",
+          "endTime": "10:00 PM"
+        },
+        {
+          "hours": 6,
+          "date": "Friday, November 7, 2025",
+          "id": "Friday__November_7__2025_4_00_PM_10_00_PM",
+          "endTime": "10:00 PM",
+          "startTime": "4:00 PM"
+        }
+      ],
+      "updatedAt": "2025-10-30T14:51:49.265Z",
+      "totalHours": 10,
+      "volunteerName": "Erika Burns",
+      "volunteerEmail": "erikaburns16@gmail.com",
+      "volunteerCode": "73A2B3"
+    },
+    {
+      "id": "gNI1W57rxIE5kAzQauFi",
+      "volunteerCode": "UFOO23",
+      "volunteerName": "Daniel choi",
+      "selectedSlots": [
+        {
+          "id": "Thursday__October_30__2025_6_00_PM_10_00_PM",
+          "hours": 4,
+          "date": "Thursday, October 30, 2025",
+          "endTime": "10:00 PM",
+          "startTime": "6:00 PM"
+        }
+      ],
+      "createdAt": "2025-10-30T22:32:38.173Z",
+      "updatedAt": "2025-10-30T22:32:38.173Z",
+      "totalHours": 4,
+      "volunteerEmail": "danielchoi0423@gmail.com"
+    },
+    {
+      "id": "jv4kxuNgSAVO7SfzKure",
+      "totalHours": 4,
+      "selectedSlots": [
+        {
+          "endTime": "8:00 PM",
+          "id": "Saturday__November_1__2025_4_00_PM_8_00_PM",
+          "hours": 4,
+          "startTime": "4:00 PM",
+          "date": "Saturday, November 1, 2025"
+        }
+      ],
+      "updatedAt": "2025-10-28T19:06:03.276Z",
+      "createdAt": "2025-10-28T19:06:03.276Z",
+      "volunteerEmail": "connoroday30@icloud.com",
+      "volunteerName": "Connor ODay",
+      "volunteerCode": "PTSH7V"
+    },
+    {
+      "id": "n0IjtmnV6QwFS5NXH5Tw",
+      "volunteerName": "Carol Beyner ",
+      "volunteerCode": "RWDE6I",
+      "totalHours": 3,
+      "updatedAt": "2025-10-29T16:14:26.193Z",
+      "createdAt": "2025-10-29T16:14:26.193Z",
+      "selectedSlots": [
+        {
+          "id": "Saturday__November_1__2025_1_00_PM_4_00_PM",
+          "date": "Saturday, November 1, 2025",
+          "hours": 3,
+          "startTime": "1:00 PM",
+          "endTime": "4:00 PM"
+        }
+      ],
+      "volunteerEmail": "carolbee42@gmail.com"
+    },
+    {
+      "id": "pxI53JJP6GdqfKxgubhF",
+      "totalHours": 26,
+      "volunteerCode": "A7F59L",
+      "volunteerName": "Hyang  Carton ",
+      "createdAt": "2025-10-26T20:24:02.261Z",
+      "updatedAt": "2025-10-26T20:24:02.261Z",
+      "volunteerEmail": "hyang1970@gmail.com",
+      "selectedSlots": [
+        {
+          "endTime": "8:00 PM",
+          "startTime": "1:00 PM",
+          "date": "Saturday, November 1, 2025",
+          "hours": 7,
+          "id": "Saturday__November_1__2025_1_00_PM_8_00_PM"
+        },
+        {
+          "startTime": "1:00 PM",
+          "date": "Tuesday, November 4, 2025",
+          "hours": 7,
+          "id": "Tuesday__November_4__2025_1_00_PM_8_00_PM",
+          "endTime": "8:00 PM"
+        },
+        {
+          "id": "Thursday__November_6__2025_1_00_PM_8_00_PM",
+          "hours": 7,
+          "startTime": "1:00 PM",
+          "date": "Thursday, November 6, 2025",
+          "endTime": "8:00 PM"
+        },
+        {
+          "startTime": "3:00 PM",
+          "endTime": "8:00 PM",
+          "hours": 5,
+          "date": "Friday, November 7, 2025",
+          "id": "Friday__November_7__2025_3_00_PM_8_00_PM"
+        }
+      ]
+    },
+    {
+      "id": "vIZxCmSxBezTHbE91owp",
+      "updatedAt": "2025-11-03T20:13:31.364Z",
+      "status": "scheduled",
+      "volunteerEmail": "ing.jod@gmail.com",
+      "volunteerCode": "PBGCLV",
+      "createdAt": "2025-10-26T22:13:50.049Z",
+      "totalHours": 130,
+      "selectedSlots": [
+        {
+          "id": "Monday__October_27__2025_9_00_AM_10_00_PM",
+          "startTime": "9:00 AM",
+          "hours": 13,
+          "endTime": "10:00 PM",
+          "date": "Monday, October 27, 2025"
+        },
+        {
+          "date": "Tuesday, October 28, 2025",
+          "startTime": "9:00 AM",
+          "endTime": "10:00 PM",
+          "id": "Tuesday__October_28__2025_9_00_AM_10_00_PM",
+          "hours": 13
+        },
+        {
+          "date": "Wednesday, October 29, 2025",
+          "startTime": "9:00 AM",
+          "endTime": "10:00 PM",
+          "id": "Wednesday__October_29__2025_9_00_AM_10_00_PM",
+          "hours": 13
+        },
+        {
+          "endTime": "10:00 PM",
+          "id": "Thursday__October_30__2025_9_00_AM_10_00_PM",
+          "date": "Thursday, October 30, 2025",
+          "startTime": "9:00 AM",
+          "hours": 13
+        },
+        {
+          "startTime": "9:00 AM",
+          "id": "Friday__October_31__2025_9_00_AM_10_00_PM",
+          "endTime": "10:00 PM",
+          "date": "Friday, October 31, 2025",
+          "hours": 13
+        },
+        {
+          "hours": 13,
+          "endTime": "10:00 PM",
+          "startTime": "9:00 AM",
+          "date": "Monday, November 3, 2025",
+          "id": "Monday__November_3__2025_9_00_AM_10_00_PM"
+        },
+        {
+          "id": "Wednesday__November_5__2025_9_00_AM_10_00_PM",
+          "date": "Wednesday, November 5, 2025",
+          "startTime": "9:00 AM",
+          "endTime": "10:00 PM",
+          "hours": 13
+        },
+        {
+          "id": "Friday__November_7__2025_9_00_AM_10_00_PM",
+          "endTime": "10:00 PM",
+          "date": "Friday, November 7, 2025",
+          "hours": 13,
+          "startTime": "9:00 AM"
+        },
+        {
+          "id": "Thursday__November_6__2025_9_00_AM_10_00_PM",
+          "date": "Thursday, November 6, 2025",
+          "hours": 13,
+          "startTime": "9:00 AM",
+          "endTime": "10:00 PM"
+        },
+        {
+          "date": "Tuesday, November 4, 2025",
+          "endTime": "10:00 PM",
+          "hours": 13,
+          "id": "Tuesday__November_4__2025_9_00_AM_10_00_PM",
+          "startTime": "9:00 AM"
+        }
+      ],
+      "volunteerName": "Jod Louis"
+    }
+  ]
+}

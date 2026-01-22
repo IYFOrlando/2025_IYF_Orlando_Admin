@@ -1,0 +1,52 @@
+{
+  "collection": "academy_attendance",
+  "exportedAt": "2025-11-20T02:41:19.057Z",
+  "count": 3,
+  "documents": [
+    {
+      "id": "1lUP4DKHtcBFbyiMJrPM",
+      "reason": "",
+      "period": 1,
+      "updatedAt": "2025-08-11T21:49:43.350Z",
+      "present": true,
+      "date": "2025-08-11",
+      "level": "",
+      "studentName": "Noah Louis Morales",
+      "registrationId": "m9BzmhATRzC2Vs4ErB2e",
+      "createdAt": "2025-08-11T21:49:43.350Z",
+      "academy": "Soccer",
+      "teacherName": "Jod Louis",
+      "teacherNote": ""
+    },
+    {
+      "id": "9Y2xf8mXySZpsUZGjHfh",
+      "registrationId": "4iPNRM5LGjJfVZm8G5MB",
+      "present": true,
+      "teacherNote": "",
+      "period": 1,
+      "academy": "Soccer",
+      "level": "",
+      "date": "2025-08-11",
+      "reason": "",
+      "createdAt": "2025-08-11T21:49:43.295Z",
+      "teacherName": "Jod Louis",
+      "studentName": "Krish Gowda",
+      "updatedAt": "2025-08-11T21:49:43.295Z"
+    },
+    {
+      "id": "vJT7JCKPJYgwNI0cHYyM",
+      "present": true,
+      "level": "",
+      "teacherName": "Jod Louis",
+      "updatedAt": "2025-08-11T21:49:43.244Z",
+      "teacherNote": "",
+      "academy": "Soccer",
+      "createdAt": "2025-08-11T21:49:43.244Z",
+      "period": 1,
+      "studentName": "Cristian  Ruiz",
+      "date": "2025-08-11",
+      "reason": "",
+      "registrationId": "kdpSshJwO4oCynB9ySOl"
+    }
+  ]
+}

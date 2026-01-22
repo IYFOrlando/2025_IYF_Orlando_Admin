@@ -1,0 +1,85 @@
+{
+  "exportedAt": "2025-11-20T02:41:19.509Z",
+  "totalCollections": 19,
+  "totalDocuments": 439,
+  "results": [
+    {
+      "collection": "fall_academy_2025",
+      "count": 116
+    },
+    {
+      "collection": "volunteer_applications",
+      "count": 71
+    },
+    {
+      "collection": "trip_to_korea_applications",
+      "count": 0
+    },
+    {
+      "collection": "cooking_class_applications",
+      "count": 0
+    },
+    {
+      "collection": "kdrama_applications",
+      "count": 0
+    },
+    {
+      "collection": "newsletter_subscribers",
+      "count": 0,
+      "error": "Missing or insufficient permissions."
+    },
+    {
+      "collection": "contact_messages",
+      "count": 0,
+      "error": "Missing or insufficient permissions."
+    },
+    {
+      "collection": "events",
+      "count": 0
+    },
+    {
+      "collection": "volunteer_hours",
+      "count": 6
+    },
+    {
+      "collection": "volunteer_schedule",
+      "count": 12
+    },
+    {
+      "collection": "volunteer_codes",
+      "count": 0
+    },
+    {
+      "collection": "volunteer_commitments",
+      "count": 69
+    },
+    {
+      "collection": "academy_invoices",
+      "count": 79
+    },
+    {
+      "collection": "academy_payments",
+      "count": 81
+    },
+    {
+      "collection": "academy_attendance",
+      "count": 3
+    },
+    {
+      "collection": "academy_progress",
+      "count": 0
+    },
+    {
+      "collection": "academy_classes",
+      "count": 0
+    },
+    {
+      "collection": "academy_pricing",
+      "count": 0
+    },
+    {
+      "collection": "settings",
+      "count": 2
+    }
+  ]
+}

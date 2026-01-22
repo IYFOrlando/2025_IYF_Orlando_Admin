@@ -107,42 +107,56 @@ export const DISCOUNT_CODES = {
 
 export type DiscountCode = keyof typeof DISCOUNT_CODES
 
-// Academy Names (Period 1)
+// Academy Names (Period 1) - 2026 Spring Semester
 export const PERIOD_1_ACADEMIES = [
   'Art',
-  'DIY',
+  'English',
+  'Kids Academy',
   'Korean Language',
   'Piano',
   'Pickleball',
-  'Senior',
   'Soccer',
+  'Taekwondo',
+  // Legacy (mantener compatibilidad)
+  'DIY',
+  'Senior',
   'Stretch and Strengthen'
 ] as const
 
-// Academy Names (Period 2)
+// Academy Names (Period 2) - 2026 Spring Semester
 export const PERIOD_2_ACADEMIES = [
   'Art',
-  'DIY',
+  'English',
+  'Kids Academy',
   'Korean Language',
-  'Korean Cooking',
   'Piano',
+  'Pickleball',
+  'Soccer',
+  'Taekwondo',
+  // Legacy (mantener compatibilidad)
+  'DIY',
+  'Korean Cooking',
   'Senior',
   'Kids'
 ] as const
 
-// Academy Pricing (default prices in dollars)
+// Academy Pricing (default prices in dollars) - 2026 Spring Semester
 export const ACADEMY_DEFAULT_PRICES = {
+  'Art': 100,
+  'English': 50,
+  'Kids Academy': 50,
+  'Kids': 50, // Alias for compatibility
+  'Korean Language': 50,
+  'Piano': 100,
+  'Pickleball': 50,
+  'Soccer': 50,
+  'Taekwondo': 100,
+  // Legacy academies (mantener compatibilidad)
   'Korean Cooking': 150,
-  'Art': 80,
   'DIY': 80,
-  'Piano': 80,
-  'Korean Language': 40,
-  'Kids': 40,
-  'Soccer': 40,
-  'Pickleball': 40,
   'Senior': 40,
   'Stretch and Strengthen': 40,
-  'default': 40
+  'default': 50
 } as const
 
 // Korean Language Levels

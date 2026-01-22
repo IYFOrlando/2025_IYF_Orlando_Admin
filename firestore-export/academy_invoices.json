@@ -1,0 +1,2731 @@
+{
+  "collection": "academy_invoices",
+  "exportedAt": "2025-11-20T02:41:18.771Z",
+  "count": 79,
+  "documents": [
+    {
+      "id": "17QMqxUegBQHDxSj4oWc",
+      "discountAmount": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "lunchAmount": 0,
+      "discountNote": null,
+      "studentName": "Martha De La Fuente",
+      "total": 40,
+      "studentId": "gqf8PIPsnBDIKB5XtE0i",
+      "createdAt": "2025-08-16T16:38:05.940Z",
+      "subtotal": 40,
+      "status": "paid",
+      "method": "cash",
+      "lines": [
+        {
+          "qty": 1,
+          "amount": 40,
+          "period": 1,
+          "level": "Alphabet",
+          "academy": "Korean Language",
+          "unitPrice": 40
+        }
+      ],
+      "updatedAt": "2025-08-16T16:38:56.818Z",
+      "paid": 40,
+      "balance": 0
+    },
+    {
+      "id": "1E7tKXb1Q7izVTGULPSX",
+      "lunchAmount": 0,
+      "lines": [
+        {
+          "level": null,
+          "period": 1,
+          "amount": 80,
+          "qty": 1,
+          "unitPrice": 80,
+          "academy": "Art"
+        },
+        {
+          "qty": 1,
+          "academy": "Korean Language",
+          "amount": 40,
+          "level": "Beginner",
+          "unitPrice": 40,
+          "period": 2
+        }
+      ],
+      "status": "paid",
+      "paid": 120,
+      "discountAmount": 0,
+      "createdAt": "2025-08-16T13:53:23.656Z",
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "discountNote": null,
+      "studentName": "Fiona Lwe",
+      "method": "zelle",
+      "studentId": "FCIbwvWc8HPydPYepWBr",
+      "updatedAt": "2025-08-16T13:53:31.308Z",
+      "subtotal": 120,
+      "balance": 0,
+      "total": 120
+    },
+    {
+      "id": "1hWrEigKFHXZwaykvDcg",
+      "status": "paid",
+      "createdAt": "2025-08-23T13:50:32.317Z",
+      "balance": 0,
+      "studentName": "Judy Yett",
+      "total": 40,
+      "paid": 40,
+      "lines": [
+        {
+          "qty": 1,
+          "unitPrice": 40,
+          "level": "Alphabet",
+          "academy": "Korean Language",
+          "period": 1,
+          "amount": 40
+        }
+      ],
+      "discountAmount": 0,
+      "lunchAmount": 0,
+      "method": "cash",
+      "updatedAt": "2025-08-23T13:50:44.054Z",
+      "discountNote": null,
+      "studentId": "B98IoYc22v4n9TWDxHDy",
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false
+      },
+      "subtotal": 40
+    },
+    {
+      "id": "2QlQkVwrvnnaYNfV81Sr",
+      "discountNote": null,
+      "total": 80,
+      "paid": 80,
+      "subtotal": 80,
+      "studentName": "Sasirekha Chittibabu",
+      "studentId": "D752xPveJpvQ7LwS4ltv",
+      "method": "zelle",
+      "discountAmount": 0,
+      "lunchAmount": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0
+      },
+      "status": "paid",
+      "createdAt": "2025-08-16T16:12:04.282Z",
+      "balance": 0,
+      "lines": [
+        {
+          "amount": 80,
+          "academy": "Art",
+          "level": null,
+          "qty": 1,
+          "unitPrice": 80,
+          "period": 2
+        }
+      ],
+      "updatedAt": "2025-08-16T16:12:09.927Z"
+    },
+    {
+      "id": "2Zts0pLe9QLY377qZSsM",
+      "studentId": "NqOOBUpgfVRdVa2W6VTX",
+      "paid": 40,
+      "createdAt": "2025-08-30T18:12:36.035Z",
+      "discountAmount": 0,
+      "lunchAmount": 0,
+      "method": "cash",
+      "lines": [
+        {
+          "level": null,
+          "amount": 40,
+          "period": 1,
+          "academy": "Senior",
+          "unitPrice": 40,
+          "qty": 1
+        },
+        {
+          "amount": 40,
+          "academy": "Senior",
+          "period": 2,
+          "qty": 1,
+          "unitPrice": 40,
+          "level": null
+        }
+      ],
+      "subtotal": 80,
+      "balance": 40,
+      "updatedAt": "2025-08-30T18:12:43.281Z",
+      "total": 80,
+      "studentName": "Soon  Blake",
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "discountNote": null,
+      "status": "partial"
+    },
+    {
+      "id": "3d4SgW6NRPh1saleUCB3",
+      "discountAmount": 0,
+      "balance": 40,
+      "lunchAmount": 0,
+      "createdAt": "2025-08-30T18:12:03.479Z",
+      "subtotal": 80,
+      "studentName": "Doyle  Blake",
+      "paid": 40,
+      "lines": [
+        {
+          "academy": "Senior",
+          "period": 1,
+          "unitPrice": 40,
+          "amount": 40,
+          "level": null,
+          "qty": 1
+        },
+        {
+          "unitPrice": 40,
+          "level": null,
+          "qty": 1,
+          "academy": "Senior",
+          "amount": 40,
+          "period": 2
+        }
+      ],
+      "updatedAt": "2025-08-30T18:12:21.169Z",
+      "total": 80,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0
+      },
+      "status": "partial",
+      "studentId": "0pls9v9mBdxaDs9gvezQ",
+      "discountNote": null,
+      "method": "cash"
+    },
+    {
+      "id": "4KU8jXtqDGGPch7UTQiZ",
+      "status": "paid",
+      "subtotal": 0,
+      "lines": [],
+      "discountAmount": 0,
+      "lunch": {
+        "semesterSelected": true,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0
+      },
+      "balance": 0,
+      "updatedAt": "2025-11-15T17:54:49.258Z",
+      "lunchAmount": 40,
+      "studentId": "ML3Qmv15anbwGz53iOGh",
+      "method": "zelle",
+      "total": 40,
+      "paid": 40,
+      "studentName": "Norah Amado Santana",
+      "discountNote": null,
+      "createdAt": "2025-11-15T17:54:30.743Z"
+    },
+    {
+      "id": "4QUHtFPHICsG59kieb8B",
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false
+      },
+      "studentId": "Y5LVFtDZykWpmyyxO6m4",
+      "createdAt": "2025-08-24T01:15:40.277Z",
+      "balance": 0,
+      "updatedAt": "2025-08-30T16:43:34.134Z",
+      "studentName": "Matthew Garcia",
+      "lunchAmount": 0,
+      "paid": 150,
+      "subtotal": 150,
+      "lines": [
+        {
+          "qty": 1,
+          "amount": 150,
+          "period": 2,
+          "academy": "Korean Cooking",
+          "level": null,
+          "unitPrice": 150
+        }
+      ],
+      "status": "paid",
+      "total": 150,
+      "discountAmount": 0,
+      "method": "zelle",
+      "discountNote": null
+    },
+    {
+      "id": "5FtVCmziQ6CszctG4yh9",
+      "lines": [
+        {
+          "academy": "Korean Language",
+          "qty": 1,
+          "unitPrice": 40,
+          "period": 1,
+          "amount": 40,
+          "level": "Alphabet"
+        }
+      ],
+      "studentName": "Danuta TRUSZKOWKI",
+      "updatedAt": "2025-09-06T14:00:38.124Z",
+      "discountNote": null,
+      "status": "paid",
+      "balance": 0,
+      "total": 40,
+      "studentId": "QPhi9B0R0xisU9mf9TFT",
+      "discountAmount": 0,
+      "subtotal": 40,
+      "lunchAmount": 0,
+      "paid": 40,
+      "createdAt": "2025-09-06T14:00:28.511Z",
+      "method": "cash",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      }
+    },
+    {
+      "id": "6LnfmgBVcd5t3vc0RA8C",
+      "lunchAmount": 0,
+      "method": null,
+      "total": 40,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "studentName": "Flo Park",
+      "discountNote": null,
+      "studentId": "W82qx6S8pHzrYHAn0RQT",
+      "paid": 0,
+      "subtotal": 40,
+      "lines": [
+        {
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "level": "Beginner",
+          "amount": 40,
+          "qty": 1,
+          "period": 2
+        }
+      ],
+      "createdAt": "2025-09-13T16:47:03.277Z",
+      "discountAmount": 0,
+      "balance": 40,
+      "updatedAt": "2025-09-13T16:47:03.277Z",
+      "status": "unpaid"
+    },
+    {
+      "id": "6P6fBhwM6hfgis5lQbmh",
+      "updatedAt": "2025-08-30T16:40:17.153Z",
+      "subtotal": 120,
+      "total": 120,
+      "createdAt": "2025-08-30T16:40:10.118Z",
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false
+      },
+      "studentName": "Tyler Douglas",
+      "lunchAmount": 0,
+      "method": "cash",
+      "discountAmount": 0,
+      "status": "partial",
+      "lines": [
+        {
+          "amount": 40,
+          "qty": 1,
+          "period": 1,
+          "unitPrice": 40,
+          "level": "Alphabet",
+          "academy": "Korean Language"
+        },
+        {
+          "qty": 1,
+          "level": null,
+          "unitPrice": 80,
+          "period": 2,
+          "academy": "Piano",
+          "amount": 80
+        }
+      ],
+      "discountNote": null,
+      "studentId": "vJMkFxOAY1eshv9NEQ5E",
+      "balance": 80,
+      "paid": 40
+    },
+    {
+      "id": "8J0U1qrnwoNvnqcqZi7d",
+      "createdAt": "2025-08-16T16:54:05.769Z",
+      "studentId": "RBgkAt1DKRYAE8yL93Dd",
+      "lines": [
+        {
+          "qty": 1,
+          "academy": "Stretch and Strengthen",
+          "period": 1,
+          "unitPrice": 40,
+          "level": null,
+          "amount": 40
+        }
+      ],
+      "discountAmount": 0,
+      "status": "paid",
+      "balance": 0,
+      "updatedAt": "2025-08-16T16:54:09.552Z",
+      "total": 40,
+      "studentName": "Sefora  Acevedo",
+      "discountNote": null,
+      "lunchAmount": 0,
+      "paid": 40,
+      "subtotal": 40,
+      "method": "zelle",
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0
+      }
+    },
+    {
+      "id": "9LwgBGbQNFjzMt0EGuad",
+      "balance": 0,
+      "studentId": "ef6bcFPlK58pWXgZK7O2",
+      "total": 4,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 1,
+        "semesterSelected": false
+      },
+      "lunchAmount": 4,
+      "studentName": "Aimi Chirino",
+      "paid": 4,
+      "method": "zelle",
+      "discountNote": null,
+      "createdAt": "2025-08-24T01:46:12.062Z",
+      "subtotal": 0,
+      "lines": [],
+      "discountAmount": 0,
+      "status": "paid",
+      "updatedAt": "2025-08-24T01:46:16.955Z"
+    },
+    {
+      "id": "9UxcJYTHXqb1p46Bh6cH",
+      "paid": 150,
+      "lunchAmount": 0,
+      "status": "paid",
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "studentName": "Norah Amado Santana",
+      "method": "zelle",
+      "createdAt": {
+        "_methodName": "serverTimestamp"
+      },
+      "updatedAt": "2025-11-15T17:54:49.044Z",
+      "studentId": "ML3Qmv15anbwGz53iOGh",
+      "discountAmount": 0,
+      "subtotal": 150,
+      "balance": 0,
+      "discountNote": "Invoice for Korean Cooking",
+      "lines": [
+        {
+          "period": 2,
+          "academy": "Korean Cooking",
+          "level": null,
+          "amount": 150,
+          "qty": 1,
+          "unitPrice": 150,
+          "instructor": {
+            "phone": "407-615-9813",
+            "firstName": "Eunji",
+            "credentials": "Experience working in Korean Restaurant many years.",
+            "email": "eunjistory87@gmail.com",
+            "lastName": "Lee"
+          },
+          "instructionDates": {
+            "startDate": "2025-08-16",
+            "endDate": "2025-11-22",
+            "totalHours": 14,
+            "schedule": "Saturdays, 1 hour per class"
+          }
+        }
+      ],
+      "total": 150
+    },
+    {
+      "id": "AZIFkdMR5X2cLirHKla2",
+      "method": "zelle",
+      "updatedAt": "2025-08-23T17:15:10.358Z",
+      "studentId": "t4u0mkEfjTmrM40Olcmd",
+      "subtotal": 80,
+      "balance": 0,
+      "lines": [
+        {
+          "level": null,
+          "qty": 1,
+          "amount": 80,
+          "period": 1,
+          "academy": "Piano",
+          "unitPrice": 80
+        }
+      ],
+      "studentName": "Belia Terry",
+      "discountAmount": 0,
+      "createdAt": "2025-08-23T17:15:04.556Z",
+      "total": 80,
+      "paid": 80,
+      "discountNote": null,
+      "lunchAmount": 0,
+      "status": "paid",
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      }
+    },
+    {
+      "id": "CUIqs54PuqAaIxbhRd64",
+      "method": "zelle",
+      "total": 80,
+      "paid": 80,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "updatedAt": "2025-08-16T13:53:52.981Z",
+      "studentName": "Johannah Lwe",
+      "lines": [
+        {
+          "qty": 1,
+          "period": 1,
+          "academy": "Stretch and Strengthen",
+          "level": null,
+          "amount": 40,
+          "unitPrice": 40
+        },
+        {
+          "level": "Beginner",
+          "amount": 40,
+          "unitPrice": 40,
+          "period": 2,
+          "academy": "Korean Language",
+          "qty": 1
+        }
+      ],
+      "discountAmount": 0,
+      "lunchAmount": 0,
+      "createdAt": "2025-08-16T13:53:48.073Z",
+      "balance": 0,
+      "status": "paid",
+      "discountNote": null,
+      "subtotal": 80,
+      "studentId": "VRFaM9vRZgNrQGHO5XWv"
+    },
+    {
+      "id": "DUZ81yqgeX5cyRKkrz0s",
+      "discountAmount": 0,
+      "discountNote": null,
+      "studentName": "Menorah Lerhtoo",
+      "method": "cash",
+      "status": "paid",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "lunchAmount": 0,
+      "balance": 0,
+      "createdAt": "2025-08-16T13:30:09.007Z",
+      "lines": [
+        {
+          "academy": "Korean Language",
+          "amount": 40,
+          "qty": 1,
+          "period": 1,
+          "unitPrice": 40,
+          "level": "Alphabet"
+        }
+      ],
+      "updatedAt": "2025-08-16T13:31:14.756Z",
+      "subtotal": 40,
+      "studentId": "5gxKZV3G7kbQaZEaFdmJ",
+      "total": 40,
+      "paid": 40
+    },
+    {
+      "id": "Dcd0JNYBUqNFVmqiXLEM",
+      "method": "zelle",
+      "updatedAt": "2025-08-16T13:54:48.888Z",
+      "lunchAmount": 0,
+      "status": "paid",
+      "studentId": "STe4X94rt08PRieGGTtA",
+      "subtotal": 160,
+      "lines": [
+        {
+          "qty": 1,
+          "level": null,
+          "period": 1,
+          "amount": 80,
+          "unitPrice": 80,
+          "academy": "DIY"
+        },
+        {
+          "unitPrice": 80,
+          "amount": 80,
+          "academy": "Piano",
+          "level": null,
+          "qty": 1,
+          "period": 2
+        }
+      ],
+      "studentName": "Jefferson Aung",
+      "discountAmount": 0,
+      "total": 160,
+      "paid": 160,
+      "createdAt": "2025-08-16T13:54:42.413Z",
+      "balance": 0,
+      "discountNote": null,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      }
+    },
+    {
+      "id": "EAKHXqimO6ZOjUOIHZUA",
+      "studentId": "eW9NVCRM4iynPBvbO0hI",
+      "balance": 0,
+      "discountAmount": 0,
+      "lines": [
+        {
+          "qty": 1,
+          "amount": 80,
+          "unitPrice": 80,
+          "academy": "Art",
+          "period": 1,
+          "level": null
+        },
+        {
+          "qty": 1,
+          "level": null,
+          "period": 2,
+          "academy": "DIY",
+          "unitPrice": 80,
+          "amount": 80
+        }
+      ],
+      "discountNote": null,
+      "paid": 160,
+      "subtotal": 160,
+      "method": "zelle",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false,
+        "singleQty": 0
+      },
+      "total": 160,
+      "lunchAmount": 0,
+      "updatedAt": "2025-08-16T16:53:47.658Z",
+      "status": "paid",
+      "createdAt": "2025-08-16T16:53:45.171Z",
+      "studentName": "Aaron Acevedo"
+    },
+    {
+      "id": "EEis6tiqQc9fyAFTGWUb",
+      "status": "paid",
+      "lines": [
+        {
+          "unitPrice": 40,
+          "amount": 40,
+          "academy": "Korean Language",
+          "level": "Intermediate",
+          "qty": 1,
+          "period": 1
+        }
+      ],
+      "total": 40,
+      "paid": 40,
+      "subtotal": 40,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false,
+        "singleQty": 0
+      },
+      "studentName": "Beverly Mulligan",
+      "discountAmount": 0,
+      "updatedAt": "2025-08-16T14:03:10.236Z",
+      "discountNote": null,
+      "studentId": "DMQrSDAeumcPjiHZmuBW",
+      "method": "cash",
+      "lunchAmount": 0,
+      "createdAt": "2025-08-16T14:02:55.281Z",
+      "balance": 0
+    },
+    {
+      "id": "FhYhC8rGvNAyUnYk79vW",
+      "discountAmount": 0,
+      "updatedAt": "2025-09-13T16:42:31.795Z",
+      "method": "zelle",
+      "status": "paid",
+      "discountNote": null,
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "lines": [],
+      "lunchAmount": 4,
+      "balance": 0,
+      "subtotal": 0,
+      "total": 4,
+      "studentName": "Jason Mobley",
+      "paid": 4,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false,
+        "singleQty": 1
+      },
+      "createdAt": "2025-09-13T16:42:25.156Z"
+    },
+    {
+      "id": "G0eeb86LstedFPT9XJws",
+      "paid": 40,
+      "status": "paid",
+      "studentName": "Norah Amado Santana",
+      "total": 40,
+      "subtotal": 40,
+      "discountAmount": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "discountNote": "Invoice for Korean Language",
+      "balance": 0,
+      "method": "zelle",
+      "createdAt": {
+        "_methodName": "serverTimestamp"
+      },
+      "lines": [
+        {
+          "unitPrice": 40,
+          "instructionDates": {
+            "schedule": "Saturdays, 1 hour per class",
+            "endDate": "2025-11-22",
+            "startDate": "2025-08-16",
+            "totalHours": 14
+          },
+          "academy": "Korean Language",
+          "instructor": {
+            "credentials": "Native Korean speaker with many years of experience teaching Korean language",
+            "firstName": "Hannah",
+            "email": "hyang1970@gmail.com",
+            "lastName": "Lim",
+            "phone": "4076256701"
+          },
+          "amount": 40,
+          "period": 1,
+          "level": "Alphabet",
+          "qty": 1
+        }
+      ],
+      "studentId": "ML3Qmv15anbwGz53iOGh",
+      "lunchAmount": 0,
+      "updatedAt": "2025-11-15T17:54:49.313Z"
+    },
+    {
+      "id": "GBpW3SNUG599jZfCL89s",
+      "method": "zelle",
+      "subtotal": 40,
+      "paid": 40,
+      "createdAt": "2025-09-07T12:55:37.030Z",
+      "lunchAmount": 0,
+      "updatedAt": "2025-09-07T12:55:44.261Z",
+      "status": "paid",
+      "studentName": "Jeyliah  Cifredo",
+      "total": 40,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "balance": 0,
+      "discountAmount": 0,
+      "lines": [
+        {
+          "amount": 40,
+          "qty": 1,
+          "unitPrice": 40,
+          "level": null,
+          "academy": "Pickleball",
+          "period": 1
+        }
+      ],
+      "studentId": "8m6Gq3xal2qcLLQoR14x",
+      "discountNote": null
+    },
+    {
+      "id": "HZTuPTPlLzgXDxr0nbfT",
+      "total": 80,
+      "createdAt": "2025-08-16T14:12:06.252Z",
+      "lines": [
+        {
+          "academy": "Piano",
+          "unitPrice": 80,
+          "period": 1,
+          "level": null,
+          "amount": 80,
+          "qty": 1
+        },
+        {
+          "amount": 80,
+          "level": null,
+          "academy": "Piano",
+          "qty": 1,
+          "unitPrice": 80,
+          "period": 2
+        }
+      ],
+      "balance": 0,
+      "method": "zelle",
+      "lunchAmount": 0,
+      "studentId": "ZrG3rWnTOErqpYHsNcrI",
+      "updatedAt": "2025-08-16T14:12:19.242Z",
+      "status": "paid",
+      "paid": 80,
+      "studentName": "Charlie Merrick",
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "discountNote": null,
+      "discountAmount": 80,
+      "subtotal": 160
+    },
+    {
+      "id": "HldXrLzrFA7DjgQq7eBF",
+      "lunchAmount": 0,
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "discountNote": null,
+      "studentName": "Kyle Midgley",
+      "paid": 40,
+      "balance": 0,
+      "total": 40,
+      "studentId": "aeEGP9Fy5j5O4vnLqsXG",
+      "updatedAt": "2025-08-16T14:09:29.831Z",
+      "method": "cash",
+      "createdAt": "2025-08-16T14:09:20.267Z",
+      "status": "paid",
+      "lines": [
+        {
+          "period": 1,
+          "qty": 1,
+          "level": null,
+          "amount": 40,
+          "unitPrice": 40,
+          "academy": "Pickleball"
+        }
+      ],
+      "discountAmount": 0,
+      "subtotal": 40
+    },
+    {
+      "id": "I6lWVvLdJBHrtf2r484A",
+      "method": "zelle",
+      "updatedAt": "2025-08-16T13:53:10.710Z",
+      "lines": [
+        {
+          "amount": 80,
+          "qty": 1,
+          "unitPrice": 80,
+          "academy": "Art",
+          "period": 1,
+          "level": null
+        },
+        {
+          "period": 2,
+          "level": "Beginner",
+          "academy": "Korean Language",
+          "qty": 1,
+          "unitPrice": 40,
+          "amount": 40
+        }
+      ],
+      "studentId": "Qq6rndQN0lYgZG1HX4Co",
+      "status": "paid",
+      "createdAt": "2025-08-16T13:52:06.092Z",
+      "discountAmount": 0,
+      "discountNote": null,
+      "total": 120,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "lunchAmount": 0,
+      "studentName": "Liam Lwe",
+      "subtotal": 120,
+      "paid": 120,
+      "balance": 0
+    },
+    {
+      "id": "Iy4gDHS6TiFPOLCbQdqI",
+      "paid": 44,
+      "method": "cash",
+      "balance": 0,
+      "lunchAmount": 4,
+      "total": 4,
+      "studentId": "W82qx6S8pHzrYHAn0RQT",
+      "updatedAt": "2025-09-13T16:49:53.612Z",
+      "lines": [],
+      "subtotal": 0,
+      "discountAmount": 0,
+      "status": "paid",
+      "discountNote": null,
+      "createdAt": "2025-09-13T16:49:45.767Z",
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false,
+        "singleQty": 1
+      },
+      "studentName": "Flo Park"
+    },
+    {
+      "id": "J8BIKtV34HUJQK6OZEtV",
+      "updatedAt": "2025-08-30T16:54:32.767Z",
+      "balance": 1,
+      "paid": 11,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 3,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "discountNote": null,
+      "method": "cash",
+      "lines": [],
+      "subtotal": 0,
+      "lunchAmount": 12,
+      "discountAmount": 0,
+      "createdAt": "2025-08-30T16:54:25.612Z",
+      "studentName": "Ronith Siva",
+      "studentId": "uOxhfCSMo6x5nDv8kUpU",
+      "total": 12,
+      "status": "partial"
+    },
+    {
+      "id": "JYjQ1k5MJ3C5A94MwXHs",
+      "discountNote": null,
+      "createdAt": "2025-08-30T14:52:13.059Z",
+      "total": 40,
+      "lines": [
+        {
+          "period": 1,
+          "qty": 1,
+          "amount": 40,
+          "level": "Beginner",
+          "academy": "Korean Language",
+          "unitPrice": 40
+        }
+      ],
+      "discountAmount": 0,
+      "updatedAt": "2025-08-30T14:55:02.035Z",
+      "status": "paid",
+      "studentId": "IpbYJ0LgIL8ka4bGrvAr",
+      "balance": 0,
+      "studentName": "Echo Tantillo",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "method": "cash",
+      "paid": 40,
+      "subtotal": 40,
+      "lunchAmount": 0
+    },
+    {
+      "id": "LI2GGVu0pfULpRi9tiB7",
+      "studentName": "Michelle Rice",
+      "paid": 40,
+      "balance": 0,
+      "updatedAt": "2025-08-16T13:46:31.618Z",
+      "studentId": "jOG7fIXzF3mUklKc7bqu",
+      "lines": [
+        {
+          "level": "Beginner",
+          "period": 1,
+          "qty": 1,
+          "unitPrice": 40,
+          "amount": 40,
+          "academy": "Korean Language"
+        }
+      ],
+      "total": 40,
+      "method": "cash",
+      "discountAmount": 0,
+      "status": "paid",
+      "subtotal": 40,
+      "createdAt": "2025-08-16T13:46:15.210Z",
+      "discountNote": null,
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false
+      },
+      "lunchAmount": 0
+    },
+    {
+      "id": "LaTuWctidfdzSAuiUonk",
+      "createdAt": "2025-08-16T16:11:24.421Z",
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "balance": 0,
+      "discountAmount": 0,
+      "updatedAt": "2025-08-16T16:11:32.058Z",
+      "discountNote": null,
+      "lines": [
+        {
+          "unitPrice": 80,
+          "amount": 80,
+          "academy": "Piano",
+          "level": null,
+          "qty": 1,
+          "period": 2
+        }
+      ],
+      "total": 80,
+      "studentId": "XrQ6yIVC9M3aaR85SXiD",
+      "method": "zelle",
+      "lunchAmount": 0,
+      "paid": 80,
+      "status": "paid",
+      "studentName": "Sivaraman (Shanvith) Thulasi",
+      "subtotal": 80
+    },
+    {
+      "id": "LvOyhbVb0kV9ibkQePL3",
+      "studentName": "Judy Julien",
+      "status": "paid",
+      "lines": [
+        {
+          "amount": 40,
+          "period": 1,
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "level": "Alphabet",
+          "qty": 1
+        },
+        {
+          "qty": 1,
+          "period": 2,
+          "academy": "Korean Cooking",
+          "unitPrice": 150,
+          "level": null,
+          "amount": 150
+        }
+      ],
+      "discountNote": null,
+      "subtotal": 190,
+      "createdAt": "2025-08-16T13:56:17.176Z",
+      "studentId": "0okB4ACOsyjkAqJBVUvk",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "paid": 190,
+      "lunchAmount": 0,
+      "total": 190,
+      "balance": 0,
+      "discountAmount": 0,
+      "method": "zelle",
+      "updatedAt": "2025-08-16T13:57:20.028Z"
+    },
+    {
+      "id": "M5NqyP5prX3kiUDGDiwE",
+      "total": 40,
+      "createdAt": "2025-08-23T17:28:25.187Z",
+      "subtotal": 40,
+      "studentId": "SeX7CVtj7cofIGhBc3IM",
+      "balance": 0,
+      "method": "zelle",
+      "status": "paid",
+      "discountAmount": 0,
+      "studentName": "Joel Phyu",
+      "lunchAmount": 0,
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false
+      },
+      "paid": 40,
+      "lines": [
+        {
+          "qty": 1,
+          "amount": 40,
+          "level": null,
+          "period": 2,
+          "academy": "Kids",
+          "unitPrice": 40
+        }
+      ],
+      "updatedAt": "2025-08-23T17:28:29.435Z",
+      "discountNote": null
+    },
+    {
+      "id": "MGzuKp9tDXfVfW6sUqMR",
+      "studentId": "LYORjaQ0jFXfAi7US0Cj",
+      "lunchAmount": 0,
+      "updatedAt": "2025-08-16T13:39:50.980Z",
+      "paid": 40,
+      "status": "paid",
+      "studentName": "Jack Say",
+      "subtotal": 40,
+      "createdAt": "2025-08-16T13:39:40.847Z",
+      "discountAmount": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "balance": 0,
+      "discountNote": null,
+      "lines": [
+        {
+          "unitPrice": 40,
+          "level": null,
+          "qty": 1,
+          "academy": "Kids",
+          "period": 2,
+          "amount": 40
+        }
+      ],
+      "total": 40,
+      "method": "cash"
+    },
+    {
+      "id": "NFYSNHPhCEqNpvUvEwhS",
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "discountNote": null,
+      "paid": 40,
+      "method": "cash",
+      "balance": 0,
+      "studentName": "Alexander Lerhtoo",
+      "discountAmount": 0,
+      "updatedAt": "2025-08-16T13:27:57.057Z",
+      "status": "paid",
+      "lines": [
+        {
+          "qty": 1,
+          "amount": 40,
+          "level": null,
+          "academy": "Kids",
+          "unitPrice": 40,
+          "period": 2
+        }
+      ],
+      "total": 40,
+      "subtotal": 40,
+      "lunchAmount": 0,
+      "studentId": "OoXZzbFACPdqA86MSyqQ",
+      "createdAt": "2025-08-16T13:27:38.549Z"
+    },
+    {
+      "id": "Pm7BVuEHBpv9gWaIW1h8",
+      "studentId": "dHNloK54dHDSmmSctNxh",
+      "paid": 160,
+      "createdAt": "2025-08-16T13:21:37.938Z",
+      "subtotal": 120,
+      "studentName": "Carol Beyner",
+      "method": "cash",
+      "updatedAt": "2025-08-16T13:21:57.684Z",
+      "total": 160,
+      "discountAmount": 0,
+      "balance": 0,
+      "status": "paid",
+      "lines": [
+        {
+          "amount": 80,
+          "qty": 1,
+          "unitPrice": 80,
+          "period": 1,
+          "level": null,
+          "academy": "Art"
+        },
+        {
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "level": "Intermediate",
+          "qty": 1,
+          "period": 2,
+          "amount": 40
+        }
+      ],
+      "discountNote": null,
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": true,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "lunchAmount": 40
+    },
+    {
+      "id": "PtXnUgl9zyqcw36hYdGS",
+      "discountAmount": 0,
+      "updatedAt": "2025-08-16T14:54:32.605Z",
+      "method": "zelle",
+      "status": "paid",
+      "discountNote": null,
+      "studentId": "hgSaMrYxz5Jo29Fg1X6u",
+      "lines": [
+        {
+          "level": null,
+          "unitPrice": 40,
+          "qty": 1,
+          "period": 1,
+          "academy": "Stretch and Strengthen",
+          "amount": 40
+        }
+      ],
+      "lunchAmount": 0,
+      "balance": 0,
+      "subtotal": 40,
+      "total": 40,
+      "studentName": "Emily  Cifredo",
+      "paid": 40,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "createdAt": "2025-08-16T14:54:25.311Z"
+    },
+    {
+      "id": "Pyvzg2zr2ovIw6df5vD7",
+      "subtotal": 80,
+      "updatedAt": "2025-08-23T17:20:06.595Z",
+      "total": 80,
+      "lunchAmount": 0,
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "createdAt": "2025-08-23T17:19:55.025Z",
+      "paid": 80,
+      "balance": 0,
+      "discountAmount": 0,
+      "status": "paid",
+      "discountNote": null,
+      "lines": [
+        {
+          "qty": 1,
+          "period": 1,
+          "unitPrice": 80,
+          "level": null,
+          "amount": 80,
+          "academy": "Piano"
+        }
+      ],
+      "studentName": "Norelis Chirino",
+      "method": "zelle",
+      "studentId": "u8nlklZ6mbJdN1wp7pBI"
+    },
+    {
+      "id": "QDE46Zl4gRFsXHYHQdDy",
+      "method": "cash",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": true,
+        "singleQty": 0
+      },
+      "createdAt": "2025-08-16T16:48:57.026Z",
+      "discountAmount": 0,
+      "lines": [
+        {
+          "unitPrice": 40,
+          "amount": 40,
+          "academy": "Korean Language",
+          "qty": 1,
+          "period": 2,
+          "level": "Intermediate"
+        }
+      ],
+      "discountNote": null,
+      "studentId": "uIlO3wT2gPrnMM82ZJKg",
+      "studentName": "Shardeh  Oliver",
+      "updatedAt": "2025-08-23T17:06:24.458Z",
+      "balance": 0,
+      "subtotal": 40,
+      "lunchAmount": 40,
+      "paid": 80,
+      "status": "paid",
+      "total": 80
+    },
+    {
+      "id": "QejizU8kyYLvYqKo2qfA",
+      "lines": [
+        {
+          "amount": 40,
+          "qty": 1,
+          "level": "Alphabet",
+          "unitPrice": 40,
+          "period": 1,
+          "academy": "Korean Language"
+        }
+      ],
+      "studentId": "qYyXvoCysrORXEU9c0ZS",
+      "status": "paid",
+      "studentName": "Robert Subida",
+      "paid": 40,
+      "createdAt": "2025-08-12T01:24:07.184Z",
+      "lunchAmount": 0,
+      "total": 40,
+      "updatedAt": "2025-08-12T01:24:15.254Z",
+      "balance": 0,
+      "subtotal": 40,
+      "method": "zelle",
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false
+      },
+      "discountNote": null,
+      "discountAmount": 0
+    },
+    {
+      "id": "RL6rkFYiq3eRKaCGTnkM",
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "studentName": "Keren Vaz",
+      "method": "zelle",
+      "updatedAt": "2025-08-30T16:48:52.681Z",
+      "balance": 0,
+      "discountAmount": 0,
+      "lines": [
+        {
+          "qty": 1,
+          "academy": "Stretch and Strengthen",
+          "level": null,
+          "period": 1,
+          "amount": 40,
+          "unitPrice": 40
+        },
+        {
+          "amount": 40,
+          "academy": "Korean Language",
+          "unitPrice": 40,
+          "period": 2,
+          "qty": 1,
+          "level": "Beginner"
+        }
+      ],
+      "lunchAmount": 0,
+      "discountNote": null,
+      "studentId": "sW9YUQ7mh5g4f5I2MTWz",
+      "total": 80,
+      "status": "paid",
+      "paid": 80,
+      "subtotal": 80,
+      "createdAt": "2025-08-23T14:03:27.794Z"
+    },
+    {
+      "id": "RQNBQk731o9qz6bYEAqM",
+      "createdAt": "2025-08-23T16:40:30.453Z",
+      "studentName": "Aurelia Spade",
+      "studentId": "Q5adfhVSV6SMrsggelWq",
+      "total": 40,
+      "balance": 0,
+      "updatedAt": "2025-08-23T16:40:42.181Z",
+      "lunchAmount": 40,
+      "paid": 40,
+      "lunch": {
+        "semesterSelected": true,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "subtotal": 0,
+      "discountNote": null,
+      "method": "cash",
+      "discountAmount": 0,
+      "status": "paid",
+      "lines": []
+    },
+    {
+      "id": "SpHtoAS32lpWuOSbG6GV",
+      "discountAmount": 40,
+      "status": "exonerated",
+      "lines": [
+        {
+          "period": 1,
+          "level": null,
+          "qty": 1,
+          "academy": "Pickleball",
+          "amount": 40,
+          "unitPrice": 40
+        }
+      ],
+      "studentId": "s1r39eJN6MdBEI1bT9rz",
+      "discountNote": null,
+      "studentName": "David Choi",
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "createdAt": "2025-08-19T03:50:35.478Z",
+      "total": 0,
+      "paid": 0,
+      "updatedAt": "2025-08-19T03:50:35.624Z",
+      "balance": 0,
+      "lunchAmount": 0,
+      "method": "discount",
+      "subtotal": 40
+    },
+    {
+      "id": "TBzh9j47fGntjIDJgJ5b",
+      "studentName": "Judy Julien",
+      "total": 4,
+      "updatedAt": "2025-08-30T13:34:13.289Z",
+      "balance": 0,
+      "subtotal": 0,
+      "createdAt": "2025-08-30T13:34:00.742Z",
+      "studentId": "0okB4ACOsyjkAqJBVUvk",
+      "method": "zelle",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false,
+        "singleQty": 1
+      },
+      "lines": [],
+      "lunchAmount": 4,
+      "discountAmount": 0,
+      "discountNote": null,
+      "status": "paid",
+      "paid": 4
+    },
+    {
+      "id": "VyiUvYC4OHR1BvgfVy9L",
+      "paid": 80,
+      "method": "zelle",
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "lunchAmount": 0,
+      "discountNote": null,
+      "updatedAt": "2025-08-16T16:11:53.083Z",
+      "discountAmount": 0,
+      "status": "paid",
+      "balance": 0,
+      "createdAt": "2025-08-16T16:11:48.651Z",
+      "subtotal": 80,
+      "total": 80,
+      "studentId": "uOxhfCSMo6x5nDv8kUpU",
+      "lines": [
+        {
+          "qty": 1,
+          "period": 2,
+          "level": null,
+          "unitPrice": 80,
+          "amount": 80,
+          "academy": "Art"
+        }
+      ],
+      "studentName": "Ronith Siva"
+    },
+    {
+      "id": "W6OLV7ECWqtMjEQKTQNb",
+      "discountAmount": 0,
+      "lines": [
+        {
+          "qty": 1,
+          "academy": "Art",
+          "level": null,
+          "amount": 80,
+          "period": 1,
+          "unitPrice": 80
+        },
+        {
+          "amount": 40,
+          "qty": 1,
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "level": "Intermediate",
+          "period": 2
+        }
+      ],
+      "lunchAmount": 40,
+      "updatedAt": "2025-08-16T13:20:40.866Z",
+      "discountNote": null,
+      "paid": 160,
+      "status": "paid",
+      "lunch": {
+        "singleQty": 0,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": true
+      },
+      "studentName": "Amanda Nelson",
+      "createdAt": "2025-08-16T13:19:49.740Z",
+      "balance": 0,
+      "subtotal": 120,
+      "total": 160,
+      "studentId": "HyyIL7cqWXkaw15rFlek",
+      "method": "cash"
+    },
+    {
+      "id": "WRmW9GxhPOcNTDclADo4",
+      "paid": 44,
+      "status": "paid",
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "studentName": "Jason Mobley",
+      "lines": [
+        {
+          "qty": 1,
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "level": "Intermediate",
+          "period": 1,
+          "amount": 40
+        }
+      ],
+      "updatedAt": "2025-08-23T16:49:57.012Z",
+      "subtotal": 40,
+      "method": "zelle",
+      "discountAmount": 0,
+      "discountNote": null,
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "lunchAmount": 0,
+      "createdAt": "2025-08-23T14:48:19.676Z",
+      "balance": 0,
+      "total": 40
+    },
+    {
+      "id": "XPN0tioZAA5Kmo9H61wH",
+      "status": "paid",
+      "paid": 80,
+      "discountAmount": 0,
+      "lunchAmount": 0,
+      "updatedAt": "2025-08-24T01:17:01.402Z",
+      "total": 80,
+      "method": "zelle",
+      "createdAt": "2025-08-24T01:16:52.644Z",
+      "discountNote": null,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "balance": 0,
+      "studentName": "Poe Phyu",
+      "subtotal": 80,
+      "studentId": "B64sAJoNkcrdNyoci4b2",
+      "lines": [
+        {
+          "level": null,
+          "unitPrice": 80,
+          "qty": 1,
+          "period": 1,
+          "amount": 80,
+          "academy": "DIY"
+        }
+      ]
+    },
+    {
+      "id": "XcdQchvFoRe4FnmvYzzk",
+      "studentId": "1Eg9SLYotnCAXnX2qZZV",
+      "balance": 0,
+      "lines": [
+        {
+          "qty": 1,
+          "amount": 40,
+          "level": null,
+          "period": 1,
+          "academy": "Pickleball",
+          "unitPrice": 40
+        }
+      ],
+      "subtotal": 40,
+      "status": "exonerated",
+      "discountNote": null,
+      "method": "discount",
+      "total": 0,
+      "lunchAmount": 0,
+      "paid": 0,
+      "createdAt": "2025-08-19T03:51:06.682Z",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false,
+        "singleQty": 0
+      },
+      "updatedAt": "2025-08-19T03:51:06.825Z",
+      "studentName": "Joseph Choi",
+      "discountAmount": 40
+    },
+    {
+      "id": "Y1Q5i5ELTmB3g9udEV0m",
+      "lunchAmount": 4,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 1
+      },
+      "discountAmount": 0,
+      "status": "paid",
+      "method": "cash",
+      "discountNote": null,
+      "paid": 84,
+      "studentName": "Aurelia Spade",
+      "total": 84,
+      "studentId": "Q5adfhVSV6SMrsggelWq",
+      "createdAt": "2025-08-16T13:23:19.329Z",
+      "lines": [
+        {
+          "level": null,
+          "period": 1,
+          "unitPrice": 80,
+          "amount": 80,
+          "academy": "Art",
+          "qty": 1
+        }
+      ],
+      "updatedAt": "2025-08-16T13:24:00.847Z",
+      "balance": 0,
+      "subtotal": 80
+    },
+    {
+      "id": "Z8mgEXEGZzOKefrAiSGk",
+      "createdAt": "2025-08-16T17:15:21.523Z",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "studentId": "cZFQDbZ2AkCxEbfbmLk9",
+      "studentName": "Elias Cifredo",
+      "discountAmount": 0,
+      "paid": 80,
+      "subtotal": 80,
+      "status": "paid",
+      "balance": 0,
+      "total": 80,
+      "lines": [
+        {
+          "qty": 1,
+          "level": null,
+          "unitPrice": 80,
+          "academy": "DIY",
+          "amount": 80,
+          "period": 2
+        }
+      ],
+      "updatedAt": "2025-08-16T17:15:49.418Z",
+      "lunchAmount": 0,
+      "discountNote": null,
+      "method": "zelle"
+    },
+    {
+      "id": "cp8CeBgKfiiDOmVhbJJW",
+      "balance": 0,
+      "discountAmount": 0,
+      "paid": 80,
+      "status": "paid",
+      "method": "zelle",
+      "lines": [
+        {
+          "level": null,
+          "qty": 1,
+          "academy": "DIY",
+          "amount": 80,
+          "unitPrice": 80,
+          "period": 2
+        }
+      ],
+      "total": 80,
+      "lunchAmount": 0,
+      "discountNote": null,
+      "updatedAt": "2025-08-16T13:42:04.727Z",
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "studentName": "Menorah Lerhtoo",
+      "createdAt": "2025-08-16T13:41:49.858Z",
+      "subtotal": 80,
+      "studentId": "5gxKZV3G7kbQaZEaFdmJ"
+    },
+    {
+      "id": "djFuLVt5pUKWifbW6wBw",
+      "lines": [],
+      "discountAmount": 0,
+      "updatedAt": "2025-08-24T02:05:00.949Z",
+      "balance": 0,
+      "lunchAmount": 4,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 1,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "subtotal": 0,
+      "createdAt": "2025-08-24T02:04:48.748Z",
+      "method": "zelle",
+      "paid": 4,
+      "discountNote": null,
+      "status": "paid",
+      "studentId": "0okB4ACOsyjkAqJBVUvk",
+      "total": 4,
+      "studentName": "Judy Julien"
+    },
+    {
+      "id": "e1Uod0oCWalYq1x4XcyQ",
+      "updatedAt": "2025-08-23T17:15:24.769Z",
+      "studentId": "t4u0mkEfjTmrM40Olcmd",
+      "method": "zelle",
+      "balance": 0,
+      "paid": 4,
+      "discountNote": null,
+      "studentName": "Belia Terry",
+      "status": "paid",
+      "discountAmount": 0,
+      "total": 4,
+      "subtotal": 0,
+      "createdAt": "2025-08-23T17:15:18.607Z",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false,
+        "singleQty": 1
+      },
+      "lunchAmount": 4,
+      "lines": []
+    },
+    {
+      "id": "eQIHQdGgTabjsOlESjr9",
+      "createdAt": "2025-08-23T17:14:44.911Z",
+      "balance": 0,
+      "total": 80,
+      "subtotal": 80,
+      "method": "zelle",
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "studentName": "Aimi Chirino",
+      "discountNote": null,
+      "updatedAt": "2025-08-23T17:14:49.927Z",
+      "studentId": "ef6bcFPlK58pWXgZK7O2",
+      "lines": [
+        {
+          "unitPrice": 80,
+          "amount": 80,
+          "qty": 1,
+          "level": null,
+          "academy": "Piano",
+          "period": 1
+        }
+      ],
+      "lunchAmount": 0,
+      "status": "paid",
+      "discountAmount": 0,
+      "paid": 80
+    },
+    {
+      "id": "eX96X02hFtpNcPkBfWQt",
+      "createdAt": "2025-08-16T14:02:12.810Z",
+      "subtotal": 80,
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "method": "zelle",
+      "discountNote": null,
+      "lines": [
+        {
+          "academy": "Art",
+          "amount": 80,
+          "qty": 1,
+          "period": 1,
+          "level": null,
+          "unitPrice": 80
+        }
+      ],
+      "lunchAmount": 0,
+      "status": "paid",
+      "studentName": "Elias  Cifredo",
+      "discountAmount": 0,
+      "total": 80,
+      "studentId": "cZFQDbZ2AkCxEbfbmLk9",
+      "updatedAt": "2025-08-16T14:02:17.335Z",
+      "paid": 80,
+      "balance": 0
+    },
+    {
+      "id": "gG91cbFYZsx8GubjKmWZ",
+      "total": 230,
+      "createdAt": "2025-08-16T16:44:42.385Z",
+      "subtotal": 190,
+      "studentId": "JXW2eIxLt7ySoqgg2ePB",
+      "balance": 0,
+      "method": "zelle",
+      "status": "paid",
+      "discountAmount": 0,
+      "studentName": "Carolina García",
+      "lunchAmount": 40,
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": true,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "paid": 230,
+      "lines": [
+        {
+          "level": "Intermediate",
+          "amount": 40,
+          "academy": "Korean Language",
+          "qty": 1,
+          "unitPrice": 40,
+          "period": 1
+        },
+        {
+          "amount": 150,
+          "level": null,
+          "qty": 1,
+          "period": 2,
+          "academy": "Korean Cooking",
+          "unitPrice": 150
+        }
+      ],
+      "updatedAt": "2025-08-16T16:44:56.455Z",
+      "discountNote": null
+    },
+    {
+      "id": "gJcokagwQtWFrSFe1Eyo",
+      "lines": [],
+      "balance": 0,
+      "status": "paid",
+      "discountAmount": 0,
+      "total": 8,
+      "updatedAt": "2025-09-13T16:30:54.378Z",
+      "lunch": {
+        "singleQty": 2,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false
+      },
+      "paid": 8,
+      "studentName": "Sivaraman (Shanvith) Thulasi",
+      "lunchAmount": 8,
+      "createdAt": "2025-09-13T16:30:45.176Z",
+      "subtotal": 0,
+      "discountNote": null,
+      "studentId": "XrQ6yIVC9M3aaR85SXiD",
+      "method": "zelle"
+    },
+    {
+      "id": "gmJcWWl0DpQgP19T4Xso",
+      "method": "zelle",
+      "createdAt": "2025-08-16T13:54:10.995Z",
+      "lunchAmount": 0,
+      "discountNote": null,
+      "status": "paid",
+      "updatedAt": "2025-08-16T13:54:15.962Z",
+      "paid": 80,
+      "studentName": "Myo Lwe",
+      "studentId": "GIcw7A1x6eua1XPh8tGL",
+      "total": 80,
+      "lines": [
+        {
+          "amount": 40,
+          "period": 1,
+          "qty": 1,
+          "level": null,
+          "unitPrice": 40,
+          "academy": "Stretch and Strengthen"
+        },
+        {
+          "qty": 1,
+          "academy": "Korean Language",
+          "amount": 40,
+          "level": "Beginner",
+          "unitPrice": 40,
+          "period": 2
+        }
+      ],
+      "discountAmount": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "subtotal": 80,
+      "balance": 0
+    },
+    {
+      "id": "hJhjbGi6NdsopSnkFAJh",
+      "studentId": "aeEGP9Fy5j5O4vnLqsXG",
+      "total": 40,
+      "paid": 44,
+      "studentName": "Kyle Midgley",
+      "method": "cash",
+      "lunchAmount": 40,
+      "discountAmount": 0,
+      "discountNote": null,
+      "subtotal": 0,
+      "status": "paid",
+      "createdAt": "2025-08-30T13:39:27.140Z",
+      "updatedAt": "2025-08-30T13:40:54.902Z",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": true,
+        "singleQty": 0
+      },
+      "balance": 0,
+      "lines": []
+    },
+    {
+      "id": "k7Lhl8P84GAMkLdXxIPa",
+      "discountAmount": 0,
+      "studentId": "Y5LVFtDZykWpmyyxO6m4",
+      "paid": 120,
+      "updatedAt": "2025-08-16T16:45:14.546Z",
+      "lines": [
+        {
+          "amount": 80,
+          "period": 1,
+          "academy": "Art",
+          "unitPrice": 80,
+          "qty": 1,
+          "level": null
+        }
+      ],
+      "subtotal": 80,
+      "total": 120,
+      "balance": 0,
+      "lunch": {
+        "singleQty": 0,
+        "semesterSelected": true,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "discountNote": null,
+      "method": "zelle",
+      "createdAt": "2025-08-16T14:45:03.110Z",
+      "lunchAmount": 40,
+      "status": "paid",
+      "studentName": "Matthew Garcia"
+    },
+    {
+      "id": "l4Bqib5Inv2xSmYG7hry",
+      "discountAmount": 0,
+      "balance": 0,
+      "discountNote": null,
+      "paid": 160,
+      "subtotal": 160,
+      "createdAt": "2025-08-16T16:53:22.278Z",
+      "studentName": "Lucas Acevedo",
+      "updatedAt": "2025-08-16T16:53:26.174Z",
+      "method": "zelle",
+      "total": 160,
+      "lunchAmount": 0,
+      "lines": [
+        {
+          "level": null,
+          "qty": 1,
+          "amount": 80,
+          "academy": "Piano",
+          "unitPrice": 80,
+          "period": 1
+        },
+        {
+          "academy": "Art",
+          "period": 2,
+          "amount": 80,
+          "unitPrice": 80,
+          "level": null,
+          "qty": 1
+        }
+      ],
+      "status": "paid",
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "studentId": "ykYwTu32jtdwk1gFz20W"
+    },
+    {
+      "id": "nSyRatQhbIwQ5UMjtMin",
+      "total": 40,
+      "updatedAt": "2025-08-16T13:40:37.969Z",
+      "studentName": "Chaw  Khaing",
+      "discountAmount": 0,
+      "method": "cash",
+      "lines": [
+        {
+          "academy": "Stretch and Strengthen",
+          "amount": 40,
+          "level": null,
+          "unitPrice": 40,
+          "period": 1,
+          "qty": 1
+        }
+      ],
+      "paid": 40,
+      "subtotal": 40,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "createdAt": "2025-08-16T13:40:16.980Z",
+      "lunchAmount": 0,
+      "status": "paid",
+      "discountNote": null,
+      "studentId": "DQhaqMwJZ1WzCJ8ccnxv",
+      "balance": 0
+    },
+    {
+      "id": "ntEN3FyoGudXsBjk8PpS",
+      "lines": [
+        {
+          "level": "Intermediate",
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "period": 1,
+          "amount": 40,
+          "qty": 1
+        },
+        {
+          "amount": 150,
+          "qty": 1,
+          "unitPrice": 150,
+          "level": null,
+          "academy": "Korean Cooking",
+          "period": 2
+        }
+      ],
+      "updatedAt": "2025-08-23T13:27:48.591Z",
+      "studentId": "TDPfWeQd8cgDn6W3642R",
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "subtotal": 190,
+      "createdAt": "2025-08-16T16:41:10.008Z",
+      "paid": 190,
+      "discountNote": null,
+      "lunchAmount": 0,
+      "status": "paid",
+      "total": 190,
+      "studentName": "Nicole Weaver",
+      "discountAmount": 0,
+      "method": "cash",
+      "balance": 0
+    },
+    {
+      "id": "oYkOlHVMDIfHG1AmBlVc",
+      "createdAt": "2025-09-13T16:42:09.080Z",
+      "studentId": "B98IoYc22v4n9TWDxHDy",
+      "updatedAt": "2025-09-13T16:42:09.080Z",
+      "studentName": "Judy Yett",
+      "method": null,
+      "discountAmount": 0,
+      "paid": 0,
+      "subtotal": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 1,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "lunchAmount": 4,
+      "total": 4,
+      "balance": 4,
+      "status": "unpaid",
+      "discountNote": null,
+      "lines": []
+    },
+    {
+      "id": "pD6Bcdr3z9zyScdwvCba",
+      "studentId": "yJR9UD2ZaCLVTrkDX9ta",
+      "studentName": "Hanna Phyu",
+      "lines": [
+        {
+          "unitPrice": 80,
+          "period": 1,
+          "academy": "DIY",
+          "level": null,
+          "amount": 80,
+          "qty": 1
+        }
+      ],
+      "updatedAt": "2025-08-23T17:26:21.250Z",
+      "discountAmount": 0,
+      "subtotal": 80,
+      "total": 80,
+      "paid": 80,
+      "method": "zelle",
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "discountNote": null,
+      "createdAt": "2025-08-23T17:25:46.173Z",
+      "lunchAmount": 0,
+      "balance": 0,
+      "status": "paid"
+    },
+    {
+      "id": "q5ugrhqTUtzJzZe2SLFC",
+      "status": "exonerated",
+      "studentId": "m9BzmhATRzC2Vs4ErB2e",
+      "subtotal": 80,
+      "studentName": "Noah Louis Morales",
+      "discountAmount": 80,
+      "paid": 0,
+      "updatedAt": "2025-08-19T03:50:11.005Z",
+      "balance": 0,
+      "method": "discount",
+      "lunchAmount": 0,
+      "lines": [
+        {
+          "period": 1,
+          "unitPrice": 40,
+          "qty": 1,
+          "level": null,
+          "amount": 40,
+          "academy": "Soccer"
+        },
+        {
+          "period": 2,
+          "level": null,
+          "qty": 1,
+          "unitPrice": 40,
+          "academy": "Kids",
+          "amount": 40
+        }
+      ],
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false,
+        "singleQty": 0
+      },
+      "createdAt": "2025-08-19T03:50:10.863Z",
+      "total": 0,
+      "discountNote": "100% discount for teachers"
+    },
+    {
+      "id": "qK1MJzFK8xSUAv9AKRM3",
+      "lunchAmount": 0,
+      "status": "exonerated",
+      "total": 0,
+      "balance": 0,
+      "studentName": "Daniel Choi",
+      "lines": [
+        {
+          "academy": "Pickleball",
+          "unitPrice": 40,
+          "level": null,
+          "period": 1,
+          "amount": 40,
+          "qty": 1
+        }
+      ],
+      "discountAmount": 40,
+      "paid": 0,
+      "method": "discount",
+      "studentId": "Nm252oBpkiu5hRmhfrG1",
+      "subtotal": 40,
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": false
+      },
+      "createdAt": "2025-08-19T03:50:54.818Z",
+      "updatedAt": "2025-08-19T03:50:54.954Z",
+      "discountNote": null
+    },
+    {
+      "id": "r3pZBMsqxtposlIXcC4C",
+      "subtotal": 40,
+      "discountAmount": 0,
+      "paid": 40,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "balance": 0,
+      "lunchAmount": 0,
+      "total": 40,
+      "updatedAt": "2025-08-16T14:15:02.416Z",
+      "lines": [
+        {
+          "period": 1,
+          "level": "Alphabet",
+          "qty": 1,
+          "academy": "Korean Language",
+          "unitPrice": 40,
+          "amount": 40
+        }
+      ],
+      "studentName": "Maritza Subida",
+      "discountNote": null,
+      "createdAt": "2025-08-16T14:14:55.476Z",
+      "status": "paid",
+      "studentId": "z3Em9fs7cxFrmI2VItjh",
+      "method": "zelle"
+    },
+    {
+      "id": "s9ymCXBcyz569hPqKgbG",
+      "studentName": "Elana Wartell",
+      "discountNote": null,
+      "paid": 0,
+      "method": null,
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0,
+        "semesterSelected": true
+      },
+      "createdAt": "2025-08-23T16:39:47.768Z",
+      "lunchAmount": 40,
+      "updatedAt": "2025-08-23T16:39:47.768Z",
+      "subtotal": 0,
+      "studentId": "JYkVo8Qm5N5H7Sw3wfO4",
+      "lines": [],
+      "discountAmount": 0,
+      "total": 40,
+      "balance": 40,
+      "status": "unpaid"
+    },
+    {
+      "id": "sHED5xhlewiAIqtJmLuO",
+      "total": 40,
+      "studentName": "Brother  Cifredo",
+      "lines": [
+        {
+          "academy": "Korean Language",
+          "amount": 40,
+          "unitPrice": 40,
+          "level": "Alphabet",
+          "period": 1,
+          "qty": 1
+        }
+      ],
+      "discountNote": null,
+      "status": "paid",
+      "lunchAmount": 0,
+      "createdAt": "2025-08-16T14:00:11.321Z",
+      "updatedAt": "2025-08-16T14:00:19.720Z",
+      "subtotal": 40,
+      "studentId": "udpngi30PaSxrVMLIq8v",
+      "method": "zelle",
+      "discountAmount": 0,
+      "balance": 0,
+      "paid": 40,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      }
+    },
+    {
+      "id": "sVERmf10ShR4beoSVmfY",
+      "discountNote": null,
+      "lunchAmount": 40,
+      "balance": 0,
+      "status": "paid",
+      "studentId": "bGieR4EAzV1XYBhRyCsK",
+      "lines": [
+        {
+          "unitPrice": 40,
+          "academy": "Korean Language",
+          "level": "Beginner",
+          "period": 1,
+          "qty": 1,
+          "amount": 40
+        }
+      ],
+      "updatedAt": "2025-08-16T13:34:00.182Z",
+      "paid": 80,
+      "total": 80,
+      "discountAmount": 0,
+      "studentName": "Azalee Nelson",
+      "method": "zelle",
+      "subtotal": 40,
+      "createdAt": "2025-08-16T13:33:47.545Z",
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "singleQty": 0,
+        "semesterSelected": true
+      }
+    },
+    {
+      "id": "t8FPwu1r157ZFcyLShdF",
+      "total": 40,
+      "lines": [
+        {
+          "academy": "Pickleball",
+          "period": 1,
+          "amount": 40,
+          "level": null,
+          "unitPrice": 40,
+          "qty": 1
+        }
+      ],
+      "createdAt": "2025-08-16T14:04:45.330Z",
+      "discountAmount": 0,
+      "discountNote": null,
+      "studentName": "Esiah  Cifredo",
+      "lunch": {
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "semesterSelected": false,
+        "singleQty": 0
+      },
+      "lunchAmount": 0,
+      "updatedAt": "2025-08-16T14:04:56.726Z",
+      "subtotal": 40,
+      "paid": 40,
+      "status": "paid",
+      "balance": 0,
+      "studentId": "UfjeabXHAkBC5sOAPuPY",
+      "method": "cash"
+    },
+    {
+      "id": "tf8ul1iiPP94TTLJ5nJk",
+      "createdAt": "2025-08-30T16:49:26.428Z",
+      "discountAmount": 0,
+      "paid": 0,
+      "lines": [],
+      "balance": 4,
+      "status": "unpaid",
+      "lunchAmount": 4,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 1,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "total": 4,
+      "discountNote": null,
+      "method": null,
+      "studentId": "sW9YUQ7mh5g4f5I2MTWz",
+      "updatedAt": "2025-08-30T16:49:26.428Z",
+      "subtotal": 0,
+      "studentName": "Keren Vaz"
+    },
+    {
+      "id": "uStAv4SKkgJ5WtySfMLR",
+      "subtotal": 0,
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "status": "paid",
+      "discountNote": null,
+      "method": "zelle",
+      "paid": 4,
+      "createdAt": "2025-09-07T12:59:28.759Z",
+      "lines": [],
+      "lunch": {
+        "singleQty": 1,
+        "semesterSelected": false,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "balance": 0,
+      "studentName": "Jason Mobley",
+      "discountAmount": 0,
+      "total": 4,
+      "updatedAt": "2025-09-07T12:59:35.231Z",
+      "lunchAmount": 4
+    },
+    {
+      "id": "vbhG9p5N2X4T8F568q4F",
+      "discountAmount": 0,
+      "balance": 0,
+      "lines": [
+        {
+          "level": null,
+          "academy": "Senior",
+          "amount": 40,
+          "unitPrice": 40,
+          "period": 1,
+          "qty": 1
+        },
+        {
+          "level": null,
+          "unitPrice": 0,
+          "qty": 1,
+          "academy": "No Academy",
+          "amount": 0,
+          "period": 2
+        }
+      ],
+      "createdAt": "2025-08-16T13:18:59.542Z",
+      "updatedAt": "2025-08-16T13:19:17.266Z",
+      "studentId": "O6EBmoLButunFIHLV9zN",
+      "subtotal": 40,
+      "status": "paid",
+      "discountNote": null,
+      "method": "cash",
+      "total": 80,
+      "paid": 80,
+      "lunchAmount": 40,
+      "lunch": {
+        "semesterSelected": true,
+        "singleQty": 0,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        }
+      },
+      "studentName": "America Navarro"
+    },
+    {
+      "id": "yD02XXE1d57Pz80XNBaB",
+      "paid": 4,
+      "subtotal": 0,
+      "studentId": "u8nlklZ6mbJdN1wp7pBI",
+      "method": "zelle",
+      "total": 4,
+      "studentName": "Norelis Chirino",
+      "lunchAmount": 4,
+      "lunch": {
+        "semesterSelected": false,
+        "singleQty": 1,
+        "prices": {
+          "semester": 40,
+          "single": 4
+        }
+      },
+      "discountAmount": 0,
+      "lines": [],
+      "createdAt": "2025-08-23T17:20:14.553Z",
+      "balance": 0,
+      "discountNote": null,
+      "status": "paid",
+      "updatedAt": "2025-08-23T17:20:22.663Z"
+    },
+    {
+      "id": "yRiJCIi8b4oTGp0kbxGF",
+      "discountNote": null,
+      "studentName": "Elana Wartell",
+      "subtotal": 40,
+      "total": 40,
+      "discountAmount": 0,
+      "lunchAmount": 0,
+      "lunch": {
+        "semesterSelected": false,
+        "prices": {
+          "single": 4,
+          "semester": 40
+        },
+        "singleQty": 0
+      },
+      "studentId": "JYkVo8Qm5N5H7Sw3wfO4",
+      "lines": [
+        {
+          "academy": "Korean Language",
+          "qty": 1,
+          "period": 1,
+          "amount": 40,
+          "level": "Beginner",
+          "unitPrice": 40
+        }
+      ],
+      "createdAt": "2025-08-16T13:44:33.086Z",
+      "balance": 0,
+      "method": "cash",
+      "paid": 40,
+      "status": "paid",
+      "updatedAt": "2025-08-16T13:44:42.014Z"
+    },
+    {
+      "id": "zfolflBu1857ps7qllz4",
+      "subtotal": 40,
+      "studentId": "ckcU9GcQLYXwsMexNNyh",
+      "lunchAmount": 0,
+      "status": "paid",
+      "studentName": "URSULA  TERRY",
+      "lines": [
+        {
+          "academy": "Stretch and Strengthen",
+          "period": 1,
+          "qty": 1,
+          "amount": 40,
+          "level": null,
+          "unitPrice": 40
+        }
+      ],
+      "discountNote": null,
+      "paid": 40,
+      "lunch": {
+        "prices": {
+          "semester": 40,
+          "single": 4
+        },
+        "semesterSelected": false,
+        "singleQty": 0
+      },
+      "total": 40,
+      "createdAt": "2025-08-23T17:13:25.659Z",
+      "method": "zelle",
+      "discountAmount": 0,
+      "balance": 0,
+      "updatedAt": "2025-08-23T17:13:29.169Z"
+    }
+  ]
+}

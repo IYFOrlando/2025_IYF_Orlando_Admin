@@ -1,0 +1,33 @@
+{
+  "collection": "settings",
+  "exportedAt": "2025-11-20T02:41:19.509Z",
+  "count": 2,
+  "documents": [
+    {
+      "id": "pricing",
+      "lunch": {
+        "single": 4,
+        "semester": 40
+      },
+      "academyPrices": {
+        "Soccer": 40,
+        "Stretch and Strengthen": 40,
+        "Kids": 40,
+        "Senior": 40,
+        "Korean Cooking": 150,
+        "Pickleball": 40,
+        "Korean Language": 40,
+        "DIY": 80,
+        "Art": 80,
+        "Piano": 80
+      },
+      "updatedAt": "2025-08-11T19:14:11.344Z"
+    },
+    {
+      "id": "roles",
+      "admins": [
+        "zOE4dCG10dNt2rbdhhUfCXbUWHp1"
+      ]
+    }
+  ]
+}

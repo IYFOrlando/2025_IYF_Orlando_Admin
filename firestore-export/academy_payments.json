@@ -1,0 +1,655 @@
+{
+  "collection": "academy_payments",
+  "exportedAt": "2025-11-20T02:41:18.932Z",
+  "count": 81,
+  "documents": [
+    {
+      "id": "0Aa7n8qY3i3E256gvTox",
+      "invoiceId": "QDE46Zl4gRFsXHYHQdDy",
+      "createdAt": "2025-08-16T16:49:13.173Z",
+      "amount": 40,
+      "studentId": "uIlO3wT2gPrnMM82ZJKg",
+      "method": "cash"
+    },
+    {
+      "id": "0HxrvywQyuxjggypThDD",
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "method": "cash",
+      "amount": 4,
+      "createdAt": "2025-08-23T16:49:19.454Z",
+      "invoiceId": "WRmW9GxhPOcNTDclADo4"
+    },
+    {
+      "id": "16hJUuZlnYbYhwWG02GF",
+      "studentId": "ef6bcFPlK58pWXgZK7O2",
+      "method": "zelle",
+      "amount": 80,
+      "invoiceId": "eQIHQdGgTabjsOlESjr9",
+      "createdAt": "2025-08-23T17:14:49.792Z"
+    },
+    {
+      "id": "2D2fWm6oIdKHHlZ0HLfh",
+      "amount": 40,
+      "createdAt": "2025-08-16T16:38:56.693Z",
+      "invoiceId": "17QMqxUegBQHDxSj4oWc",
+      "studentId": "gqf8PIPsnBDIKB5XtE0i",
+      "method": "cash"
+    },
+    {
+      "id": "2dnZgRg57DBQoYupHpJC",
+      "amount": 40,
+      "method": "cash",
+      "createdAt": "2025-08-30T18:12:21.026Z",
+      "invoiceId": "3d4SgW6NRPh1saleUCB3",
+      "studentId": "0pls9v9mBdxaDs9gvezQ"
+    },
+    {
+      "id": "2w5nPfkmfjAGcApbVLvN",
+      "method": "cash",
+      "invoiceId": "JYjQ1k5MJ3C5A94MwXHs",
+      "amount": 40,
+      "studentId": "IpbYJ0LgIL8ka4bGrvAr",
+      "createdAt": "2025-08-30T14:55:01.852Z"
+    },
+    {
+      "id": "4oo0GRP432GOVz7SgPRI",
+      "amount": 80,
+      "method": "zelle",
+      "createdAt": "2025-08-16T14:02:17.183Z",
+      "studentId": "cZFQDbZ2AkCxEbfbmLk9",
+      "invoiceId": "eX96X02hFtpNcPkBfWQt"
+    },
+    {
+      "id": "4p3yo49Er0iO584Q3ai4",
+      "createdAt": "2025-08-23T17:28:29.296Z",
+      "invoiceId": "M5NqyP5prX3kiUDGDiwE",
+      "method": "zelle",
+      "studentId": "SeX7CVtj7cofIGhBc3IM",
+      "amount": 40
+    },
+    {
+      "id": "4w22bBa43N6H3sdL8CgT",
+      "method": "zelle",
+      "studentId": "ML3Qmv15anbwGz53iOGh",
+      "createdAt": "2025-11-15T17:54:48.947Z",
+      "amount": 40,
+      "invoiceId": "G0eeb86LstedFPT9XJws"
+    },
+    {
+      "id": "51mXtG0aPYc4ycyh7rLZ",
+      "amount": 80,
+      "studentId": "ZrG3rWnTOErqpYHsNcrI",
+      "invoiceId": "HZTuPTPlLzgXDxr0nbfT",
+      "createdAt": "2025-08-16T14:12:19.052Z",
+      "method": "zelle"
+    },
+    {
+      "id": "5mfLxh2vDeLVlfge957H",
+      "invoiceId": "SpHtoAS32lpWuOSbG6GV",
+      "method": "discount",
+      "amount": 0,
+      "createdAt": "2025-08-19T03:50:35.759Z",
+      "studentId": "s1r39eJN6MdBEI1bT9rz"
+    },
+    {
+      "id": "6nfzXsWUTTTLtOjp00Jd",
+      "createdAt": "2025-08-16T14:00:19.512Z",
+      "studentId": "udpngi30PaSxrVMLIq8v",
+      "method": "zelle",
+      "invoiceId": "sHED5xhlewiAIqtJmLuO",
+      "amount": 40
+    },
+    {
+      "id": "89VZqrJUE5zDKDiutlWl",
+      "invoiceId": "l4Bqib5Inv2xSmYG7hry",
+      "createdAt": "2025-08-16T16:53:26.054Z",
+      "amount": 160,
+      "studentId": "ykYwTu32jtdwk1gFz20W",
+      "method": "zelle"
+    },
+    {
+      "id": "94A3WFlB7TZ86JYKUgQu",
+      "createdAt": "2025-08-16T13:44:41.888Z",
+      "method": "cash",
+      "invoiceId": "yRiJCIi8b4oTGp0kbxGF",
+      "studentId": "JYkVo8Qm5N5H7Sw3wfO4",
+      "amount": 40
+    },
+    {
+      "id": "9OAHwkTfjwiKalLQDBmw",
+      "invoiceId": "8J0U1qrnwoNvnqcqZi7d",
+      "studentId": "RBgkAt1DKRYAE8yL93Dd",
+      "amount": 40,
+      "method": "zelle",
+      "createdAt": "2025-08-16T16:54:09.422Z"
+    },
+    {
+      "id": "AJZwfUT6U4DxBk97ncz5",
+      "method": "zelle",
+      "createdAt": "2025-08-30T16:48:52.480Z",
+      "invoiceId": "RL6rkFYiq3eRKaCGTnkM",
+      "amount": 40,
+      "studentId": "sW9YUQ7mh5g4f5I2MTWz"
+    },
+    {
+      "id": "AtJ1LoLXD5kK5cbUjyvk",
+      "method": "zelle",
+      "createdAt": "2025-08-30T16:43:33.994Z",
+      "amount": 150,
+      "studentId": "Y5LVFtDZykWpmyyxO6m4",
+      "invoiceId": "4QUHtFPHICsG59kieb8B"
+    },
+    {
+      "id": "BoZjR4f6i3EqlsscIMdy",
+      "amount": 40,
+      "studentId": "sW9YUQ7mh5g4f5I2MTWz",
+      "createdAt": "2025-08-23T14:03:34.860Z",
+      "method": "cash",
+      "invoiceId": "RL6rkFYiq3eRKaCGTnkM"
+    },
+    {
+      "id": "CAMyvnXh0ORW3sNusfNP",
+      "amount": 160,
+      "invoiceId": "W6OLV7ECWqtMjEQKTQNb",
+      "method": "cash",
+      "createdAt": "2025-08-16T13:20:40.733Z",
+      "studentId": "HyyIL7cqWXkaw15rFlek"
+    },
+    {
+      "id": "CQYbWRiKao1foFtfzjl9",
+      "createdAt": "2025-08-23T16:49:56.885Z",
+      "invoiceId": "WRmW9GxhPOcNTDclADo4",
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "amount": 40,
+      "method": "zelle"
+    },
+    {
+      "id": "D3B0MUWk7h4QCXKSgH39",
+      "method": "cash",
+      "studentId": "TDPfWeQd8cgDn6W3642R",
+      "amount": 140,
+      "invoiceId": "ntEN3FyoGudXsBjk8PpS",
+      "createdAt": "2025-08-16T16:41:12.639Z"
+    },
+    {
+      "id": "DrOcPiWOFpzwJV63q79x",
+      "createdAt": "2025-09-07T12:55:44.127Z",
+      "studentId": "8m6Gq3xal2qcLLQoR14x",
+      "method": "zelle",
+      "amount": 40,
+      "invoiceId": "GBpW3SNUG599jZfCL89s"
+    },
+    {
+      "id": "FYceKGIhKYDeZLgW8Y4u",
+      "studentId": "t4u0mkEfjTmrM40Olcmd",
+      "invoiceId": "AZIFkdMR5X2cLirHKla2",
+      "createdAt": "2025-08-23T17:15:10.223Z",
+      "amount": 80,
+      "method": "zelle"
+    },
+    {
+      "id": "FtXgo5J6vUCBDpqYJ2Ss",
+      "studentId": "dHNloK54dHDSmmSctNxh",
+      "method": "cash",
+      "invoiceId": "Pm7BVuEHBpv9gWaIW1h8",
+      "createdAt": "2025-08-16T13:21:57.549Z",
+      "amount": 160
+    },
+    {
+      "id": "GkwcsXmJ2Ujtnb6pqnzo",
+      "studentId": "eW9NVCRM4iynPBvbO0hI",
+      "createdAt": "2025-08-16T16:53:47.556Z",
+      "invoiceId": "EAKHXqimO6ZOjUOIHZUA",
+      "method": "zelle",
+      "amount": 160
+    },
+    {
+      "id": "HydSDL4aWtw9ZFnVbwGR",
+      "invoiceId": "CUIqs54PuqAaIxbhRd64",
+      "createdAt": "2025-08-16T13:53:52.850Z",
+      "amount": 80,
+      "studentId": "VRFaM9vRZgNrQGHO5XWv",
+      "method": "zelle"
+    },
+    {
+      "id": "IiK7H2JFtCGPq5zHChbX",
+      "invoiceId": "r3pZBMsqxtposlIXcC4C",
+      "method": "zelle",
+      "amount": 40,
+      "studentId": "z3Em9fs7cxFrmI2VItjh",
+      "createdAt": "2025-08-16T14:15:02.283Z"
+    },
+    {
+      "id": "KWg2xf4Da88Y5GAnQPSr",
+      "studentId": "Q5adfhVSV6SMrsggelWq",
+      "amount": 40,
+      "createdAt": "2025-08-23T16:40:42.060Z",
+      "method": "cash",
+      "invoiceId": "RQNBQk731o9qz6bYEAqM"
+    },
+    {
+      "id": "MbETLRb56vifhx1e2TMI",
+      "invoiceId": "DUZ81yqgeX5cyRKkrz0s",
+      "studentId": "5gxKZV3G7kbQaZEaFdmJ",
+      "createdAt": "2025-08-16T13:31:14.628Z",
+      "amount": 40,
+      "method": "cash"
+    },
+    {
+      "id": "O252eFQ64Rmn1HFrVX6K",
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "invoiceId": "uStAv4SKkgJ5WtySfMLR",
+      "createdAt": "2025-09-07T12:59:35.096Z",
+      "method": "zelle",
+      "amount": 4
+    },
+    {
+      "id": "OCh1HV9YG2a8RCxpFUTn",
+      "studentId": "NqOOBUpgfVRdVa2W6VTX",
+      "method": "cash",
+      "amount": 40,
+      "invoiceId": "2Zts0pLe9QLY377qZSsM",
+      "createdAt": "2025-08-30T18:12:43.140Z"
+    },
+    {
+      "id": "ODQBdzURPQo7eL9HquQ4",
+      "studentId": "bGieR4EAzV1XYBhRyCsK",
+      "invoiceId": "sVERmf10ShR4beoSVmfY",
+      "amount": 80,
+      "method": "zelle",
+      "createdAt": "2025-08-16T13:34:00.028Z"
+    },
+    {
+      "id": "ObvW3qTFrN6UP5ZYJmJx",
+      "method": "cash",
+      "amount": 11,
+      "studentId": "uOxhfCSMo6x5nDv8kUpU",
+      "createdAt": "2025-08-30T16:54:32.622Z",
+      "invoiceId": "J8BIKtV34HUJQK6OZEtV"
+    },
+    {
+      "id": "PraPUfAc5jxQaAaKyOOB",
+      "method": "cash",
+      "createdAt": "2025-08-16T13:46:31.469Z",
+      "studentId": "jOG7fIXzF3mUklKc7bqu",
+      "amount": 40,
+      "invoiceId": "LI2GGVu0pfULpRi9tiB7"
+    },
+    {
+      "id": "Q5tqX9NlBBbUBlyVqUzy",
+      "createdAt": "2025-08-19T03:50:11.158Z",
+      "invoiceId": "q5ugrhqTUtzJzZe2SLFC",
+      "studentId": "m9BzmhATRzC2Vs4ErB2e",
+      "amount": 0,
+      "method": "discount"
+    },
+    {
+      "id": "QU27DZpiRcAjeJTXi0vB",
+      "amount": 4,
+      "studentId": "ef6bcFPlK58pWXgZK7O2",
+      "method": "zelle",
+      "invoiceId": "9LwgBGbQNFjzMt0EGuad",
+      "createdAt": "2025-08-24T01:46:16.808Z"
+    },
+    {
+      "id": "V2WDm2qYup2C31g0WTi4",
+      "amount": 40,
+      "createdAt": "2025-09-06T14:00:37.997Z",
+      "invoiceId": "5FtVCmziQ6CszctG4yh9",
+      "method": "cash",
+      "studentId": "QPhi9B0R0xisU9mf9TFT"
+    },
+    {
+      "id": "WeMQUk5y24aq8MOoOpcM",
+      "invoiceId": "NFYSNHPhCEqNpvUvEwhS",
+      "amount": 40,
+      "studentId": "OoXZzbFACPdqA86MSyqQ",
+      "createdAt": "2025-08-16T13:27:56.917Z",
+      "method": "cash"
+    },
+    {
+      "id": "XiAqgHijZCYefIjIpaUN",
+      "method": "zelle",
+      "studentId": "STe4X94rt08PRieGGTtA",
+      "createdAt": "2025-08-16T13:54:48.667Z",
+      "amount": 160,
+      "invoiceId": "Dcd0JNYBUqNFVmqiXLEM"
+    },
+    {
+      "id": "XjDIkzfhKLPRMstP5jlS",
+      "studentId": "LYORjaQ0jFXfAi7US0Cj",
+      "amount": 40,
+      "method": "cash",
+      "createdAt": "2025-08-16T13:39:50.867Z",
+      "invoiceId": "MGzuKp9tDXfVfW6sUqMR"
+    },
+    {
+      "id": "Y0TuP6AnHBz8NXTJng2o",
+      "method": "zelle",
+      "amount": 80,
+      "invoiceId": "LaTuWctidfdzSAuiUonk",
+      "createdAt": "2025-08-16T16:11:31.921Z",
+      "studentId": "XrQ6yIVC9M3aaR85SXiD"
+    },
+    {
+      "id": "YUgXtYRkrBRXvxqvsc6M",
+      "createdAt": "2025-08-16T13:54:15.840Z",
+      "invoiceId": "gmJcWWl0DpQgP19T4Xso",
+      "studentId": "GIcw7A1x6eua1XPh8tGL",
+      "amount": 80,
+      "method": "zelle"
+    },
+    {
+      "id": "bMIMfms1FJjFylSsEkvr",
+      "studentId": "JXW2eIxLt7ySoqgg2ePB",
+      "amount": 230,
+      "method": "zelle",
+      "createdAt": "2025-08-16T16:44:56.337Z",
+      "invoiceId": "gG91cbFYZsx8GubjKmWZ"
+    },
+    {
+      "id": "d1XfrScpk7IsRt5snLGA",
+      "createdAt": "2025-08-23T17:13:29.043Z",
+      "studentId": "ckcU9GcQLYXwsMexNNyh",
+      "amount": 40,
+      "method": "zelle",
+      "invoiceId": "zfolflBu1857ps7qllz4"
+    },
+    {
+      "id": "dvJEjQYNZOYSjEkeHTcJ",
+      "createdAt": "2025-08-16T14:04:56.584Z",
+      "studentId": "UfjeabXHAkBC5sOAPuPY",
+      "invoiceId": "t8FPwu1r157ZFcyLShdF",
+      "amount": 40,
+      "method": "cash"
+    },
+    {
+      "id": "evFT3Ls1UQfD3VM9nzfr",
+      "invoiceId": "XcdQchvFoRe4FnmvYzzk",
+      "createdAt": "2025-08-19T03:51:06.978Z",
+      "method": "discount",
+      "studentId": "1Eg9SLYotnCAXnX2qZZV",
+      "amount": 0
+    },
+    {
+      "id": "exsdrHRZVmbFMlhQDVbw",
+      "createdAt": "2025-08-16T16:45:14.421Z",
+      "studentId": "Y5LVFtDZykWpmyyxO6m4",
+      "amount": 20,
+      "invoiceId": "k7Lhl8P84GAMkLdXxIPa",
+      "method": "zelle"
+    },
+    {
+      "id": "fUsJbNIONDauU31e1R8j",
+      "invoiceId": "gJcokagwQtWFrSFe1Eyo",
+      "method": "zelle",
+      "amount": 8,
+      "createdAt": "2025-09-13T16:30:54.256Z",
+      "studentId": "XrQ6yIVC9M3aaR85SXiD"
+    },
+    {
+      "id": "gCLgNfhb8yTDZqMSadNy",
+      "method": "cash",
+      "amount": 44,
+      "studentId": "W82qx6S8pHzrYHAn0RQT",
+      "createdAt": "2025-09-13T16:49:53.481Z",
+      "invoiceId": "Iy4gDHS6TiFPOLCbQdqI"
+    },
+    {
+      "id": "gkVRkdWq0KPvlHwBPuwU",
+      "studentId": "B64sAJoNkcrdNyoci4b2",
+      "amount": 80,
+      "method": "zelle",
+      "createdAt": "2025-08-24T01:17:01.260Z",
+      "invoiceId": "XPN0tioZAA5Kmo9H61wH"
+    },
+    {
+      "id": "hGWAGyXR3jZthZaj5aGV",
+      "amount": 4,
+      "invoiceId": "TBzh9j47fGntjIDJgJ5b",
+      "method": "zelle",
+      "studentId": "0okB4ACOsyjkAqJBVUvk",
+      "createdAt": "2025-08-30T13:34:13.150Z"
+    },
+    {
+      "id": "hp3FGK1kdmTI7Crugazl",
+      "studentId": "uOxhfCSMo6x5nDv8kUpU",
+      "amount": 80,
+      "createdAt": "2025-08-16T16:11:52.937Z",
+      "invoiceId": "VyiUvYC4OHR1BvgfVy9L",
+      "method": "zelle"
+    },
+    {
+      "id": "jWHJuVetHnDDGT37m7qq",
+      "invoiceId": "QDE46Zl4gRFsXHYHQdDy",
+      "studentId": "uIlO3wT2gPrnMM82ZJKg",
+      "amount": 40,
+      "createdAt": "2025-08-23T17:06:24.338Z",
+      "method": "cash"
+    },
+    {
+      "id": "jjiNmrIrXIz4BYhm0Iwc",
+      "amount": 40,
+      "invoiceId": "HldXrLzrFA7DjgQq7eBF",
+      "method": "cash",
+      "createdAt": "2025-08-16T14:09:29.680Z",
+      "studentId": "aeEGP9Fy5j5O4vnLqsXG"
+    },
+    {
+      "id": "lTPIniV6CMSQc8qElz7z",
+      "createdAt": "2025-08-23T17:26:21.113Z",
+      "amount": 80,
+      "invoiceId": "pD6Bcdr3z9zyScdwvCba",
+      "method": "zelle",
+      "studentId": "yJR9UD2ZaCLVTrkDX9ta"
+    },
+    {
+      "id": "n8sHHfLokNGCPtfukLI7",
+      "invoiceId": "e1Uod0oCWalYq1x4XcyQ",
+      "amount": 4,
+      "studentId": "t4u0mkEfjTmrM40Olcmd",
+      "createdAt": "2025-08-23T17:15:24.639Z",
+      "method": "zelle"
+    },
+    {
+      "id": "njFhNR7fbDcC7H0S37ib",
+      "method": "cash",
+      "invoiceId": "vbhG9p5N2X4T8F568q4F",
+      "createdAt": "2025-08-16T13:19:17.124Z",
+      "studentId": "O6EBmoLButunFIHLV9zN",
+      "amount": 80
+    },
+    {
+      "id": "o2TaSBbxBg51H1IH639O",
+      "createdAt": "2025-08-16T13:40:37.816Z",
+      "invoiceId": "nSyRatQhbIwQ5UMjtMin",
+      "studentId": "DQhaqMwJZ1WzCJ8ccnxv",
+      "amount": 40,
+      "method": "cash"
+    },
+    {
+      "id": "o6612oM9THvlQhZA1lk0",
+      "createdAt": "2025-08-16T17:15:49.286Z",
+      "invoiceId": "Z8mgEXEGZzOKefrAiSGk",
+      "studentId": "cZFQDbZ2AkCxEbfbmLk9",
+      "amount": 80,
+      "method": "zelle"
+    },
+    {
+      "id": "o8YCgTYKV6n2pHsivwmJ",
+      "createdAt": "2025-08-16T13:42:04.594Z",
+      "method": "zelle",
+      "invoiceId": "cp8CeBgKfiiDOmVhbJJW",
+      "amount": 80,
+      "studentId": "5gxKZV3G7kbQaZEaFdmJ"
+    },
+    {
+      "id": "oLz9w2shtmD5WKKm9Chy",
+      "createdAt": "2025-08-16T14:03:10.098Z",
+      "method": "cash",
+      "amount": 40,
+      "studentId": "DMQrSDAeumcPjiHZmuBW",
+      "invoiceId": "EEis6tiqQc9fyAFTGWUb"
+    },
+    {
+      "id": "oNmxZGTIRgzZwk4fcxgG",
+      "invoiceId": "1hWrEigKFHXZwaykvDcg",
+      "method": "cash",
+      "createdAt": "2025-08-23T13:50:43.927Z",
+      "studentId": "B98IoYc22v4n9TWDxHDy",
+      "amount": 40
+    },
+    {
+      "id": "oS5ve4HA8wzA52id1BRP",
+      "amount": 40,
+      "method": "cash",
+      "invoiceId": "6P6fBhwM6hfgis5lQbmh",
+      "createdAt": "2025-08-30T16:40:17.017Z",
+      "studentId": "vJMkFxOAY1eshv9NEQ5E"
+    },
+    {
+      "id": "p5zUL06azyXyVIlsB2J1",
+      "amount": 80,
+      "invoiceId": "2QlQkVwrvnnaYNfV81Sr",
+      "studentId": "D752xPveJpvQ7LwS4ltv",
+      "method": "zelle",
+      "createdAt": "2025-08-16T16:12:09.819Z"
+    },
+    {
+      "id": "p9KWpbyMAnXz0yjjJk5n",
+      "method": "discount",
+      "createdAt": "2025-08-19T03:50:55.104Z",
+      "amount": 0,
+      "studentId": "Nm252oBpkiu5hRmhfrG1",
+      "invoiceId": "qK1MJzFK8xSUAv9AKRM3"
+    },
+    {
+      "id": "pOtIxqTCf1OcYhRamL8j",
+      "invoiceId": "4KU8jXtqDGGPch7UTQiZ",
+      "studentId": "ML3Qmv15anbwGz53iOGh",
+      "amount": 40,
+      "createdAt": "2025-11-15T17:54:48.886Z",
+      "method": "zelle"
+    },
+    {
+      "id": "pk28rEFTgoHXoRvjxE7L",
+      "invoiceId": "9UxcJYTHXqb1p46Bh6cH",
+      "method": "zelle",
+      "amount": 150,
+      "studentId": "ML3Qmv15anbwGz53iOGh",
+      "createdAt": "2025-11-15T17:54:48.794Z"
+    },
+    {
+      "id": "serOYaQXcf283wqSuBbJ",
+      "amount": 40,
+      "createdAt": "2025-08-16T14:54:32.454Z",
+      "method": "zelle",
+      "studentId": "hgSaMrYxz5Jo29Fg1X6u",
+      "invoiceId": "PtXnUgl9zyqcw36hYdGS"
+    },
+    {
+      "id": "tGSAAenb6ycaHtc7PVoL",
+      "studentId": "u8nlklZ6mbJdN1wp7pBI",
+      "method": "zelle",
+      "createdAt": "2025-08-23T17:20:22.229Z",
+      "invoiceId": "yD02XXE1d57Pz80XNBaB",
+      "amount": 4
+    },
+    {
+      "id": "tn7mSqyxIr2OPe2uAarO",
+      "method": "cash",
+      "createdAt": "2025-08-16T13:24:00.704Z",
+      "amount": 84,
+      "invoiceId": "Y1Q5i5ELTmB3g9udEV0m",
+      "studentId": "Q5adfhVSV6SMrsggelWq"
+    },
+    {
+      "id": "uRciJLGDOBoiifBaUwuh",
+      "method": "zelle",
+      "amount": 120,
+      "studentId": "FCIbwvWc8HPydPYepWBr",
+      "createdAt": "2025-08-16T13:53:31.166Z",
+      "invoiceId": "1E7tKXb1Q7izVTGULPSX"
+    },
+    {
+      "id": "ulTjmZdCfYBfLTAOAM3d",
+      "invoiceId": "LvOyhbVb0kV9ibkQePL3",
+      "method": "zelle",
+      "createdAt": "2025-08-16T13:57:19.659Z",
+      "amount": 190,
+      "studentId": "0okB4ACOsyjkAqJBVUvk"
+    },
+    {
+      "id": "viWKs69u8twYlGIdT6oK",
+      "studentId": "TYJIiSz6GYuYyxKav4FA",
+      "amount": 4,
+      "invoiceId": "FhYhC8rGvNAyUnYk79vW",
+      "method": "zelle",
+      "createdAt": "2025-09-13T16:42:31.613Z"
+    },
+    {
+      "id": "wBK2JeXW8IpVQP4OWMqk",
+      "amount": 120,
+      "createdAt": "2025-08-16T13:53:10.575Z",
+      "invoiceId": "I6lWVvLdJBHrtf2r484A",
+      "method": "zelle",
+      "studentId": "Qq6rndQN0lYgZG1HX4Co"
+    },
+    {
+      "id": "wkFR5vznZFhVwI3XExtR",
+      "studentId": "0okB4ACOsyjkAqJBVUvk",
+      "method": "zelle",
+      "amount": 4,
+      "invoiceId": "djFuLVt5pUKWifbW6wBw",
+      "createdAt": "2025-08-24T02:05:00.809Z"
+    },
+    {
+      "id": "xLHTpQVr3CR4eoTugxym",
+      "amount": 0,
+      "studentId": "s1r39eJN6MdBEI1bT9rz",
+      "method": "discount",
+      "createdAt": "2025-08-19T03:28:21.756Z",
+      "invoiceId": "FTHCbra5IfUbP0AogP60"
+    },
+    {
+      "id": "xtx4mGKbSu5i6QXe4Rq2",
+      "createdAt": "2025-08-23T13:27:48.446Z",
+      "method": "cash",
+      "amount": 50,
+      "invoiceId": "ntEN3FyoGudXsBjk8PpS",
+      "studentId": "TDPfWeQd8cgDn6W3642R"
+    },
+    {
+      "id": "yqDop1JvLXRNbwfme29t",
+      "studentId": "m9BzmhATRzC2Vs4ErB2e",
+      "amount": 0,
+      "invoiceId": "dcrhx32q8nRS9hmJJv3S",
+      "createdAt": "2025-08-19T03:17:23.317Z",
+      "method": "discount"
+    },
+    {
+      "id": "zK18JG2wCjQqParVUiPg",
+      "invoiceId": "hJhjbGi6NdsopSnkFAJh",
+      "method": "cash",
+      "studentId": "aeEGP9Fy5j5O4vnLqsXG",
+      "amount": 44,
+      "createdAt": "2025-08-30T13:40:54.761Z"
+    },
+    {
+      "id": "zMZ1eiKTrfZFcoCzzfQX",
+      "studentId": "Y5LVFtDZykWpmyyxO6m4",
+      "invoiceId": "k7Lhl8P84GAMkLdXxIPa",
+      "method": "cash",
+      "amount": 100,
+      "createdAt": "2025-08-16T14:45:19.695Z"
+    },
+    {
+      "id": "zrlLJqjYdSaeiNsjflRG",
+      "studentId": "u8nlklZ6mbJdN1wp7pBI",
+      "method": "zelle",
+      "createdAt": "2025-08-23T17:20:06.460Z",
+      "invoiceId": "Pyvzg2zr2ovIw6df5vD7",
+      "amount": 80
+    }
+  ]
+}

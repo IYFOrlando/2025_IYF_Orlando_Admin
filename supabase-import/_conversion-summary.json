@@ -1,0 +1,52 @@
+{
+  "convertedAt": "2025-11-20T02:42:26.607Z",
+  "totalTables": 9,
+  "totalRecords": 439,
+  "tables": [
+    {
+      "tableName": "academy_attendance",
+      "collectionName": "academy_attendance",
+      "recordCount": 3
+    },
+    {
+      "tableName": "academy_invoices",
+      "collectionName": "academy_invoices",
+      "recordCount": 79
+    },
+    {
+      "tableName": "academy_payments",
+      "collectionName": "academy_payments",
+      "recordCount": 81
+    },
+    {
+      "tableName": "fall_academy_2025",
+      "collectionName": "fall_academy_2025",
+      "recordCount": 116
+    },
+    {
+      "tableName": "settings",
+      "collectionName": "settings",
+      "recordCount": 2
+    },
+    {
+      "tableName": "volunteer_applications",
+      "collectionName": "volunteer_applications",
+      "recordCount": 71
+    },
+    {
+      "tableName": "volunteer_commitments",
+      "collectionName": "volunteer_commitments",
+      "recordCount": 69
+    },
+    {
+      "tableName": "volunteer_hours",
+      "collectionName": "volunteer_hours",
+      "recordCount": 6
+    },
+    {
+      "tableName": "volunteer_schedule",
+      "collectionName": "volunteer_schedule",
+      "recordCount": 12
+    }
+  ]
+}

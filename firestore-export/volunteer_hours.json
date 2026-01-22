@@ -1,0 +1,142 @@
+{
+  "collection": "volunteer_hours",
+  "exportedAt": "2025-11-20T02:41:17.797Z",
+  "count": 6,
+  "documents": [
+    {
+      "id": "JQ9203AMJvXWw9xuaF7F",
+      "eventName": "Taste of Korea - Pre-Event Preparation Period",
+      "checkInTime": "2025-10-31T13:08:39.625Z",
+      "updatedAt": "2025-11-03T20:18:13.412Z",
+      "volunteerName": "Jod",
+      "totalHours": 12.86,
+      "eventId": "taste-of-korea-preparation",
+      "volunteerEmail": "ing.jod@gmail.com",
+      "createdAt": "2025-10-31T13:08:39.625Z",
+      "checkInLocation": {
+        "latitude": 28.809608082214023,
+        "longitude": -81.26825257191402,
+        "_type": "geopoint"
+      },
+      "checkOutLocation": null,
+      "checkOutTime": {
+        "seconds": 1761962400,
+        "nanoseconds": 0
+      },
+      "volunteerId": "PBGCLV",
+      "status": "checked-out"
+    },
+    {
+      "id": "KlY8FqEDrPyELd1H3j5N",
+      "status": "checked-out",
+      "eventName": "Taste of Korea - Pre-Event Preparation Period",
+      "createdAt": "2025-10-28T23:01:01.290Z",
+      "updatedAt": "2025-10-28T23:05:11.884Z",
+      "volunteerName": "Jod",
+      "volunteerId": "D24SOJ",
+      "checkInLocation": {
+        "latitude": 28.8129024,
+        "longitude": -81.26464,
+        "_type": "geopoint"
+      },
+      "totalHours": 0.07,
+      "checkInTime": "2025-10-28T23:01:01.290Z",
+      "checkOutTime": "2025-10-28T23:05:11.884Z",
+      "checkOutLocation": {
+        "latitude": 28.8129024,
+        "longitude": -81.26464,
+        "_type": "geopoint"
+      },
+      "volunteerEmail": "jlouis@iyfusa.org",
+      "eventId": "taste-of-korea-preparation"
+    },
+    {
+      "id": "LmsfKPPTLWhkpbiZcYg6",
+      "status": "checked-out",
+      "eventName": "Taste of Korea - Pre-Event Preparation Period",
+      "createdAt": "2025-10-30T22:33:06.489Z",
+      "volunteerEmail": "danielchoi0423@gmail.com",
+      "checkOutLocation": null,
+      "updatedAt": "2025-11-03T20:18:40.333Z",
+      "checkInTime": "2025-10-30T22:33:06.489Z",
+      "totalHours": 3.45,
+      "eventId": "taste-of-korea-preparation",
+      "checkInLocation": {
+        "latitude": 28.8094109,
+        "longitude": -81.268335,
+        "_type": "geopoint"
+      },
+      "volunteerName": "Daniel",
+      "volunteerId": "UFOO23",
+      "checkOutTime": {
+        "seconds": 1761876000,
+        "nanoseconds": 0
+      }
+    },
+    {
+      "id": "VCy4rObpeP1fm3gFpDMS",
+      "status": "checked-out",
+      "volunteerId": "PBGCLV",
+      "eventId": "taste-of-korea-preparation",
+      "volunteerEmail": "ing.jod@gmail.com",
+      "volunteerName": "Jod",
+      "totalHours": 10.18,
+      "updatedAt": "2025-10-29T23:10:31.123Z",
+      "createdAt": "2025-10-29T12:59:58.425Z",
+      "checkOutTime": "2025-10-29T23:10:31.123Z",
+      "checkInTime": "2025-10-29T12:59:58.425Z",
+      "checkInLocation": {
+        "latitude": 28.80947538864202,
+        "longitude": -81.26839966368455,
+        "_type": "geopoint"
+      },
+      "checkOutLocation": {
+        "latitude": 28.80975704934022,
+        "longitude": -81.26877935065025,
+        "_type": "geopoint"
+      },
+      "eventName": "Taste of Korea - Pre-Event Preparation Period"
+    },
+    {
+      "id": "bHQgeoZAfjujZmlRsrOG",
+      "eventName": "Taste of Korea - Pre-Event Preparation Period",
+      "checkInLocation": {
+        "latitude": 28.8063488,
+        "longitude": -81.26464,
+        "_type": "geopoint"
+      },
+      "volunteerId": "PBGCLV",
+      "eventId": "taste-of-korea-preparation",
+      "createdAt": "2025-11-03T20:14:31.866Z",
+      "volunteerName": "Jod",
+      "volunteerEmail": "ing.jod@gmail.com",
+      "status": "checked-in",
+      "updatedAt": "2025-11-03T20:14:31.866Z",
+      "checkInTime": "2025-11-03T20:14:31.866Z"
+    },
+    {
+      "id": "mbGsRVb0fbN7IxKOjBXR",
+      "volunteerId": "PBGCLV",
+      "status": "checked-out",
+      "createdAt": "2025-10-28T22:59:15.026Z",
+      "checkOutLocation": {
+        "latitude": 28.8129024,
+        "longitude": -81.26464,
+        "_type": "geopoint"
+      },
+      "updatedAt": "2025-10-28T23:06:02.647Z",
+      "volunteerEmail": "ing.jod@gmail.com",
+      "totalHours": 0.11,
+      "checkInTime": "2025-10-28T22:59:15.026Z",
+      "checkInLocation": {
+        "latitude": 28.8129024,
+        "longitude": -81.26464,
+        "_type": "geopoint"
+      },
+      "checkOutTime": "2025-10-28T23:06:02.647Z",
+      "volunteerName": "Jod",
+      "eventId": "taste-of-korea-preparation",
+      "eventName": "Taste of Korea - Pre-Event Preparation Period"
+    }
+  ]
+}

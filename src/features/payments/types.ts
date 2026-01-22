@@ -23,8 +23,9 @@ export type LunchPricing = {
 
 export type InvoiceLine = {
   academy: string
-  period: 1 | 2
+  period: 1 | 2 | null // null for 2026 (no periods), kept for backward compatibility
   level?: string | null
+  schedule?: string | null // Schedule for the academy (2026)
   unitPrice: number
   qty: number
   amount: number

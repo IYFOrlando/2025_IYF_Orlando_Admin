@@ -16,4 +16,5 @@ export type Registration = {
   firstPeriod?: Period
   secondPeriod?: Period
   createdAt?: any
+  isDuplicate?: boolean // Mark duplicate registrations
 }

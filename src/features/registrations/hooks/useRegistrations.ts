@@ -1,9 +1,10 @@
 import * as React from 'react'
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import type { Registration } from '../types'
 
-export const REG_COLLECTION = 'fall_academy_2025'
+export const REG_COLLECTION = COLLECTIONS_CONFIG.fallAcademy
 
 export function useRegistrations() {
   const [data, setData] = React.useState<Registration[]>([])

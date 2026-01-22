@@ -5,6 +5,7 @@ import {
 } from '@mui/material'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import { useEmailDatabase } from '../../emails/hooks/useEmailDatabase'
+import { useAutoInvoice } from '../../registrations/hooks/useAutoInvoice'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { displayYMD } from '../../../lib/date'
@@ -17,63 +18,75 @@ type KoreanLevelRow = { level: string; count: number }
 export default function DashboardPage() {
   const { data, loading } = useRegistrations()
   const { getUniqueEmails, getEmailsBySource } = useEmailDatabase()
+  
+  // Auto-create invoices for new registrations
+  useAutoInvoice(true)
 
-  const { totals, p1Rows, p2Rows, koreanLevelRows } = React.useMemo(() => {
-    const p1 = new Map<string, number>()
-    const p2 = new Map<string, number>()
+  const { totals, academyRows, koreanLevelRows } = React.useMemo(() => {
+    const academies = new Map<string, number>()
     const koreanLevels = new Map<string, number>()
 
+    // 2026 Structure: Process selectedAcademies array (no periods)
     for (const r of data) {
-      const a1 = r?.firstPeriod?.academy
-      const a2 = r?.secondPeriod?.academy
+      // NEW STRUCTURE (2026): Check for selectedAcademies array
+      if ((r as any).selectedAcademies && Array.isArray((r as any).selectedAcademies)) {
+        const selectedAcademies = (r as any).selectedAcademies
+        selectedAcademies.forEach((academyData: any) => {
+          if (academyData.academy && normalizeAcademy(academyData.academy) !== 'n/a') {
+            const key = normalizeAcademy(academyData.academy)
+            academies.set(key, (academies.get(key) || 0) + 1)
+            
+            // Track Korean Language levels
+            if (key === 'korean language' && academyData.level) {
+              const level = normalizeLevel(academyData.level)
+              koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+            }
+          }
+        })
+      } 
+      // LEGACY STRUCTURE: Support firstPeriod/secondPeriod for backward compatibility
+      else {
+        const a1 = r?.firstPeriod?.academy
+        const a2 = r?.secondPeriod?.academy
 
-      // Period 1 academy tally
-      if (a1 && normalizeAcademy(a1) !== 'n/a') {
-        const key = normalizeAcademy(a1)
-        p1.set(key, (p1.get(key) || 0) + 1)
-        
-        // Track Korean Language levels
-        if (key === 'Korean Language' && r.firstPeriod?.level) {
-          const level = normalizeLevel(r.firstPeriod.level)
-          koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+        if (a1 && normalizeAcademy(a1) !== 'n/a') {
+          const key = normalizeAcademy(a1)
+          academies.set(key, (academies.get(key) || 0) + 1)
+          
+          if (key === 'korean language' && r.firstPeriod?.level) {
+            const level = normalizeLevel(r.firstPeriod.level)
+            koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+          }
         }
-      }
 
-      // Period 2 academy tally
-      if (a2 && normalizeAcademy(a2) !== 'n/a') {
-        const key = normalizeAcademy(a2)
-        p2.set(key, (p2.get(key) || 0) + 1)
-        
-        // Track Korean Language levels
-        if (key === 'Korean Language' && r.secondPeriod?.level) {
-          const level = normalizeLevel(r.secondPeriod.level)
-          koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+        if (a2 && normalizeAcademy(a2) !== 'n/a') {
+          const key = normalizeAcademy(a2)
+          academies.set(key, (academies.get(key) || 0) + 1)
+          
+          if (key === 'korean language' && r.secondPeriod?.level) {
+            const level = normalizeLevel(r.secondPeriod.level)
+            koreanLevels.set(level, (koreanLevels.get(level) || 0) + 1)
+          }
         }
       }
     }
 
-    // Define academies available in each period
-    const p1Academies = [
-      'Art', 'DIY', 'Korean Language', 'Piano',
-      'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen'
-    ]
-    
-    const p2Academies = [
-      'Art', 'DIY', 'Korean Language', 'Korean Cooking', 'Piano',
-      'Senior', 'Kids'
+    // 2026 Spring Semester Academies
+    const availableAcademies = [
+      'Art',
+      'English',
+      'Kids Academy',
+      'Korean Language',
+      'Piano',
+      'Pickleball',
+      'Soccer',
+      'Taekwondo'
     ]
 
-    const p1Rows: CountRow[] = p1Academies
+    const academyRows: CountRow[] = availableAcademies
       .map(academy => ({ 
         academy, 
-        count: p1.get(academy) || 0 
-      }))
-      .sort((a, b) => b.count - a.count)
-
-    const p2Rows: CountRow[] = p2Academies
-      .map(academy => ({ 
-        academy, 
-        count: p2.get(academy) || 0 
+        count: academies.get(normalizeAcademy(academy)) || 0 
       }))
       .sort((a, b) => b.count - a.count)
 
@@ -81,13 +94,14 @@ export default function DashboardPage() {
       .map(([level, count]) => ({ level, count }))
       .sort((a, b) => b.count - a.count)
 
+    const totalAcademies = academyRows.reduce((s, r) => s + r.count, 0)
+
     const totals = {
       registrations: data.length,
-      p1Total: p1Rows.reduce((s, r) => s + r.count, 0),
-      p2Total: p2Rows.reduce((s, r) => s + r.count, 0),
+      totalAcademies,
     }
 
-    return { totals, p1Rows, p2Rows, koreanLevelRows }
+    return { totals, academyRows, koreanLevelRows }
   }, [data])
 
   const exportPDF = () => {
@@ -111,7 +125,8 @@ export default function DashboardPage() {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(20)
     doc.setTextColor(0, 0, 0) // Black color
-    doc.text('2025 Fall Academy Report', pageWidth / 2, 70, { align: 'center' })
+    const currentYear = new Date().getFullYear()
+    doc.text(`${currentYear} Spring Academy Report`, pageWidth / 2, 70, { align: 'center' })
     
     // Subtitle
     doc.setFont('helvetica', 'normal')
@@ -140,8 +155,7 @@ export default function DashboardPage() {
       head: [['Metric', 'Value']],
       body: [
         ['Total Registrations', String(totals.registrations)],
-        ['Total Period 1', String(totals.p1Total)],
-        ['Total Period 2', String(totals.p2Total)],
+        ['Total Academy Selections', String(totals.totalAcademies)],
       ],
       theme: 'grid',
       margin: { left: marginX, right: marginX },
@@ -149,31 +163,11 @@ export default function DashboardPage() {
 
 
 
-    // Period 1 with enhanced styling
+    // Academies (2026 - No periods)
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 20,
-      head: [['Academy', 'Count (Period 1)']],
-      body: p1Rows.map(r => [r.academy, r.count]),
-      theme: 'grid',
-      margin: { left: marginX, right: marginX },
-      styles: { 
-        fontSize: 11,
-        cellPadding: 6,
-        lineColor: [25, 118, 210],
-        lineWidth: 0.5
-      },
-      headStyles: {
-        fillColor: [25, 118, 210],
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-    })
-
-    // Period 2 with enhanced styling
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 20,
-      head: [['Academy', 'Count (Period 2)']],
-      body: p2Rows.map(r => [r.academy, r.count]),
+      head: [['Academy', 'Count']],
+      body: academyRows.map(r => [r.academy, r.count]),
       theme: 'grid',
       margin: { left: marginX, right: marginX },
       styles: { 
@@ -218,7 +212,7 @@ export default function DashboardPage() {
     doc.setTextColor(100, 100, 100)
     doc.text('IYF Orlando', pageWidth / 2, finalY, { align: 'center' })
 
-    doc.save(`iyf-2025-fall-academy-report-${displayYMD(new Date())}.pdf`)
+    doc.save(`iyf-${currentYear}-spring-academy-report-${displayYMD(new Date())}.pdf`)
   }
 
   return (
@@ -235,16 +229,8 @@ export default function DashboardPage() {
       <Grid item xs={12} md={3}>
         <Card elevation={0} sx={{ borderRadius: 3 }}>
           <CardContent>
-            <Typography variant="h6">Total Period 1</Typography>
-            <Typography variant="h3" fontWeight={800}>{loading ? '…' : totals.p1Total}</Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} md={3}>
-        <Card elevation={0} sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <Typography variant="h6">Total Period 2</Typography>
-            <Typography variant="h3" fontWeight={800}>{loading ? '…' : totals.p2Total}</Typography>
+            <Typography variant="h6">Total Academy Selections</Typography>
+            <Typography variant="h3" fontWeight={800}>{loading ? '…' : totals.totalAcademies}</Typography>
           </CardContent>
         </Card>
       </Grid>
@@ -273,11 +259,11 @@ export default function DashboardPage() {
         </Card>
       </Grid>
 
-      {/* Period 1 */}
-      <Grid item xs={12} md={6}>
+      {/* Academies (2026 - No periods) */}
+      <Grid item xs={12}>
         <Card elevation={0} sx={{ borderRadius: 3 }}>
           <CardContent>
-            <Typography variant="h6">Period 1 — by Academy</Typography>
+            <Typography variant="h6">Academies — by Selection Count</Typography>
             <Divider sx={{ my: 2 }} />
             <Table size="small">
               <TableHead>
@@ -287,42 +273,13 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {p1Rows.map((r) => (
+                {academyRows.map((r) => (
                   <TableRow key={r.academy}>
                     <TableCell>{r.academy}</TableCell>
                     <TableCell align="right">{r.count}</TableCell>
                   </TableRow>
                 ))}
-                {p1Rows.length === 0 && (
-                  <TableRow><TableCell colSpan={2}>No entries.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Period 2 */}
-      <Grid item xs={12} md={6}>
-        <Card elevation={0} sx={{ borderRadius: 3 }}>
-          <CardContent>
-            <Typography variant="h6">Period 2 — by Academy</Typography>
-            <Divider sx={{ my: 2 }} />
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Academy</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>Count</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {p2Rows.map((r) => (
-                  <TableRow key={r.academy}>
-                    <TableCell>{r.academy}</TableCell>
-                    <TableCell align="right">{r.count}</TableCell>
-                  </TableRow>
-                ))}
-                {p2Rows.length === 0 && (
+                {academyRows.length === 0 && (
                   <TableRow><TableCell colSpan={2}>No entries.</TableCell></TableRow>
                 )}
               </TableBody>
