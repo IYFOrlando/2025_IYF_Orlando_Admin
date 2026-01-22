@@ -31,45 +31,46 @@ import { useInstructors } from '../hooks/useInstructors'
 import InvoiceDialog from '../components/InvoiceDialog'
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
+import { toCents, fromCents } from '../../../lib/money'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import { logger } from '../../../lib/logger'
-import { getDiscountByCode, ACADEMY_DEFAULT_PRICES, isKoreanCookingAcademy, isKoreanLanguageAcademy, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../../../lib/constants'
+import { getDiscountByCode, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../../../lib/constants'
+// Note: ACADEMY_DEFAULT_PRICES removed - all pricing now comes from Firestore (academies_2026_spring)
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import {
   DataGrid, GridToolbar, type GridColDef
 } from '@mui/x-data-grid'
 
-const INV = 'academy_invoices'
-const PAY = 'academy_payments'
+// Use shared configuration instead of hardcoded values
+const INV = COLLECTIONS_CONFIG.academyInvoices
+const PAY = COLLECTIONS_CONFIG.academyPayments
 
 /* ---------- helpers ---------- */
+/**
+ * Get price for an academy from Firestore pricing
+ * ALL prices come from Firestore (academies_2026_spring) - no hardcoded fallbacks
+ * @throws {Error} If pricing is not available or academy not found
+ */
 function priceFor(academy?: string, _level?: string | null, _period?: 1 | 2, pricing?: PricingDoc) {
   if (!academy) return 0
   const a = norm(academy)
   
-  // Try to get price from database first
-  if (pricing?.academyPrices?.[a] && pricing.academyPrices[a] > 0) {
+  if (!pricing) {
+    logger.error(`❌ Pricing not available from Firestore. Cannot get price for ${academy}.`)
+    throw new Error(`Pricing not available from Firestore for ${academy}. Please ensure academies_2026_spring collection is configured.`)
+  }
+  
+  // Get price from Firestore (single source of truth)
+  if (pricing.academyPrices?.[a] && pricing.academyPrices[a] > 0) {
     return Number(pricing.academyPrices[a])
   }
   
-  // Use constants for default pricing
-  if (isKoreanCookingAcademy(a)) {
-    return ACADEMY_DEFAULT_PRICES['Korean Cooking']
-  }
-  
-  if (isKoreanLanguageAcademy(a)) {
-    return ACADEMY_DEFAULT_PRICES['Korean Language']
-  }
-  
-  // Check for specific academy prices
-  const academyKey = a as keyof typeof ACADEMY_DEFAULT_PRICES
-  if (ACADEMY_DEFAULT_PRICES[academyKey]) {
-    return ACADEMY_DEFAULT_PRICES[academyKey]
-  }
-  
-  // Default pricing for any other academies
-  return ACADEMY_DEFAULT_PRICES.default
+  // Academy not found in Firestore - throw error instead of using fallback
+  const error = `Academy "${academy}" (${a}) not found in Firestore pricing. Available academies: ${Object.keys(pricing.academyPrices || {}).join(', ')}`
+  logger.error(`❌ ${error}`)
+  throw new Error(error)
 }
 
 type StudentOption = { id: string; label: string; reg: Registration }
@@ -939,8 +940,11 @@ const PaymentsPage = React.memo(() => {
       const currentPaid = Number(selectedInvoice.paid || 0)
       const remainingBalance = Math.max(0, invoiceTotal - currentPaid)
       
+      // Convert payment amount from dollars to cents (user enters dollars, store in cents)
+      const payAmountInCents = toCents(payAmount)
+      
       // Validate payment amount
-      if (Number(payAmount) > remainingBalance) {
+      if (payAmountInCents > remainingBalance) {
         return notifyError('Payment amount too large', `Maximum payment is ${usd(remainingBalance)}`)
       }
       
@@ -949,17 +953,17 @@ const PaymentsPage = React.memo(() => {
         return notifyError('Invoice already paid', 'This invoice has no remaining balance')
       }
 
-      // Create payment record
+      // Create payment record (amount stored in cents)
       await addDoc(collection(db, PAY), {
         invoiceId: selectedInvoice.id,
         studentId: student.id,
-        amount: Number(payAmount),
+        amount: payAmountInCents,
         method,
         createdAt: serverTimestamp(),
       } as any)
 
-      // Calculate new values
-      const newPaid = currentPaid + Number(payAmount)
+      // Calculate new values (all in cents)
+      const newPaid = currentPaid + payAmountInCents
       const newBalance = Math.max(0, invoiceTotal - newPaid)
       
       // Determine status: preserve 'exonerated', otherwise calculate based on payment
@@ -983,7 +987,7 @@ const PaymentsPage = React.memo(() => {
         updatedAt: serverTimestamp() 
       } as any)
 
-      notifySuccess('Payment recorded successfully', `Payment of ${usd(payAmount)} applied. Remaining balance: ${usd(newBalance)}`)
+      notifySuccess('Payment recorded successfully', `Payment of ${usd(payAmountInCents)} applied. Remaining balance: ${usd(newBalance)}`)
       
       // Reset form
       setPayAmount(0)
@@ -1022,13 +1026,16 @@ const PaymentsPage = React.memo(() => {
 
       const totalUnpaidBalance = unpaidInvoices.reduce((sum, inv) => sum + inv.balance, 0)
       
+      // Convert payment amount from dollars to cents
+      const payAmountInCents = toCents(payAmount)
+      
       // Validate payment amount
-      if (Number(payAmount) > totalUnpaidBalance) {
+      if (payAmountInCents > totalUnpaidBalance) {
         return notifyError('Payment amount too large', `Maximum payment across all invoices is ${usd(totalUnpaidBalance)}`)
       }
 
-      // Distribute payment proportionally across invoices
-      let remainingPayment = Number(payAmount)
+      // Distribute payment proportionally across invoices (all in cents)
+      let remainingPayment = payAmountInCents
       const paymentDistributions: Array<{ invoiceId: string; amount: number }> = []
 
       for (let i = 0; i < unpaidInvoices.length && remainingPayment > 0; i++) {
@@ -1043,7 +1050,7 @@ const PaymentsPage = React.memo(() => {
         } else {
           // Proportional distribution based on balance
           const proportion = invoiceBalance / totalUnpaidBalance
-          amountToApply = Math.min(remainingPayment, Number((Number(payAmount) * proportion).toFixed(2)))
+          amountToApply = Math.min(remainingPayment, Math.round(payAmountInCents * proportion))
         }
 
         if (amountToApply > 0 && amountToApply <= invoiceBalance) {
@@ -1058,7 +1065,7 @@ const PaymentsPage = React.memo(() => {
         const invoiceTotal = Number(inv.total || 0)
         const currentPaid = Number(inv.paid || 0)
         
-        // Create payment record
+        // Create payment record (amount in cents)
         await addDoc(collection(db, PAY), {
           invoiceId: inv.id,
           studentId: student.id,
@@ -1067,7 +1074,7 @@ const PaymentsPage = React.memo(() => {
           createdAt: serverTimestamp(),
         } as any)
 
-        // Calculate new values
+        // Calculate new values (all in cents)
         const newPaid = currentPaid + amount
         const newBalance = Math.max(0, invoiceTotal - newPaid)
         
@@ -1122,7 +1129,8 @@ const PaymentsPage = React.memo(() => {
       const invoiceTotal = Number(selectedInvoice.total || 0)
       const currentPaid = Number(selectedInvoice.paid || 0)
       const remainingBalance = Math.max(0, invoiceTotal - currentPaid)
-      setPayAmount(remainingBalance)
+      // Convert from cents to dollars for display in input
+      setPayAmount(fromCents(remainingBalance))
     }
   }
 
@@ -1177,15 +1185,17 @@ const PaymentsPage = React.memo(() => {
 
   const openEditPaymentDialog = (p: Payment) => {
     setEditPayment(p)
-    setEditAmount(Number(p.amount || 0))
+    // Convert from cents to dollars for display in input
+    setEditAmount(fromCents(Number(p.amount || 0)))
     setEditMethod((p.method || 'cash') as any)
     setOpenEditPay(true)
   }
   const saveEditedPayment = async () => {
     if (!editPayment) return
     const p = editPayment
-    const newAmt = Math.max(0, Number(editAmount || 0))
-    const delta = newAmt - Number(p.amount || 0)
+    // Convert from dollars to cents (user enters dollars, store in cents)
+    const newAmtInCents = toCents(editAmount)
+    const delta = newAmtInCents - Number(p.amount || 0)
 
     await runTransaction(db, async (tx) => {
       const invRef = doc(db, INV, p.invoiceId)
@@ -1201,12 +1211,12 @@ const PaymentsPage = React.memo(() => {
         (newPaid <= 0 ? 'unpaid' : (balance > 0 ? 'partial' : 'paid'))
 
       tx.update(invRef, { paid: newPaid, balance, status, updatedAt: serverTimestamp() })
-      tx.update(payRef, { amount: newAmt, method: editMethod })
+      tx.update(payRef, { amount: newAmtInCents, method: editMethod })
     })
 
     setOpenEditPay(false)
     setEditPayment(null)
-    notifySuccess('Payment updated', `${usd(newAmt)} (${editMethod.toUpperCase()})`)
+    notifySuccess('Payment updated', `${usd(newAmtInCents)} (${editMethod.toUpperCase()})`)
   }
 
   const deleteInvoice = async (inv: Invoice) => {
@@ -2669,7 +2679,7 @@ const PaymentsPage = React.memo(() => {
                                 setApplyToAllInvoices(e.target.checked)
                                 if (e.target.checked) {
                                   // Auto-fill with total balance when enabling
-                                  setPayAmount(totalStudentBalance)
+                                  setPayAmount(fromCents(totalStudentBalance))
                                 }
                               }}
                             />
@@ -2766,7 +2776,7 @@ const PaymentsPage = React.memo(() => {
                           color="primary"
                           onClick={() => {
                             setApplyToAllInvoices(true)
-                            setPayAmount(totalStudentBalance)
+                            setPayAmount(fromCents(totalStudentBalance))
                           }}
                           fullWidth
                         >
@@ -2924,11 +2934,34 @@ const PaymentsPage = React.memo(() => {
 
       {/* Edit payment dialog */}
       <Dialog open={editPaymentOpen} onClose={()=>setEditPaymentOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Edit payment</DialogTitle>
+        <DialogTitle>Edit Payment</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-
-
+            <TextField 
+              type="number" 
+              label="Amount ($)" 
+              value={editPaymentAmount} 
+              onChange={(e)=>setEditPaymentAmount(Math.max(0, Number(e.target.value || 0)))} 
+              inputProps={{ min: 0, step: 0.01 }}
+              fullWidth
+            />
+            <TextField 
+              select 
+              label="Method" 
+              value={editPaymentMethod} 
+              onChange={(e)=>setEditPaymentMethod(e.target.value as any)}
+              fullWidth
+            >
+              <MenuItem value="cash">Cash</MenuItem>
+              <MenuItem value="zelle">Zelle</MenuItem>
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={()=>setEditPaymentOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={saveEditedPayment}>Save</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Payment Details Dialog */}
       <Dialog open={paymentDetailsOpen} onClose={() => setPaymentDetailsOpen(false)} fullWidth maxWidth="md">
@@ -2987,18 +3020,6 @@ const PaymentsPage = React.memo(() => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPaymentDetailsOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-            <TextField type="number" label="Amount" value={editPaymentAmount} onChange={(e)=>setEditPaymentAmount(Number(e.target.value||0))} />
-            <TextField select label="Method" value={editPaymentMethod} onChange={(e)=>setEditPaymentMethod(e.target.value as any)}>
-              <MenuItem value="cash">Cash</MenuItem>
-              <MenuItem value="zelle">Zelle</MenuItem>
-            </TextField>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={()=>setEditPaymentOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveEditedPayment}>Save</Button>
         </DialogActions>
       </Dialog>
 

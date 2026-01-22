@@ -140,7 +140,15 @@ export const PERIOD_2_ACADEMIES = [
   'Kids'
 ] as const
 
-// Academy Pricing (default prices in dollars) - 2026 Spring Semester
+/**
+ * @deprecated Academy Pricing - DO NOT USE
+ * All academy prices now come from Firestore (academies_2026_spring collection)
+ * This constant is kept only for backward compatibility with legacy code
+ * New code should always use pricing from Firestore via getPricing() function
+ * 
+ * To update prices, modify the academies_2026_spring collection in Firestore
+ * Single source of truth: academies_2026_spring collection
+ */
 export const ACADEMY_DEFAULT_PRICES = {
   'Art': 100,
   'English': 50,

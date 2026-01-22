@@ -1,6 +1,10 @@
 /**
  * Auto Invoice Generator
  * Automatically creates invoices when new registrations are created
+ * 
+ * IMPORTANT: ALL pricing data comes from Firestore (academies_2026_spring collection)
+ * No hardcoded fallbacks - single source of truth is Firestore
+ * This ensures DRY principle - pricing is managed in one place only
  */
 
 import { 
@@ -10,8 +14,6 @@ import {
   where, 
   getDocs, 
   serverTimestamp,
-  doc,
-  getDoc,
   orderBy
 } from 'firebase/firestore'
 import { db } from './firebase'
@@ -21,52 +23,53 @@ import type { Registration } from '../features/registrations/types'
 import type { Invoice, InvoiceLine } from '../features/payments/types'
 import type { PricingDoc } from '../features/payments/types'
 
-const PRICING_DOC_PATH = ['settings', 'pricing'] as const
-const ACADEMIES_COLLECTION = 'academies_2026_spring'
-
 /**
  * Get pricing configuration from Firestore
- * Tries to get from settings/pricing first, then from academies collection
+ * ALL data comes from academies_2026_spring collection - no hardcoded fallbacks
+ * Single source of truth: academies_2026_spring
  */
 async function getPricing(): Promise<PricingDoc | null> {
   try {
-    // First try settings/pricing
-    const pricingRef = doc(db, ...PRICING_DOC_PATH)
-    const pricingSnap = await getDoc(pricingRef)
-    if (pricingSnap.exists()) {
-      return pricingSnap.data() as PricingDoc
+    // Single source of truth: academies_2026_spring collection
+    const academyCollectionName = COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring'
+    
+    const academiesRef = collection(db, academyCollectionName)
+    const academiesSnapshot = await getDocs(query(academiesRef, orderBy('order', 'asc')))
+    
+    if (academiesSnapshot.empty) {
+      logger.error(`⚠️ Academy collection ${academyCollectionName} is empty. Please ensure academies are configured in Firestore.`)
+      throw new Error(`No academies found in ${academyCollectionName}. Please configure academies in Firestore first.`)
     }
     
-    // If not found, try to build from academies collection
-    try {
-      const academiesRef = collection(db, ACADEMIES_COLLECTION)
-      const academiesSnapshot = await getDocs(query(academiesRef, orderBy('order', 'asc')))
-      
-      const academyPrices: Record<string, number> = {}
-      academiesSnapshot.forEach((docSnap) => {
-        const academy = docSnap.data()
-        if (academy.name && typeof academy.price === 'number') {
-          // Store in cents (academy.price is in dollars, convert to cents)
-          const normalized = normalizeAcademy(academy.name)
-          academyPrices[normalized] = academy.price * 100
-        }
-      })
-      
-      if (Object.keys(academyPrices).length > 0) {
-        return {
-          academyPrices,
-          lunch: { semester: 40, single: 4 },
-          currency: 'USD',
-        } as PricingDoc
+    const academyPrices: Record<string, number> = {}
+    academiesSnapshot.forEach((docSnap) => {
+      const academy = docSnap.data()
+      if (academy.name && typeof academy.price === 'number') {
+        // Store in cents (academy.price is in dollars, convert to cents)
+        const normalized = normalizeAcademy(academy.name)
+        academyPrices[normalized] = academy.price * 100
+        logger.debug(`Loaded academy price: ${academy.name} -> ${normalized} = $${academy.price} (${academy.price * 100} cents)`)
       }
-    } catch (academiesError) {
-      logger.warn('Could not fetch from academies collection', academiesError)
+    })
+    
+    if (Object.keys(academyPrices).length === 0) {
+      logger.error(`⚠️ No valid academy prices found in ${academyCollectionName}`)
+      throw new Error(`No valid academy prices in ${academyCollectionName}. Please ensure academies have price field.`)
     }
     
-    return null
+    logger.info(`✅ Pricing loaded from ${academyCollectionName}`, { 
+      academyCount: Object.keys(academyPrices).length,
+      academies: Object.keys(academyPrices)
+    })
+    
+    return {
+      academyPrices,
+      lunch: { semester: 4000, single: 400 }, // Lunch prices (can be moved to Firestore later if needed)
+      currency: 'USD',
+    } as PricingDoc
   } catch (error) {
-    logger.error('Error fetching pricing', error)
-    return null
+    logger.error('❌ Error fetching pricing from Firestore:', error)
+    throw error // Re-throw to prevent invoice creation with wrong prices
   }
 }
 
@@ -80,7 +83,8 @@ function normalizeAcademy(academy?: string): string {
 
 /**
  * Get price for an academy from pricing config
- * Updated for 2026: No periods, just academies
+ * ALL prices come from Firestore (academies_2026_spring) - no hardcoded fallbacks
+ * @throws {Error} If pricing is not available or academy not found
  */
 function getAcademyPrice(
   academy: string | undefined,
@@ -89,51 +93,53 @@ function getAcademyPrice(
 ): number {
   if (!academy || academy === 'N/A') return 0
   
+  if (!pricing) {
+    const error = `Pricing not loaded from Firestore. Cannot get price for ${academy}.`
+    logger.error(`❌ ${error}`)
+    throw new Error(error)
+  }
+  
   const normalized = normalizeAcademy(academy)
   
-  // Try to get price from pricing config
-  if (pricing?.academyPrices?.[normalized]) {
-    return Number(pricing.academyPrices[normalized]) || 0
+  // Get price from Firestore data
+  if (pricing.academyPrices?.[normalized]) {
+    const price = Number(pricing.academyPrices[normalized]) || 0
+    if (price === 0) {
+      logger.warn(`⚠️ Price is 0 for ${academy} (${normalized}) in Firestore`)
+    }
+    logger.debug(`✅ Price from Firestore for ${academy} (${normalized}): ${price} cents`)
+    return price
   }
   
-  // Default pricing fallback for 2026 Spring Semester (in cents)
-  const defaultPrices: Record<string, number> = {
-    'art': 10000, // $100
-    'english': 5000, // $50
-    'kids academy': 5000, // $50
-    'korean language': 5000, // $50
-    'piano': 10000, // $100
-    'pickleball': 5000, // $50
-    'soccer': 5000, // $50
-    'taekwondo': 10000, // $100
-    // Legacy academies (mantener compatibilidad con datos antiguos)
-    'korean cooking': 4000, // $40
-    'stretch and strengthen': 4000, // $40
-    'diy': 8000, // $80
-    'senior': 4000, // $40
-    'kids': 5000, // $50 (alias de Kids Academy)
-  }
-  
-  return defaultPrices[normalized] || 5000 // Default $50
+  // Academy not found in Firestore
+  const error = `Academy "${academy}" (${normalized}) not found in Firestore pricing. Available academies: ${Object.keys(pricing.academyPrices || {}).join(', ')}`
+  logger.error(`❌ ${error}`)
+  throw new Error(error)
 }
 
 /**
  * Create invoice lines from registration academies
  * Updated for 2026: Supports both old structure (firstPeriod/secondPeriod) 
  * and new structure (selectedAcademies array or single academies)
+ * ALL pricing comes from Firestore - no hardcoded fallbacks
  */
 function createInvoiceLines(
   registration: Registration,
-  pricing: PricingDoc | null
+  pricing: PricingDoc // REQUIRED - pricing must come from Firestore
 ): InvoiceLine[] {
+  if (!pricing) {
+    throw new Error('Pricing is required to create invoice lines. Pricing must be loaded from Firestore.')
+  }
+  
   const lines: InvoiceLine[] = []
   
   // NEW STRUCTURE (2026): Check for selectedAcademies array
-  // This is how the frontend might store multiple academies
+  // This is how the frontend stores multiple academies
   if ((registration as any).selectedAcademies && Array.isArray((registration as any).selectedAcademies)) {
     const selectedAcademies = (registration as any).selectedAcademies
     selectedAcademies.forEach((academyData: any) => {
       if (academyData.academy && academyData.academy !== 'N/A') {
+        // This will throw error if academy not found in Firestore
         const price = getAcademyPrice(
           academyData.academy,
           academyData.level,
@@ -157,6 +163,7 @@ function createInvoiceLines(
   // LEGACY STRUCTURE: Support firstPeriod/secondPeriod for backward compatibility
   // This handles old registrations that might still have this structure
   if (registration.firstPeriod?.academy && registration.firstPeriod.academy !== 'N/A') {
+    // This will throw error if academy not found in Firestore
     const price = getAcademyPrice(
       registration.firstPeriod.academy,
       registration.firstPeriod.level,
@@ -179,6 +186,7 @@ function createInvoiceLines(
     registration.secondPeriod.academy !== 'N/A' &&
     registration.secondPeriod.academy !== registration.firstPeriod?.academy
   ) {
+    // This will throw error if academy not found in Firestore
     const price = getAcademyPrice(
       registration.secondPeriod.academy,
       registration.secondPeriod.level,
@@ -229,11 +237,27 @@ export async function createAutoInvoice(registration: Registration): Promise<str
       return null
     }
     
-    // Get pricing configuration
+    // Get pricing configuration from Firebase (REQUIRED - no fallbacks)
+    // This will throw an error if pricing is not available
     const pricing = await getPricing()
     
-    // Create invoice lines from registration periods
+    if (!pricing) {
+      const error = `Cannot create invoice: Pricing not available from Firestore for registration ${registration.id}. Please ensure academies_2026_spring collection is configured.`
+      logger.error(`❌ ${error}`)
+      throw new Error(error)
+    }
+    
+    // Create invoice lines from registration academies
     const lines = createInvoiceLines(registration, pricing)
+    
+    // Log what academies are being processed
+    logger.info(`Creating invoice for registration ${registration.id}`, {
+      studentName: `${registration.firstName} ${registration.lastName}`,
+      hasSelectedAcademies: !!(registration as any).selectedAcademies,
+      selectedAcademiesCount: (registration as any).selectedAcademies?.length || 0,
+      linesCount: lines.length,
+      lines: lines.map(l => ({ academy: l.academy, price: l.unitPrice, amount: l.amount }))
+    })
     
     // If no lines, don't create invoice
     if (lines.length === 0) {
@@ -288,14 +312,21 @@ export async function createAutoInvoice(registration: Registration): Promise<str
 
 /**
  * Process all registrations without invoices and create them
+ * Requires pricing from Firestore - will fail if academies_2026_spring is not configured
  */
 export async function processPendingRegistrations(): Promise<number> {
   try {
+    // Verify pricing is available before processing
+    const pricing = await getPricing()
+    if (!pricing) {
+      throw new Error('Cannot process registrations: Pricing not available from Firestore. Please ensure academies_2026_spring collection is configured.')
+    }
+    
     const registrationsRef = collection(db, COLLECTIONS_CONFIG.fallAcademy)
     const registrationsSnapshot = await getDocs(registrationsRef)
     
     let processed = 0
-    await getPricing() // Ensure pricing is loaded
+    let errors = 0
     
     for (const docSnap of registrationsSnapshot.docs) {
       const registration = { id: docSnap.id, ...docSnap.data() } as Registration
@@ -304,18 +335,24 @@ export async function processPendingRegistrations(): Promise<number> {
       const exists = await invoiceExists(registration.id)
       if (exists) continue
       
-      // Create invoice
+      // Create invoice (will use pricing from Firestore)
       try {
         await createAutoInvoice(registration)
         processed++
       } catch (error) {
-        logger.error(`Error processing registration ${registration.id}`, error)
+        errors++
+        logger.error(`❌ Error processing registration ${registration.id}:`, error)
+        // Continue with next registration instead of stopping
       }
+    }
+    
+    if (errors > 0) {
+      logger.warn(`⚠️ Processed ${processed} invoices, ${errors} errors occurred`)
     }
     
     return processed
   } catch (error) {
-    logger.error('Error processing pending registrations', error)
+    logger.error('❌ Error processing pending registrations:', error)
     throw error
   }
 }
