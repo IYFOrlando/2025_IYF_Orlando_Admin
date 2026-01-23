@@ -29,6 +29,7 @@ export const SHARED_CONFIG = {
   // Firestore Collections
   collections: {
     fallAcademy: "2026-iyf_orlando_academy_spring_semester",
+    springAcademy2026: "2026-iyf_orlando_academy_spring_semester", // Alias for frontend compatibility
     volunteerApplications: "volunteer_applications",
     tripToKorea: "trip_to_korea_applications",
     cookingClass: "cooking_class_applications",

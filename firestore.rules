@@ -27,9 +27,16 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
-    // 2026 Spring Semester registration collection - public read/write for frontend forms
+    // 2026 Spring Semester registration collection
+    // SECURITY: Allow public write for frontend forms, restrict read to authenticated admins
     match /2026-iyf_orlando_academy_spring_semester/{document} {
-      allow read, write: if true;
+      // Allow anyone to create registrations (for public forms)
+      allow create: if true;
+      // Only authenticated admins can read (prevents data scraping)
+      // Frontend forms don't need to read, only create
+      allow read: if isAuthorized();
+      // Only admins can update/delete
+      allow update, delete: if isAdmin();
     }
     
     // Academies 2026 Spring collection - public read for frontend pricing, admin write
