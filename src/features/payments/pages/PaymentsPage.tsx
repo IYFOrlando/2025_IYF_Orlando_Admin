@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
-  Card, CardContent, Grid, Stack, Button, Chip,
-  TextField, Autocomplete, Divider, Typography, MenuItem, Alert,
+  Card, Grid, Stack, Button, Chip,
+  TextField, Autocomplete, Divider, Typography,
   List, ListItem, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Box, Tabs, Tab,
   Checkbox, FormControlLabel, useTheme, Paper
@@ -16,10 +16,8 @@ import {
   LocalOffer as LocalOfferIcon,
   AttachMoney as AttachMoneyIcon,
   Receipt as ReceiptIcon,
-  History as HistoryIcon,
   Person as PersonIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material'
 
 import {
@@ -45,9 +43,6 @@ import { getDiscountByCode, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../..
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
-import {
-  DataGrid, GridToolbar, type GridColDef
-} from '@mui/x-data-grid'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // Shared Config
@@ -74,9 +69,7 @@ function priceFor(academy?: string, _level?: string | null, _period?: 1 | 2, pri
 
 type StudentOption = { id: string; label: string; reg: Registration }
 
-function hasOpenTuitionInvoice(invs: Invoice[]) {
-  return invs.some(inv => inv.status !== 'paid' && inv.status !== 'exonerated' && inv.lines.some(l => !!l.academy))
-}
+
 
 function tuitionFullyPaidForSelected(reg: Registration, invs: Invoice[]) {
   const needs: Array<{ academy: string; period: 1|2 }> = []
@@ -94,12 +87,13 @@ function tuitionFullyPaidForSelected(reg: Registration, invs: Invoice[]) {
 }
 
 // --- Styled Components ---
-const GlassCard = ({ children, sx = {}, ...props }: any) => {
+const GlassCard = ({ children, sx = {}, onClick, ...props }: any) => {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   return (
     <Card
       elevation={0}
+      onClick={onClick}
       sx={{
         background: isDark ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(20px)',
@@ -109,6 +103,8 @@ const GlassCard = ({ children, sx = {}, ...props }: any) => {
         boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
         height: '100%',
         transition: 'transform 0.2s ease-in-out',
+        cursor: onClick ? 'pointer' : 'default',
+        '&:hover': onClick ? { transform: 'scale(1.01)', borderColor: '#2196F3' } : {},
         ...sx
       }}
       {...props}
@@ -122,6 +118,7 @@ const GlassCard = ({ children, sx = {}, ...props }: any) => {
 const PaymentsPage = React.memo(() => {
   const { data: regs } = useRegistrations()
   const { data: pricing, savePricing } = usePricingSettings()
+  // NOTE: allInvoices and allPayments are used for Export, do not remove
   const { data: allInvoices } = useInvoices()
   const { data: allPayments } = usePayments()
   const { getInstructorByAcademy } = useInstructors()
@@ -135,8 +132,8 @@ const PaymentsPage = React.memo(() => {
   const [lines, setLines] = React.useState<InvoiceLine[]>([])
   const [lunchSemester, setLunchSemester] = React.useState<boolean>(false)
   const [lunchSingleQty, setLunchSingleQty] = React.useState<number>(0)
-  const [filterByAcademy, setFilterByAcademy] = React.useState<string>('')
-  const [filterByPeriod, setFilterByPeriod] = React.useState<1 | 2 | 'all'>('all')
+  const [filterByAcademy] = React.useState<string>('')
+  const [filterByPeriod] = React.useState<1 | 2 | 'all'>('all')
   
   // Invoice Details Editing
   const [invoiceDialogOpen, setInvoiceDialogOpen] = React.useState(false)
@@ -161,16 +158,8 @@ const PaymentsPage = React.memo(() => {
   const [newAcademy, setNewAcademy] = React.useState('')
   const [newPrice, setNewPrice] = React.useState<number>(0)
 
-  // Payment Edit Dialog
-  const [editPaymentOpen, setEditPaymentOpen] = React.useState(false)
-  const [editPayment, setEditPayment] = React.useState<Payment | null>(null)
-  const [editPaymentMethod, setEditPaymentMethod] = React.useState<'cash'|'zelle'>('cash')
-  const [editPaymentAmount, setEditPaymentAmount] = React.useState<number>(0)
-
   // UI State
   const [activeTab, setActiveTab] = React.useState(0)
-  const [selectedPaymentRecord, setSelectedPaymentRecord] = React.useState<any>(null)
-  const [paymentDetailsOpen, setPaymentDetailsOpen] = React.useState(false)
 
   // --- Effects ---
   React.useEffect(() => {
@@ -201,7 +190,7 @@ const PaymentsPage = React.memo(() => {
     })
     
     return () => { ui(); up() }
-  }, [student?.id])
+  }, [student?.id, selectedInvoiceId])
 
   // Logic to build invoice lines from registration
   React.useEffect(() => {
@@ -322,7 +311,6 @@ const PaymentsPage = React.memo(() => {
     const amtCents = toCents(payAmount)
 
     if (applyToAllInvoices) {
-      // Distribute logic (simplified for brevity, keeps original logic concept)
       let rem = amtCents
       const unpaid = studentInvoices.filter(i => (i.total - i.paid) > 0).sort((a,b) => (b.total-b.paid) - (a.total-a.paid))
       if (!unpaid.length) return notifyError('No unpaid invoices')
@@ -369,6 +357,62 @@ const PaymentsPage = React.memo(() => {
     }
     setPayAmount(0)
     setMethod('none')
+  }
+  
+  const deleteInvoice = async (inv: Invoice) => {
+    if (inv.paid > 0) return Swal.fire('Cannot delete', 'This invoice has payments. Delete payments first.', 'error')
+    const res = await Swal.fire({ title: 'Delete?', text: `Remove invoice ${inv.id.slice(0,6)}?`, icon: 'warning', showCancelButton: true })
+    if (res.isConfirmed) {
+      await deleteDoc(doc(db, INV, inv.id))
+      notifySuccess('Invoice deleted')
+      if (selectedInvoiceId === inv.id) setSelectedInvoiceId(null)
+    }
+  }
+
+  const deletePayment = async (p: Payment) => {
+    const res = await Swal.fire({ title: 'Delete payment?', text: `${usd(p.amount)} will be removed.`, icon: 'warning', showCancelButton: true })
+    if (!res.isConfirmed) return
+
+    try {
+      await runTransaction(db, async (tx) => {
+        const invRef = doc(db, INV, p.invoiceId)
+        const payRef = doc(db, PAY, p.id)
+        const invSnap = await tx.get(invRef)
+        
+        if (invSnap.exists()) {
+          const inv = invSnap.data() as Invoice
+          const newPaid = Math.max(0, inv.paid - p.amount)
+          const newBal = inv.total - newPaid
+          const newStatus = newBal === 0 ? 'paid' : (newPaid > 0 ? 'partial' : 'unpaid')
+          tx.update(invRef, { paid: newPaid, balance: newBal, status: newStatus })
+        }
+        tx.delete(payRef)
+      })
+      notifySuccess('Payment deleted')
+    } catch (e) {
+      notifyError('Failed to delete payment', String(e))
+    }
+  }
+
+  const handleExportExcel = () => {
+    if (!allInvoices || !allPayments) return notifyError('Data not loaded')
+    
+    const data = allPayments.map((p, i) => {
+       const inv = allInvoices.find(v => v.id === p.invoiceId)
+       return {
+         ID: i+1,
+         Student: inv?.studentName || 'Unknown',
+         Amount: fromCents(p.amount),
+         Method: p.method,
+         Date: p.createdAt?.seconds ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''
+       }
+    })
+    
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(data)
+    XLSX.utils.book_append_sheet(wb, ws, 'Payments')
+    XLSX.writeFile(wb, `Payments_${new Date().toISOString().slice(0,10)}.xlsx`)
+    notifySuccess('Exported')
   }
 
   // --- PDF Generation (Premium) ---
@@ -469,6 +513,16 @@ const PaymentsPage = React.memo(() => {
 
     doc.save(`Invoice_${inv.studentName}_${inv.id}.pdf`)
   }
+  
+  const savePricingNow = async () => {
+     await savePricing({
+       academyPrices: editMap,
+       items: pricing.items || [],
+       lunch: { semester: editLunchSem, single: editLunchSingle }
+     })
+     setOpenPricing(false)
+     notifySuccess('Pricing updated')
+  }
 
   // --- Render ---
   return (
@@ -477,7 +531,7 @@ const PaymentsPage = React.memo(() => {
         
         {/* LEFT: Composer & Lists */}
         <Grid item xs={12} md={7} sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
-          <Stack spacing={2}>
+          <Stack spacing={2} component={motion.div} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
             {/* Student Selector */}
             <GlassCard sx={{ p: 2 }}>
                <Autocomplete
@@ -498,6 +552,9 @@ const PaymentsPage = React.memo(() => {
                    </li>
                  )}
                />
+               <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
+                 <Button size="small" startIcon={<FileDownloadIcon />} onClick={handleExportExcel}>Export Excel</Button>
+               </Stack>
             </GlassCard>
 
             {/* Composer */}
@@ -558,8 +615,10 @@ const PaymentsPage = React.memo(() => {
             {student && (
               <Stack spacing={1}>
                 <Typography variant="h6" sx={{ px: 1 }}>Invoices History</Typography>
+                <AnimatePresence>
                 {studentInvoices.map(inv => (
-                  <GlassCard key={inv.id} sx={{ p: 2, cursor: 'pointer', border: selectedInvoiceId === inv.id ? '2px solid #2196F3' : undefined }} onClick={() => setSelectedInvoiceId(inv.id)}>
+                  <motion.div key={inv.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  <GlassCard sx={{ p: 2, cursor: 'pointer', border: selectedInvoiceId === inv.id ? '2px solid #2196F3' : undefined }} onClick={() => setSelectedInvoiceId(inv.id)}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <Box>
                          <Typography variant="subtitle1" fontWeight={600}>#{inv.id.slice(0,6)} • {new Date(inv.createdAt?.seconds*1000).toLocaleDateString()}</Typography>
@@ -573,10 +632,12 @@ const PaymentsPage = React.memo(() => {
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }}><PictureAsPdfIcon /></IconButton>
-                       <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); /* delete logic */ }}><DeleteIcon /></IconButton>
+                       <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv) }}><DeleteIcon /></IconButton>
                     </Stack>
                   </GlassCard>
+                  </motion.div>
                 ))}
+                </AnimatePresence>
               </Stack>
             )}
           </Stack>
@@ -593,7 +654,7 @@ const PaymentsPage = React.memo(() => {
               </Tabs>
 
               {activeTab === 0 && (
-                <Stack spacing={3}>
+                <Stack spacing={3} component={motion.div} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 3 }}>
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>Balance Due</Typography>
                       <Typography variant="h3" fontWeight={700}>
@@ -638,13 +699,17 @@ const PaymentsPage = React.memo(() => {
               {activeTab === 1 && (
                 <List>
                    {studentPayments.map(p => (
-                     <ListItem key={p.id}>
+                     <ListItem key={p.id} 
+                       secondaryAction={
+                         <IconButton edge="end" onClick={() => deletePayment(p)} size="small" color="error"><DeleteIcon /></IconButton>
+                       }
+                     >
                         <Stack direction="row" justifyContent="space-between" width="100%">
                            <Box>
                               <Typography variant="subtitle2">{usd(p.amount)} via {p.method}</Typography>
                               <Typography variant="caption" color="text.secondary">{new Date(p.createdAt?.seconds*1000).toLocaleString()}</Typography>
                            </Box>
-                           <IconButton size="small"><ReceiptIcon /></IconButton>
+                           <ReceiptIcon color="action" />
                         </Stack>
                      </ListItem>
                    ))}
@@ -657,13 +722,52 @@ const PaymentsPage = React.memo(() => {
       </Grid>
       
       {/* Dialogs */}
-      <Dialog open={openPricing} onClose={() => setOpenPricing(false)}>
+      <Dialog open={openPricing} onClose={() => setOpenPricing(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Admin Pricing</DialogTitle>
         <DialogContent>
-           <TextField label="Lunch Semester" fullWidth value={editLunchSem} onChange={e => setEditLunchSem(Number(e.target.value))} margin="normal" />
-           <TextField label="Lunch Single" fullWidth value={editLunchSingle} onChange={e => setEditLunchSingle(Number(e.target.value))} margin="normal" />
-           <Button onClick={savePricing}>Save</Button>
+           <Stack spacing={2} sx={{ mt: 1 }}>
+             <Box sx={{ borderBottom: 1, borderColor: 'divider', pb: 2 }}>
+               <Typography variant="subtitle2" gutterBottom>Lunch settings</Typography>
+               <Stack direction="row" spacing={2}>
+                 <TextField label="Lunch Semester" fullWidth size="small" value={editLunchSem} onChange={e => setEditLunchSem(Number(e.target.value))} type="number" />
+                 <TextField label="Lunch Single" fullWidth size="small" value={editLunchSingle} onChange={e => setEditLunchSingle(Number(e.target.value))} type="number" />
+               </Stack>
+             </Box>
+             
+             <Typography variant="subtitle2">Academy Prices</Typography>
+             <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+               {[...PERIOD_1_ACADEMIES, ...PERIOD_2_ACADEMIES]
+                 .filter((v, i, a) => a.indexOf(v) === i)
+                 .sort()
+                 .map(name => (
+                   <Stack key={name} direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ flex: 1 }}>{name}</Typography>
+                      <TextField 
+                        size="small" type="number" sx={{ width: 100 }} 
+                        value={editMap[norm(name)] || 0}
+                        onChange={e => setEditMap(prev => ({ ...prev, [norm(name)]: Number(e.target.value) }))}
+                      />
+                   </Stack>
+                 ))
+               }
+             </Box>
+             {/* Manual Add */}
+             <Stack direction="row" spacing={1}>
+                <TextField placeholder="Custom Academy" size="small" fullWidth value={newAcademy} onChange={e => setNewAcademy(e.target.value)} />
+                <TextField placeholder="$" type="number" size="small" sx={{ width: 80 }} value={newPrice} onChange={e => setNewPrice(Number(e.target.value))} />
+                <IconButton onClick={() => { 
+                   if(newAcademy) { 
+                     setEditMap(prev => ({ ...prev, [norm(newAcademy)]: newPrice }))
+                     setNewAcademy(''); setNewPrice(0)
+                   }
+                }}><AddIcon /></IconButton>
+             </Stack>
+           </Stack>
         </DialogContent>
+        <DialogActions>
+           <Button onClick={() => setOpenPricing(false)}>Cancel</Button>
+           <Button variant="contained" onClick={savePricingNow}>Save Changes</Button>
+        </DialogActions>
       </Dialog>
       
       {editingLine && (
@@ -681,7 +785,7 @@ const PaymentsPage = React.memo(() => {
       
       {/* Floating Action Button for Admin Settings */}
       <Box sx={{ position: 'absolute', bottom: 20, left: 20 }}>
-         <Tooltip title="Settings">
+         <Tooltip title="Admin Settings">
            <IconButton onClick={() => setOpenPricing(true)} sx={{ bgcolor: 'background.paper', boxShadow: 3 }}>
              <SettingsIcon />
            </IconButton>
