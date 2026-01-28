@@ -111,8 +111,9 @@ service cloud.firestore {
 
     // 9. Teacher Plans
     match /teacher_plans/{document} {
-      allow read, write: if isTeacher() && request.auth.token.email.lower() == resource.data.teacherEmail.lower();
-      allow create: if isTeacher() && request.auth.token.email.lower() == request.resource.data.teacherEmail.lower();
+      allow read, write: if isAdmin();
+      allow read: if isTeacher() && (resource == null || resource.data.teacherEmail.lower() == request.auth.token.email.lower());
+      allow write: if isTeacher() && (request.resource.data.teacherEmail.lower() == request.auth.token.email.lower());
     }
 
     // --- Final Catch-all ---

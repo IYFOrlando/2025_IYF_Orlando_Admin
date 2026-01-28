@@ -72,6 +72,9 @@ export default function TeacherPlannerPage() {
         setPlan(null) // No plan yet for this day
       }
       setLoading(false)
+    }, (err) => {
+      console.error('Planner select listener error:', err)
+      setLoading(false)
     })
     return () => unsub()
   }, [docId])
@@ -87,6 +90,8 @@ export default function TeacherPlannerPage() {
     )
     const unsub = onSnapshot(q, (snap) => {
       setAllPlans(snap.docs.map(d => d.data() as PlanDoc))
+    }, (err) => {
+      console.error('Planner list listener error:', err)
     })
     return () => unsub()
   }, [teacherProfile?.email])
