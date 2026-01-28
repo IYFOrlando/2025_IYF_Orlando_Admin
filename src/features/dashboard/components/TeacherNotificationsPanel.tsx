@@ -5,7 +5,7 @@ import {
   IconButton, CircularProgress
 } from '@mui/material'
 import { Bell, ClipboardCheck, TrendingUp, Clock } from 'lucide-react'
-import { useTeacherNotifications, type TeacherNotification } from '../hooks/useTeacherNotifications'
+import { useTeacherNotifications } from '../hooks/useTeacherNotifications'
 
 interface TeacherNotificationsPanelProps {
   isAdmin: boolean

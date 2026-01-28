@@ -3,12 +3,11 @@ import * as React from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Box, Typography, Stack,
-  Chip, FormControlLabel, Checkbox, Divider, Paper
+  Chip
 } from '@mui/material'
 import {
   AttachMoney as AttachMoneyIcon,
-  LocalOffer as LocalOfferIcon,
-  CheckCircle as CheckCircleIcon
+  LocalOffer as LocalOfferIcon
 } from '@mui/icons-material'
 import {
   collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp
@@ -16,7 +15,7 @@ import {
 import { db } from '../../../lib/firebase'
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
-import { toCents, fromCents } from '../../../lib/money'
+import { toCents } from '../../../lib/money'
 import { usd } from '../../../lib/query'
 import type { Invoice } from '../types'
 
@@ -42,7 +41,6 @@ export default function QuickPaymentDialog({ open, onClose, studentId, studentNa
   // Payment Form State
   const [payAmount, setPayAmount] = React.useState<number|string>('')
   const [method, setMethod] = React.useState<'cash'|'zelle'|'none'>('none')
-  const [applyToAll, setApplyToAll] = React.useState(true) // Default to true for quick pay
 
   // Fetch Invoices
   React.useEffect(() => {

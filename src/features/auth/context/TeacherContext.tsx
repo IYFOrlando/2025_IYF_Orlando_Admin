@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import { useUserRole } from '../hooks/useUserRole'
 import type { TeacherProfile, UserRole } from '../types'
 

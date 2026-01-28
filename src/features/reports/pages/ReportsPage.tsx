@@ -161,7 +161,7 @@ export default function ReportsPage() {
     end: new Date().toISOString().split('T')[0]
   })
   const [selectedAcademy, setSelectedAcademy] = React.useState<string>('all')
-  const [selectedPeriod, setSelectedPeriod] = React.useState<'all' | 'p1' | 'p2'>('all')
+  const [selectedPeriod] = React.useState<'all' | 'p1' | 'p2'>('all')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<'all' | 'zelle' | 'cash'>('all')
   const [dailyReportEmailTo, setDailyReportEmailTo] = React.useState('orlando@iyfusa.org')
   const [sendingDailyReportEmail, setSendingDailyReportEmail] = React.useState(false)
@@ -389,7 +389,15 @@ export default function ReportsPage() {
         registrations: todayRegs.length,
         payments: todayPayments.length,
         revenue: todayRevenue,
-        newStudents: todayRegs,
+        newStudents: todayRegs
+          .filter(r => r.firstName && r.lastName)
+          .map(r => ({
+            firstName: r.firstName!,
+            lastName: r.lastName!,
+            email: r.email,
+            selectedAcademies: (r as any).selectedAcademies,
+            id: r.id
+          })),
         academies: todayAcademyStats
       },
       yesterday: {
@@ -1684,7 +1692,7 @@ export default function ReportsPage() {
                 <GlassCard>
                   <CardContent sx={{ textAlign: 'center' }}>
                     <Typography variant="h5" fontWeight={800} color="secondary.main">
-                      ${(saturdayAnalytics.summary?.totalZelle / 100)?.toFixed(2) || '0.00'}
+                      ${((saturdayAnalytics.summary?.totalZelle ?? 0) / 100).toFixed(2)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" fontWeight={600}>
                       Total Zelle
@@ -1696,7 +1704,7 @@ export default function ReportsPage() {
                 <GlassCard>
                   <CardContent sx={{ textAlign: 'center' }}>
                     <Typography variant="h5" fontWeight={800} color="error.main">
-                      ${(saturdayAnalytics.summary?.totalCash / 100)?.toFixed(2) || '0.00'}
+                      ${((saturdayAnalytics.summary?.totalCash ?? 0) / 100).toFixed(2)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" fontWeight={600}>
                       Total Cash

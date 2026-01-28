@@ -31,7 +31,7 @@ export function useRegistrations() {
         setData(registrations)
         setLoading(false)
       }, 
-      (e) => { 
+      (_e) => { 
         // Generic error message for users - don't expose internal errors
         setError('Failed to load registrations. Please refresh the page.'); 
         setLoading(false) 

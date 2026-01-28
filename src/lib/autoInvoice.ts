@@ -14,7 +14,9 @@ import {
   where, 
   getDocs, 
   serverTimestamp,
-  orderBy
+  orderBy,
+  updateDoc,
+  doc
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { COLLECTIONS_CONFIG } from '../config/shared.js'
@@ -148,7 +150,7 @@ function createInvoiceLines(
         
         lines.push({
           academy: academyData.academy,
-          period: index + 1, // Assign pseudo-period (1, 2, 3...) for legacy template compatibility
+          period: null, // 2026: no periods, kept for backward compatibility
           level: academyData.level || null,
           schedule: academyData.schedule || null, // Include schedule if available
           unitPrice: price,

@@ -156,7 +156,7 @@ const PaymentsPage = React.memo(() => {
   const [searchParams] = useSearchParams()
   const { data: regs } = useRegistrations()
   // Get academy prices from academies_2026_spring (single source of truth)
-  const { academyPrices: academyPricesFromSpring, loading: loadingAcademies } = useAcademyPricing()
+  const { academyPrices: academyPricesFromSpring } = useAcademyPricing()
   // Get lunch prices from settings/pricing
   const { data: settingsPricing, savePricing, refreshPricing } = usePricingSettings()
   
@@ -743,9 +743,9 @@ const PaymentsPage = React.memo(() => {
                  onChange={(_, v) => setStudent(v)}
                  renderInput={params => <TextField {...params} label="Select Student" variant="outlined" />}
                  renderOption={(props, option) => {
-                   const { key, ...restProps } = props
+                   const { key: _key, ...restProps } = props
                    return (
-                     <li key={key} {...restProps}>
+                     <li key={option.id || option.studentName} {...restProps}>
                        <Stack direction="row" alignItems="center" spacing={1}>
                          <PersonIcon color="action" />
                          <Box>
@@ -896,7 +896,7 @@ const PaymentsPage = React.memo(() => {
                               <RTooltip formatter={(v:any) => `$${v}`} />
                               <Bar dataKey="value" fill="#2196F3" radius={[4, 4, 0, 0]}>
                                 {
-                                  [{ name: 'Paid', value: 0 }, { name: 'Due', value: 0 }].map((entry, index) => (
+                                  [{ name: 'Paid', value: 0 }, { name: 'Due', value: 0 }].map((_entry, index) => (
                                     <Cell key={`cell-${index}`} fill={index === 0 ? '#4CAF50' : '#FF9800'} />
                                   ))
                                 }

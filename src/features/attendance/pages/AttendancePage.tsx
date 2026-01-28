@@ -334,8 +334,6 @@ export default function AttendancePage() {
       // The 'rows' state has `id` which is the Firestore ID if it existed, OR the registrationID if it's new.
       // We must check if the ID is real.
       
-      const toDel:string[]=[]
-      
       // We need to re-query to be safe, or check our rows state
       // Let's assume selection contains row IDs.
       const realDocIds:string[] = []

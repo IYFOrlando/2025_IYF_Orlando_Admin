@@ -575,7 +575,7 @@ function AdminDashboard() {
                     </Pie>
                     <RechartsTooltip 
                       contentStyle={{ borderRadius: 8 }}
-                      formatter={(value: number) => [`${value} students`, 'Count']}
+                      formatter={(value: number | undefined) => [`${value ?? 0} students`, 'Count']}
                     />
                     <Legend verticalAlign="bottom" height={36}/>
                   </PieChart>

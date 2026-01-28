@@ -3,7 +3,6 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { logger } from '../../../lib/logger'
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
-import { norm } from '../../../lib/query'
 
 export type Instructor = {
   id: string

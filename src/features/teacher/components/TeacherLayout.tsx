@@ -2,7 +2,8 @@ import * as React from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   IconButton, Stack, useMediaQuery, useTheme, Avatar,
-  Chip, Tooltip
+  Chip, Tooltip, Box, Typography, List, ListItemButton,
+  ListItemIcon, ListItemText, AppBar, Toolbar, Drawer
 } from '@mui/material'
 import { 
   Menu as MenuIcon, 
@@ -38,6 +39,7 @@ function NavItem({ to, label, icon, onNavClick }: NavItemProps) {
   const active = location.pathname === to
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const isLgUp = useMediaQuery(theme.breakpoints.up('lg'))
   
   return (
     <Tooltip title={label} placement="right" arrow disableHoverListener={isLgUp}>
