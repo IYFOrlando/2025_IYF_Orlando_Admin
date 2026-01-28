@@ -316,7 +316,7 @@ export default function TeacherPlannerPage() {
               eventBorderColor="#3f51b5"
               themeSystem="standard"
               dayMaxEvents={true}
-              eventContent={(eventInfo) => (
+              eventContent={(eventInfo: any) => (
                 <Box sx={{ 
                   p: '2px 4px', 
                   overflow: 'hidden', 
