@@ -19,7 +19,7 @@ import {
 import { db } from '../../../lib/firebase'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
-import { notifyError } from '../../../lib/alerts'
+import { notifyError, notifySuccess } from '../../../lib/alerts'
 
 // --- Types ---
 interface Task {
@@ -177,8 +177,10 @@ export default function TeacherPlannerPage() {
           updatedAt: serverTimestamp()
         })
       }
+      notifySuccess('Event moved')
     } catch (e) {
       console.error(e)
+      notifyError('Failed to move event', e instanceof Error ? e.message : 'Unknown error')
       info.revert()
     }
   }
@@ -247,6 +249,7 @@ export default function TeacherPlannerPage() {
          })
       }
       setNewEventTitle('')
+      notifySuccess('Event added successfully')
     } catch (e) { 
       notifyError('Failed to add event', e instanceof Error ? e.message : 'Unknown error') 
     }
@@ -255,6 +258,7 @@ export default function TeacherPlannerPage() {
   const handleDeleteEvent = async (event: Event) => {
       if (!docId) return
       await updateDoc(doc(db, 'teacher_plans', docId), { events: arrayRemove(event) })
+      notifySuccess('Event deleted')
   }
 
   return (
@@ -304,12 +308,32 @@ export default function TeacherPlannerPage() {
               dateClick={(info: any) => setSelectedDate(info.date)}
               events={calendarEvents}
               eventDrop={handleEventDrop}
+              eventResize={(info: any) => handleEventDrop(info)} // Reuse move logic for time changes
               eventClick={(info: any) => {
                 setSelectedDate(info.event.start || new Date())
               }}
               eventBackgroundColor="#3f51b5"
               eventBorderColor="#3f51b5"
               themeSystem="standard"
+              dayMaxEvents={true}
+              eventContent={(eventInfo) => (
+                <Box sx={{ 
+                  p: '2px 4px', 
+                  overflow: 'hidden', 
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
+                  bgcolor: eventInfo.event.id.startsWith('tasks_') ? 'secondary.main' : 'primary.main',
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5
+                }}>
+                  {eventInfo.event.title}
+                </Box>
+              )}
             />
           </GlassCard>
         </Grid>
