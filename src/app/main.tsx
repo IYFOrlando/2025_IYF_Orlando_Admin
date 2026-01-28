@@ -27,7 +27,6 @@ import EmailDatabasePage from '../features/emails/pages/EmailDatabasePage'
 import VolunteerRegistrationPage from '../features/volunteers/pages/VolunteerRegistrationPage'
 import InvoiceDebugPage from '../pages/InvoiceDebugPage'
 import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
-import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
 import TeacherPlannerPage from '../features/teacher/pages/TeacherPlannerPage'
 import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
 
