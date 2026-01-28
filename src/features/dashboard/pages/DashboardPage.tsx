@@ -288,7 +288,7 @@ function AdminDashboard() {
                 label="Total Revenue" 
                 icon={DollarSign} 
                 color="#4CAF50" 
-                subValue="Collected"
+                subValue={invoices.length === 0 ? "No invoices yet" : "Collected"}
               />
             </CardContent>
           </GlassCard>
@@ -302,7 +302,7 @@ function AdminDashboard() {
                 label="Pending Payments" 
                 icon={Clock} 
                 color="#FF9800" 
-                subValue={`${financialStats.studentsWithBalance} students with balance`}
+                subValue={invoices.length === 0 ? "No invoices yet" : `${financialStats.studentsWithBalance} students with balance`}
               />
             </CardContent>
           </GlassCard>
@@ -484,6 +484,23 @@ function AdminDashboard() {
                     </Stack>
                   </Box>
                 )}
+                {unpaidCount === 0 && partialPaidCount === 0 && totals.registrationsToday === 0 && financialStats.paidInvoices === 0 && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'rgba(76, 175, 80, 0.08)',
+                      border: '1px solid rgba(76, 175, 80, 0.2)'
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CheckCircle size={20} color="#4CAF50" />
+                      <Typography variant="body2" fontWeight={600} color="success">
+                        All clear! No issues to report. ✅
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
               </Stack>
             </CardContent>
           </GlassCard>
@@ -590,12 +607,12 @@ function AdminDashboard() {
           </GlassCard>
         </Grid>
 
-        {/* Korean Levels (moved to bottom) */}
-        <Grid item xs={12} lg={4}>
-          <GlassCard>
-            <CardContent sx={{ height: 400 }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>Korean Levels</Typography>
-              {koreanLevelRows.length > 0 ? (
+        {/* Korean Levels (moved to bottom) - Only show if there are Korean Language registrations */}
+        {koreanLevelRows.length > 0 && (
+          <Grid item xs={12} lg={4}>
+            <GlassCard>
+              <CardContent sx={{ height: 400 }}>
+                <Typography variant="h6" fontWeight={700} gutterBottom>Korean Levels</Typography>
                 <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -618,14 +635,10 @@ function AdminDashboard() {
                   </PieChart>
                   </ResponsiveContainer>
                 </Box>
-              ) : (
-                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
-                  <Typography color="text.secondary">No Korean classes selected.</Typography>
-                </Box>
-              )}
-            </CardContent>
-          </GlassCard>
-        </Grid>
+              </CardContent>
+            </GlassCard>
+          </Grid>
+        )}
 
         {/* Bottom Bar Chart */}
         <Grid item xs={12}>
