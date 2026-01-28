@@ -86,7 +86,8 @@ export default function QuickPaymentDialog({ open, onClose, studentId, studentNa
       await Promise.all(unpaid.map(async (inv) => {
         if (remaining <= 0) return
 
-        const bal = inv.balance
+        // Calculate balance explicitly to ensure accuracy (total - paid)
+        const bal = Math.max(0, inv.total - inv.paid)
         const pay = Math.min(remaining, bal)
         
         // Record Payment
