@@ -15,6 +15,7 @@ import {
   addDoc, collection, deleteDoc, doc, query,
   serverTimestamp, updateDoc, where, getDocs
 } from 'firebase/firestore'
+import type { QueryConstraint } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 
 import { db, auth } from '../../../lib/firebase'
@@ -40,6 +41,19 @@ type Row = {
   present: boolean
   reason?: string
   percent?: number
+}
+
+interface AttendanceDoc {
+  registrationId: string
+  studentName: string
+  present: boolean
+  reason?: string
+  date: string
+  academy: string
+  level?: string
+  teacherName?: string
+  teacherNote?: string
+  updatedAt?: any
 }
 
 export default function AttendancePage() {
@@ -189,7 +203,7 @@ export default function AttendancePage() {
     
     const qAll = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
     getDocs(qAll).then(snap => {
-      setClassHistory(snap.docs.map(d => ({ id:d.id, ...(d.data() as any) })))
+      setClassHistory(snap.docs.map(d => ({ id:d.id, ...(d.data() as AttendanceDoc) })))
     })
   }, [academy, level])
 
@@ -211,7 +225,7 @@ export default function AttendancePage() {
       const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
       const snap = await getDocs(qDay)
       const byReg = new Map<string, any>()
-      snap.forEach(d => byReg.set((d.data() as any).registrationId, { id:d.id, ...(d.data() as any) }))
+      snap.forEach(d => byReg.set((d.data() as AttendanceDoc).registrationId, { id:d.id, ...(d.data() as AttendanceDoc) }))
 
       // compute % from history
       const totals = new Map<string,{present:number; total:number}>()
@@ -235,13 +249,12 @@ export default function AttendancePage() {
         }
       })
       setRows(base); setLoading(false)
-    } catch (e:any) {
+    } catch (e) {
       console.error(e)
-      // Fallback: Use client-side filtering if composite index is missing for this combo
-      // Usually "academy, date" is enough, but if it fails, we warn user or try simple query
-      setError(e?.message && e.message.includes('index') 
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      setError(msg.includes('index') 
         ? 'Missing index. Check console for link.' 
-        : e?.message || 'Failed to load')
+        : msg)
       setLoading(false)
     }
   }, [academy, level, date, roster, classHistory])
@@ -296,13 +309,13 @@ export default function AttendancePage() {
     if (!academy) return SAlert.fire({ title:'Select an academy', icon:'warning' })
     try{
       // Check existing by date+academy (ignore period)
-      const cons:any[] = [ where('date','==',date), where('academy','==',academy) ]
+      const cons: QueryConstraint[] = [ where('date','==',date), where('academy','==',academy) ]
       if (academy===KOREAN) cons.push(where('level','==', level || ''))
       
       const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
       const snap = await getDocs(qDay)
       const existingByReg = new Map<string,{id:string}>()
-      snap.forEach(d=> existingByReg.set((d.data() as any).registrationId, { id:d.id }))
+      snap.forEach(d=> existingByReg.set((d.data() as AttendanceDoc).registrationId, { id:d.id }))
 
       const base:any = {
         date, 
@@ -343,8 +356,8 @@ export default function AttendancePage() {
       }
 
       void loadClassForDate()
-    }catch(e:any){
-      notifyError('Save failed', e?.message)
+    }catch(e){
+      notifyError('Save failed', e instanceof Error ? e.message : 'Unknown error')
     }
   }
 
@@ -352,42 +365,23 @@ export default function AttendancePage() {
     if (!isSuperAdmin) return SAlert.fire({ title:'Super Admin Only', text:'Only admins can delete attendance records.', icon:'info' })
     if (!selection.length) return SAlert.fire({ title:'No rows selected', icon:'info', timer:1200, showConfirmButton:false })
     try{
-      // Delete logic: Identify docs by IDs in filtering?
-      // Actually we have the IDs in 'rows' if they were loaded.
-      // But if we selected rows, we might need to map them to Firestore IDs.
-      // The 'rows' state has `id` which is the Firestore ID if it existed, OR the registrationID if it's new.
-      // We must check if the ID is real.
-      
-      // We need to re-query to be safe, or check our rows state
-      // Let's assume selection contains row IDs.
       const realDocIds:string[] = []
       
-      // Filter filtering...
-      // The challenge is 'rows' contains mix of real doc IDs and fake (new) IDs.
-      // But if we just loaded, they should be real IDs if present. 
-      // Actually wait, in loadClassForDate:
-      // id: s.id (registrationId) if not found! 
-      // This is a bug in my previous logic too. `id` for DataGrid must be unique.
-      // If record exists, we use doc.id. If not, we use registrationId.
-      // So if I select a row that hasn't been saved (new), I can't delete it from DB (it's not there).
-      // If I select a row that IS in DB, I want to delete it.
-
-      // Let's just re-fetch to precise IDs for deletion
-      const cons:any[] = [ where('date','==',date), where('academy','==',academy) ]
+      const cons: QueryConstraint[] = [ where('date','==',date), where('academy','==',academy) ]
       if (academy===KOREAN) cons.push(where('level','==', level || ''))
       const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
       const snap = await getDocs(qDay)
       
       snap.forEach(d => {
-        const data:any = d.data()
-        // If the registration ID of this doc is in our selection...
-        if (selection.includes(data.registrationId) || selection.includes(d.id)) {
+        const data = d.data() as AttendanceDoc
+        // If the selection includes the Doc ID (saved row) OR the Registration ID (in case logic shifts)
+        // We rely on doc.id primarily.
+        if (selection.includes(d.id) || selection.includes(data.registrationId)) {
            realDocIds.push(d.id)
         }
       })
 
       if (!realDocIds.length) {
-         // Nothing to delete (maybe they were unsaved rows)
          setSelection([])
          return
       }
@@ -399,8 +393,8 @@ export default function AttendancePage() {
       notifySuccess('Deleted', `${realDocIds.length} record(s) removed`)
       setSelection([])
       void loadClassForDate()
-    }catch(e:any){
-      notifyError('Delete failed', e?.message)
+    }catch(e){
+      notifyError('Delete failed', e instanceof Error ? e.message : 'Unknown error')
     }
   }
 

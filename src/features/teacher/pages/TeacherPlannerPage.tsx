@@ -42,8 +42,15 @@ interface PlanDoc {
 }
 
 // --- Components ---
-const DayCell = ({ date, isSelected, hasPlan, onClick }: any) => {
-  const isCurrentMonth = isSameMonth(date, new Date()) // We'll pass currentMonth from parent if needed, simplistic for now
+interface DayCellProps {
+  date: Date
+  isSelected: boolean
+  hasPlan: boolean
+  onClick: (date: Date) => void
+}
+
+const DayCell = ({ date, isSelected, hasPlan, onClick }: DayCellProps) => {
+  const isCurrentMonth = isSameMonth(date, new Date())
   
   return (
     <Box 
@@ -139,7 +146,9 @@ export default function TeacherPlannerPage() {
          })
       }
       setNewTask('')
-    } catch (e:any) { notifyError('Failed to add task', e.message) }
+    } catch (e) { 
+      notifyError('Failed to add task', e instanceof Error ? e.message : 'Unknown error') 
+    }
   }
 
   const handleToggleTask = async (task: Task) => {
@@ -178,7 +187,9 @@ export default function TeacherPlannerPage() {
          })
       }
       setNewEventTitle('')
-    } catch (e:any) { notifyError('Failed to add event', e.message) }
+    } catch (e) { 
+      notifyError('Failed to add event', e instanceof Error ? e.message : 'Unknown error') 
+    }
   }
 
   const handleDeleteEvent = async (event: Event) => {
@@ -187,8 +198,30 @@ export default function TeacherPlannerPage() {
   }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 100px)' }}>
-      <Grid container spacing={3} sx={{ height: '100%' }}>
+    <Box sx={{ pb: 4 }}>
+      {/* Header with Gradient */}
+      <Box sx={{ 
+        mb: 4,
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Purple/Blue gradient
+        borderRadius: 3,
+        p: 3,
+        color: 'white',
+        boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(118, 75, 162, 0.4)'
+      }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <CalendarIcon sx={{ fontSize: 40, color: 'white' }} />
+          <Box>
+            <Typography variant="h4" fontWeight={800} color="white">
+              My Planner
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
+              Manage your schedule and daily tasks
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      <Grid container spacing={3} sx={{ height: 'calc(100vh - 280px)' }}>
         {/* Calendar Column */}
         <Grid item xs={12} md={8} sx={{ height: '100%' }}>
           <GlassCard sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
