@@ -365,7 +365,7 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
                  New Registration
                </Button>
              )}
-            {(effectiveIsAdmin || hasGmailAccess || isTeacher) && (
+            {(effectiveIsAdmin || hasGmailAccess) && (
               <Button variant="outlined" startIcon={<Download size={16} />} onClick={handleExportExcel} sx={{ borderRadius: 2 }}>
                 Export
               </Button>
