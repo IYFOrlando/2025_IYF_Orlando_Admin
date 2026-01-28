@@ -243,95 +243,100 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
   }
 
   // --- Columns ---
-  const columns = React.useMemo<GridColDef[]>(() => [
-    { field: 'id', headerName: '#', width: 60, align:'center', headerAlign:'center', valueGetter: (p) => p.api.getSortedRowIds().indexOf(p.id)+1 },
-    { field: 'firstName', headerName: 'First Name', minWidth: 120, flex: 1 },
-    { field: 'lastName', headerName: 'Last Name', minWidth: 120, flex: 1 },
-    { field: 'email', headerName: 'Email', minWidth: 200, flex: 1.2 },
-    { field: 'gender', headerName: 'Gender', width: 90 },
-    { field: 'age', headerName: 'Age', width: 70, valueGetter: (p) => computeAge(p.row.birthday) },
-    { field: 'address', headerName: 'Address', width: 200 },
-    { field: 'city', headerName: 'City', width: 120 },
-    { field: 'state', headerName: 'State', width: 100 },
-    { field: 'zipCode', headerName: 'Zip', width: 90 },
-    { 
-      field: 'academies', headerName: 'Academies', minWidth: 250, flex: 1.5,
-      valueGetter: (p) => {
-        const r = p.row as any
-        const list = r.selectedAcademies?.length ? r.selectedAcademies : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
-        return list.map((a:any) => {
-          const isKorean = a.academy?.includes('Korean')
-          return isKorean && a.level ? `${a.academy} (${a.level})` : a.academy
-        }).join(', ')
-      },
-      renderCell: (p) => {
-        const r = p.row as any
-        const list = r.selectedAcademies?.length ? r.selectedAcademies : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
-        return (
-          <Box sx={{ py: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {list.map((a:any, i:number) => {
-              const isKorean = a.academy?.includes('Korean')
-              const label = isKorean && a.level ? `${a.academy} (${a.level})` : a.academy
-              return (
-                <Chip key={i} label={label} size="small" variant="outlined" sx={{ borderRadius: 1.5, borderColor: 'divider' }} />
-              )
-            })}
-          </Box>
-        )
-      }
-    },
-    { 
-      field: 'paymentStatus', headerName: 'Status', width: 140,
-      renderCell: (p) => {
-        const status = rowStatus(String(p.id))
-        const b = byStudent.get(String(p.id))
-        const paid = b?.paid ?? 0
-        const expected = expectedByRegId.get(String(p.id)) ?? (expectedLoading ? (b?.total ?? 0) : 0)
-        const balance = expectedLoading ? (b?.balance ?? 0) : Math.max(0, expected - paid)
-        const color = status === 'paid' ? '#4CAF50' : status === 'partial' ? '#FF9800' : '#F44336'
-        const label = status === 'exonerated' ? 'Exonerated' : status.charAt(0).toUpperCase() + status.slice(1)
-        return (
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
-            <Box>
-              <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1 }}>{label}</Typography>
-              <Typography variant="caption" color="text.secondary">{usd(balance)} due</Typography>
+  const columns = React.useMemo<GridColDef[]>(() => {
+    const baseColumns: GridColDef[] = [
+      { field: 'id', headerName: '#', width: 60, align:'center', headerAlign:'center', valueGetter: (p) => p.api.getSortedRowIds().indexOf(p.id)+1 },
+      { field: 'firstName', headerName: 'First Name', minWidth: 120, flex: 1 },
+      { field: 'lastName', headerName: 'Last Name', minWidth: 120, flex: 1 },
+      { field: 'email', headerName: 'Email', minWidth: 200, flex: 1.2 },
+      { field: 'gender', headerName: 'Gender', width: 90 },
+      { field: 'age', headerName: 'Age', width: 70, valueGetter: (p) => computeAge(p.row.birthday) },
+      // Address only for admins
+      ...(effectiveIsAdmin ? [{ field: 'address', headerName: 'Address', width: 200 }] : []),
+      { field: 'city', headerName: 'City', width: 120 },
+      { field: 'state', headerName: 'State', width: 100 },
+      { field: 'zipCode', headerName: 'Zip', width: 90 },
+      { 
+        field: 'academies', headerName: 'Academies', minWidth: 250, flex: 1.5,
+        valueGetter: (p) => {
+          const r = p.row as any
+          const list = r.selectedAcademies?.length ? r.selectedAcademies : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
+          return list.map((a:any) => {
+            const isKorean = a.academy?.includes('Korean')
+            return isKorean && a.level ? `${a.academy} (${a.level})` : a.academy
+          }).join(', ')
+        },
+        renderCell: (p) => {
+          const r = p.row as any
+          const list = r.selectedAcademies?.length ? r.selectedAcademies : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
+          return (
+            <Box sx={{ py: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {list.map((a:any, i:number) => {
+                const isKorean = a.academy?.includes('Korean')
+                const label = isKorean && a.level ? `${a.academy} (${a.level})` : a.academy
+                return (
+                  <Chip key={i} label={label} size="small" variant="outlined" sx={{ borderRadius: 1.5, borderColor: 'divider' }} />
+                )
+              })}
             </Box>
+          )
+        }
+      },
+      // Status/Payment only for admins
+      ...(effectiveIsAdmin ? [{ 
+        field: 'paymentStatus', headerName: 'Status', width: 140,
+        renderCell: (p: any) => {
+          const status = rowStatus(String(p.id))
+          const b = byStudent.get(String(p.id))
+          const paid = b?.paid ?? 0
+          const expected = expectedByRegId.get(String(p.id)) ?? (expectedLoading ? (b?.total ?? 0) : 0)
+          const balance = expectedLoading ? (b?.balance ?? 0) : Math.max(0, expected - paid)
+          const color = status === 'paid' ? '#4CAF50' : status === 'partial' ? '#FF9800' : '#F44336'
+          const label = status === 'exonerated' ? 'Exonerated' : status.charAt(0).toUpperCase() + status.slice(1)
+          return (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+              <Box>
+                <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1 }}>{label}</Typography>
+                <Typography variant="caption" color="text.secondary">{usd(balance)} due</Typography>
+              </Box>
+            </Stack>
+          )
+        }
+      }] : []),
+      {
+        field: 'createdAt', headerName: 'Registered', width: 120,
+        valueGetter: (p) => {
+          const val = p.row.createdAt
+          if (!val) return ''
+          // Handle Firestore Timestamp or Date or millis
+          const date = val.seconds ? new Date(val.seconds * 1000) : new Date(val)
+          return isValidDate(date) ? date : ''
+        },
+        renderCell: (p) => {
+          const val = p.value as Date
+          if (!val) return '-'
+          return (
+            <Typography variant="body2">{val.toLocaleDateString()}</Typography>
+          )
+        }
+      },
+      {
+        field: 'actions', headerName: '', width: 100, sortable: false,
+        renderCell: (p) => (
+          <Stack direction="row">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); if(effectiveIsAdmin) { handleEdit(p.row as Registration) }}} disabled={!effectiveIsAdmin}>
+              <Edit2 size={16} />
+            </IconButton>
+            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); if(effectiveIsAdmin) { setSelection([String(p.id)]); handleBulkDelete(); }}} disabled={!effectiveIsAdmin}>
+              <Trash2 size={16} />
+            </IconButton>
           </Stack>
         )
       }
-    },
-    {
-      field: 'createdAt', headerName: 'Registered', width: 120,
-      valueGetter: (p) => {
-        const val = p.row.createdAt
-        if (!val) return ''
-        // Handle Firestore Timestamp or Date or millis
-        const date = val.seconds ? new Date(val.seconds * 1000) : new Date(val)
-        return isValidDate(date) ? date : ''
-      },
-      renderCell: (p) => {
-        const val = p.value
-        if (!val) return '-'
-        return (
-          <Typography variant="body2">{val.toLocaleDateString()}</Typography>
-        )
-      }
-    },
-    {
-      field: 'actions', headerName: '', width: 100, sortable: false,
-      renderCell: (p) => (
-        <Stack direction="row">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); if(effectiveIsAdmin) { handleEdit(p.row as Registration) }}} disabled={!effectiveIsAdmin}>
-            <Edit2 size={16} />
-          </IconButton>
-          <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); if(effectiveIsAdmin) { setSelection([String(p.id)]); handleBulkDelete(); }}} disabled={!effectiveIsAdmin}>
-            <Trash2 size={16} />
-          </IconButton>
-        </Stack>
-      )
-    }
-  ], [effectiveIsAdmin, byStudent, expectedByRegId, expectedLoading, rowStatus])
+    ]
+    return baseColumns
+  }, [effectiveIsAdmin, byStudent, expectedByRegId, expectedLoading, rowStatus])
 
   // Filter rows by payment status (uses same logic as column and drawer)
   const filteredRows = React.useMemo(() => {
