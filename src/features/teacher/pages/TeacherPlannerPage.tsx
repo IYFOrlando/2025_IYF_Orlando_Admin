@@ -17,6 +17,7 @@ import {
   serverTimestamp, query, where, getDoc 
 } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
+import { useAuth } from '../../../context/AuthContext'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
@@ -45,21 +46,24 @@ interface PlanDoc {
 
 export default function TeacherPlannerPage() {
   const { teacherProfile } = useTeacherContext()
+  const { currentUser } = useAuth()
   const [selectedDate, setSelectedDate] = React.useState(new Date())
   
   // Plan Data
   const [plan, setPlan] = React.useState<PlanDoc | null>(null)
-  const [loading, setLoading] = React.useState(false)
+  const [loading, setLoading] = React.useState(false) // Initialized to false to prevent infinite loading if no profile
 
   // Inputs
   const [newTask, setNewTask] = React.useState('')
   const [newEventTime, setNewEventTime] = React.useState('09:00')
   const [newEventTitle, setNewEventTitle] = React.useState('')
 
+  const userEmail = teacherProfile?.email || (currentUser?.email ? currentUser.email.toLowerCase().trim() : null)
+
   const docId = React.useMemo(() => {
-    if (!teacherProfile?.email) return null
-    return `${teacherProfile.email}_${format(selectedDate, 'MM-dd-yyyy')}`
-  }, [teacherProfile, selectedDate])
+    if (!userEmail) return null
+    return `${userEmail}_${format(selectedDate, 'MM-dd-yyyy')}`
+  }, [userEmail, selectedDate])
 
   // Real-time listener for selected date
   React.useEffect(() => {
@@ -79,14 +83,13 @@ export default function TeacherPlannerPage() {
     return () => unsub()
   }, [docId])
 
-  // Details for selected date handled by onSnapshot hook below
+  // Details for selected date  // Calendar View: Fetch all plans for this user
   const [allPlans, setAllPlans] = React.useState<PlanDoc[]>([])
-
   React.useEffect(() => {
-    if (!teacherProfile?.email) return
+    if (!userEmail) return
     const q = query(
       collection(db, 'teacher_plans'),
-      where('teacherEmail', '==', teacherProfile.email)
+      where('teacherEmail', '==', userEmail)
     )
     const unsub = onSnapshot(q, (snap) => {
       setAllPlans(snap.docs.map(d => d.data() as PlanDoc))
@@ -94,7 +97,7 @@ export default function TeacherPlannerPage() {
       console.error('Planner list listener error:', err)
     })
     return () => unsub()
-  }, [teacherProfile?.email])
+  }, [userEmail])
 
   const calendarEvents = React.useMemo(() => {
     const evs: any[] = []
@@ -187,7 +190,7 @@ export default function TeacherPlannerPage() {
 
   // Actions
   const handleAddTask = async () => {
-    if (!newTask.trim() || !docId || !teacherProfile) return
+    if (!newTask.trim() || !docId || !userEmail) return
     
     const task: Task = { id: crypto.randomUUID(), text: newTask.trim(), completed: false }
     
@@ -196,7 +199,7 @@ export default function TeacherPlannerPage() {
          // Create Doc
          await setDoc(doc(db, 'teacher_plans', docId), {
             date: format(selectedDate, 'MM-dd-yyyy'),
-            teacherEmail: teacherProfile.email,
+            teacherEmail: userEmail,
             tasks: [task],
             events: [],
             updatedAt: serverTimestamp()
@@ -227,7 +230,7 @@ export default function TeacherPlannerPage() {
   }
 
   const handleAddEvent = async () => {
-    if (!newEventTitle.trim() || !docId || !teacherProfile) return
+    if (!newEventTitle.trim() || !docId || !userEmail) return
     
     const event: Event = { id: crypto.randomUUID(), time: newEventTime, title: newEventTitle.trim() }
     
@@ -235,7 +238,7 @@ export default function TeacherPlannerPage() {
       if (!plan) {
          await setDoc(doc(db, 'teacher_plans', docId), {
             date: format(selectedDate, 'MM-dd-yyyy'),
-            teacherEmail: teacherProfile.email,
+            teacherEmail: userEmail,
             tasks: [],
             events: [event],
             updatedAt: serverTimestamp()
