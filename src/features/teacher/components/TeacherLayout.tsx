@@ -9,7 +9,7 @@ import {
   Menu as MenuIcon, 
   LayoutDashboard, Users, 
   ClipboardCheck, TrendingUp, 
-  School
+  School, Calendar
 } from 'lucide-react'
 
 import AuthMenu from '../../../app/layout/AuthMenu'
@@ -25,6 +25,7 @@ const teacherItems = [
   { to: '/registrations', label: 'My Students', icon: <Users size={20} /> },
   { to: '/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
   { to: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
+  { to: '/planner', label: 'Planner', icon: <Calendar size={20} /> },
 ]
 
 interface NavItemProps {

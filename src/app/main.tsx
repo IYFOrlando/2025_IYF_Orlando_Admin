@@ -27,6 +27,8 @@ import EmailDatabasePage from '../features/emails/pages/EmailDatabasePage'
 import VolunteerRegistrationPage from '../features/volunteers/pages/VolunteerRegistrationPage'
 import InvoiceDebugPage from '../pages/InvoiceDebugPage'
 import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
+import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
+import TeacherPlannerPage from '../features/teacher/pages/TeacherPlannerPage'
 import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
@@ -58,6 +60,7 @@ const router = createBrowserRouter([
       { path: 'classes', element: <AcademiesPage /> },
       { path: 'volunteers', element: <VolunteersPage /> },
       { path: 'emails', element: <EmailDatabasePage /> },
+      { path: 'planner', element: <TeacherPlannerPage /> },
       
       // Debug tools
       { path: 'debug/invoices', element: <InvoiceDebugPage /> },
