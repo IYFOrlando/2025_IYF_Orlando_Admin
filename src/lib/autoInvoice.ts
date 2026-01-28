@@ -21,6 +21,7 @@ import {
 import { db } from './firebase'
 import { COLLECTIONS_CONFIG } from '../config/shared.js'
 import { logger } from './logger'
+import { isFirebasePermissionError } from './errors'
 import type { Registration } from '../features/registrations/types'
 import type { Invoice, InvoiceLine } from '../features/payments/types'
 import type { PricingDoc } from '../features/payments/types'
@@ -218,7 +219,12 @@ async function invoiceExists(studentId: string): Promise<boolean> {
     const q = query(invoicesRef, where('studentId', '==', studentId))
     const snapshot = await getDocs(q)
     return !snapshot.empty
-  } catch (error) {
+  } catch (error: any) {
+    // Silently handle permission errors - expected for non-admin users
+    if (isFirebasePermissionError(error)) {
+      logger.debug('Permission denied for checking existing invoice (expected for non-admin users)')
+      return false
+    }
     logger.error('Error checking existing invoice', error)
     return false
   }
@@ -303,7 +309,12 @@ export async function createAutoInvoice(registration: Registration): Promise<str
     
     logger.info(`Auto-created invoice ${invoiceRef.id} for registration ${registration.id}`)
     return invoiceRef.id
-  } catch (error) {
+  } catch (error: any) {
+    // Silently handle permission errors - expected for non-admin users
+    if (isFirebasePermissionError(error)) {
+      logger.debug('Permission denied for creating auto invoice (expected for non-admin users)')
+      throw error // Still throw so caller can handle it
+    }
     logger.error('Error creating auto invoice', error)
     throw error
   }
@@ -338,7 +349,12 @@ export async function processPendingRegistrations(): Promise<number> {
       try {
         await createAutoInvoice(registration)
         processed++
-      } catch (error) {
+      } catch (error: any) {
+        // Silently handle permission errors - expected for non-admin users
+        if (isFirebasePermissionError(error)) {
+          logger.debug(`Permission denied for processing registration ${registration.id} (expected for non-admin users)`)
+          return 0 // Exit early if no permissions
+        }
         errors++
         logger.error(`❌ Error processing registration ${registration.id}:`, error)
         // Continue with next registration instead of stopping
@@ -350,7 +366,12 @@ export async function processPendingRegistrations(): Promise<number> {
     }
     
     return processed
-  } catch (error) {
+  } catch (error: any) {
+    // Silently handle permission errors - expected for non-admin users
+    if (isFirebasePermissionError(error)) {
+      logger.debug('Permission denied for processing pending registrations (expected for non-admin users)')
+      return 0
+    }
     logger.error('❌ Error processing pending registrations:', error)
     throw error
   }
@@ -429,7 +450,12 @@ export async function updateInvoiceForRegistration(registration: Registration): 
 
     logger.info(`Updated Invoice ${targetInvoice.id} for Student ${registration.id}`)
 
-  } catch (error) {
+  } catch (error: any) {
+    // Silently handle permission errors - expected for non-admin users
+    if (isFirebasePermissionError(error)) {
+      logger.debug('Permission denied for updating invoice (expected for non-admin users)')
+      return
+    }
     logger.error('Error updating invoice', error)
     // Don't crash the UI for background invoice updates
   }
