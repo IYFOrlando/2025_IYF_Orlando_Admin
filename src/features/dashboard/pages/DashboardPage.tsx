@@ -616,9 +616,10 @@ function AdminDashboard() {
                     <RechartsTooltip contentStyle={{ borderRadius: 8 }} />
                     <Legend verticalAlign="bottom" height={36}/>
                   </PieChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </Box>
               ) : (
-                 <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
                   <Typography color="text.secondary">No Korean classes selected.</Typography>
                 </Box>
               )}
