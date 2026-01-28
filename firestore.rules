@@ -104,6 +104,7 @@ service cloud.firestore {
     match /events/{document} { allow read: if true; allow write: if isAdmin(); }
     match /volunteer_hours/{document} { allow read: if isAuthorized(); allow write: if isAdmin(); }
     match /academy_invoices/{document} { allow read: if isAuthorized(); allow write: if isAdmin(); }
+    match /2026_spring_academy_invoices_2026/{document} { allow read: if isAuthorized() || isTeacher(); allow write: if isAdmin(); }
     match /academy_payments_2026/{document} { allow read: if isAuthorized() || isTeacher(); allow write: if isAdmin(); }
     match /settings/{document} { allow read: if true; allow write: if isAdmin(); }
     match /email_database/{document} { allow read: if isAuthorized(); allow write: if isAuthorized(); }
