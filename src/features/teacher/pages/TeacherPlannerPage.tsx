@@ -296,10 +296,10 @@ export default function TeacherPlannerPage() {
               dayMaxEvents={true}
               weekends={true}
               initialDate={selectedDate}
-              dateClick={(info) => setSelectedDate(info.date)}
+              dateClick={(info: any) => setSelectedDate(info.date)}
               events={calendarEvents}
               eventDrop={handleEventDrop}
-              eventClick={(info) => {
+              eventClick={(info: any) => {
                 setSelectedDate(info.event.start || new Date())
               }}
               eventBackgroundColor="#3f51b5"
