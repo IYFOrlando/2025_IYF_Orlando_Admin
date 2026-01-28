@@ -47,10 +47,13 @@ function useInvoiceAggByStudent() {
   React.useEffect(() => {
     const unsub = onSnapshot(collection(db, COLLECTIONS_CONFIG.academyInvoices), (snap) => {
       // Get all invoices
-      const allInvoices: Invoice[] = snap.docs.map(d => ({
-        id: d.id,
-        ...(d.data() as Invoice)
-      }))
+      const allInvoices: Invoice[] = snap.docs.map(d => {
+        const data = d.data() as Invoice
+        return {
+          ...data,
+          id: d.id // Ensure document ID takes precedence
+        } as Invoice
+      })
       
       // Use only the latest invoice per student (same logic as Dashboard)
       const latest = latestInvoicePerStudent(allInvoices)
