@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { onSnapshot, doc, setDoc } from 'firebase/firestore'
+import { onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { logger } from '../../../lib/logger'
 import { isFirebasePermissionError } from '../../../lib/errors'
@@ -69,7 +69,34 @@ export function usePricingSettings() {
       },
       { merge: true },
     )
+    // Force a refresh by reading the document again
+    // The onSnapshot should update automatically, but this ensures it
+    const ref = doc(db, ...PATH)
+    const snap = await getDoc(ref)
+    if (snap.exists()) {
+      const raw = snap.data() as any
+      setData({
+        academyPrices: raw.academyPrices || {},
+        items: raw.items || [],
+        lunch: raw.lunch || { semester: 40, single: 4 },
+        updatedAt: raw.updatedAt,
+      })
+    }
   }
 
-  return { data, loading, error, savePricing }
+  const refreshPricing = React.useCallback(async () => {
+    const ref = doc(db, ...PATH)
+    const snap = await getDoc(ref)
+    if (snap.exists()) {
+      const raw = snap.data() as any
+      setData({
+        academyPrices: raw.academyPrices || {},
+        items: raw.items || [],
+        lunch: raw.lunch || { semester: 40, single: 4 },
+        updatedAt: raw.updatedAt,
+      })
+    }
+  }, [])
+
+  return { data, loading, error, savePricing, refreshPricing }
 }

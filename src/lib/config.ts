@@ -3,7 +3,7 @@ import { COLLECTIONS_CONFIG } from '../config/shared.js'
 export const FIREBASE_PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
 
 // Use shared collections configuration
-export const REG_COLLECTION = COLLECTIONS_CONFIG.fallAcademy;
+export const REG_COLLECTION = COLLECTIONS_CONFIG.springAcademy2026;
 export const INV_COLLECTION = COLLECTIONS_CONFIG.academyInvoices;
 export const PAY_COLLECTION = COLLECTIONS_CONFIG.academyPayments;
 export const ATTENDANCE_COLLECTION = COLLECTIONS_CONFIG.academyAttendance;
@@ -18,6 +18,9 @@ export const VOLUNTEER_SCHEDULE_COLLECTION = COLLECTIONS_CONFIG.volunteerSchedul
 export const VOLUNTEER_CODES_COLLECTION = COLLECTIONS_CONFIG.volunteerCodes;
 export const VOLUNTEER_COMMITMENTS_COLLECTION = COLLECTIONS_CONFIG.volunteerCommitments;
 export const SETTINGS_COLLECTION = COLLECTIONS_CONFIG.settings;
+export const TEACHER_NOTIFICATIONS_COLLECTION = COLLECTIONS_CONFIG.teacherNotifications;
+export const TEACHER_ACTIVITY_LOG_COLLECTION = COLLECTIONS_CONFIG.teacherActivityLog;
+export const TEACHER_INDEX_COLLECTION = COLLECTIONS_CONFIG.teachersIndex;
 
 export const LUNCH_SEMESTER_CENTS = Number(import.meta.env.VITE_LUNCH_SEMESTER_CENTS || 4000);
 export const LUNCH_SINGLE_CENTS = Number(import.meta.env.VITE_LUNCH_SINGLE_CENTS || 400);

@@ -137,8 +137,12 @@ export const PERIOD_2_ACADEMIES = [
   'DIY',
   'Korean Cooking',
   'Senior',
-  'Kids'
+  'Kids Academy'
 ] as const
+
+// Unified Academy Options (No Periods) - 2026
+export const ACADEMY_OPTIONS = Array.from(new Set([...PERIOD_1_ACADEMIES, ...PERIOD_2_ACADEMIES])).sort()
+
 
 /**
  * @deprecated Academy Pricing - DO NOT USE
@@ -153,7 +157,6 @@ export const ACADEMY_DEFAULT_PRICES = {
   'Art': 100,
   'English': 50,
   'Kids Academy': 50,
-  'Kids': 50, // Alias for compatibility
   'Korean Language': 50,
   'Piano': 100,
   'Pickleball': 50,
@@ -171,7 +174,8 @@ export const ACADEMY_DEFAULT_PRICES = {
 export const KOREAN_LEVELS = [
   'Beginner',
   'Intermediate',
-  'Advanced'
+  'Advanced',
+  'Korean Conversation'
 ] as const
 
 // Payment Methods

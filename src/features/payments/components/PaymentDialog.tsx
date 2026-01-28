@@ -8,7 +8,7 @@ import { Alert as SAlert } from '../../../lib/alerts'
 
 const ACADEMIES = [
   'Art','DIY','Korean Language','Korean Cooking','Piano','Pickleball',
-  'Senior','Soccer','Stretch and Strengthen','Kids'
+  'Senior','Soccer','Stretch and Strengthen','Kids Academy'
 ]
 
 const KOREAN_LEVELS = ['Alphabet','Beginner','Intermediate','K-Movie Conversation'] as const

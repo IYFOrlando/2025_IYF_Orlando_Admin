@@ -4,7 +4,7 @@ import {
   TextField, Autocomplete, Divider, Typography,
   List, ListItem, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Box, Tabs, Tab,
-  Checkbox, FormControlLabel, useTheme, Paper
+  Checkbox, FormControlLabel, useTheme, Paper, Alert
 } from '@mui/material'
 import {
   Settings as SettingsIcon,
@@ -22,7 +22,7 @@ import {
 
 import {
   collection, addDoc, serverTimestamp, query, where, onSnapshot, doc,
-  updateDoc, runTransaction, deleteDoc
+  updateDoc, runTransaction, deleteDoc, getDoc
 } from 'firebase/firestore'
 import Swal from 'sweetalert2'
 
@@ -30,11 +30,13 @@ import { db } from '../../../lib/firebase'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import type { Registration } from '../../registrations/types'
 import { usePricingSettings } from '../../pricing/hooks/usePricingSettings'
+import { useAcademyPricing } from '../hooks/useAcademyPricing'
 import { useInvoices } from '../hooks/useInvoices'
 import { usePayments } from '../hooks/usePayments'
 import { useInstructors } from '../hooks/useInstructors'
 import InvoiceDialog from '../components/InvoiceDialog'
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
+import { latestInvoicePerStudent } from '../utils'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
 import { toCents, fromCents } from '../../../lib/money'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
@@ -44,46 +46,79 @@ import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, Legend 
+} from 'recharts'
 
 // Shared Config
 const INV = COLLECTIONS_CONFIG.academyInvoices
 const PAY = COLLECTIONS_CONFIG.academyPayments
 
 // --- Helpers ---
-function priceFor(academy?: string, _level?: string | null, _period?: 1 | 2, pricing?: PricingDoc) {
+/** Resolve academy name to a key in academyPrices (e.g. "Kids" → "kids academy") */
+function resolvePriceKey(academy: string, academyPrices: Record<string, number>): string | null {
+  const a = norm(academy)
+  if (!a || a === 'n/a') return null
+  if (academyPrices[a] != null) return a
+  const key = Object.keys(academyPrices).find(
+    (k) => k === a || k.includes(a) || a.includes(k) || norm(k).replace(/\s+/g, '') === a.replace(/\s+/g, '')
+  )
+  return key ?? null
+}
+
+function priceFor(academy?: string, _level?: string | null, _period?: 1 | 2, pricing?: PricingDoc): number {
   if (!academy) return 0
   const a = norm(academy)
-  
+  if (a === 'n/a') return 0
+
   if (!pricing) {
-    logger.error(`❌ Pricing not available from Firestore. Cannot get price for ${academy}.`)
-    throw new Error(`Pricing not available from Firestore for ${academy}.`)
+    logger.warn(`Pricing not available for ${academy}; using 0.`)
+    return 0
   }
-  
-  if (pricing.academyPrices?.[a] && pricing.academyPrices[a] > 0) {
-    return Number(pricing.academyPrices[a])
+
+  const key = resolvePriceKey(academy, pricing.academyPrices || {})
+  if (key != null && pricing.academyPrices![key] != null && pricing.academyPrices![key] > 0) {
+    return Number(pricing.academyPrices![key])
   }
-  
-  const error = `Academy "${academy}" (${a}) not found in database.`
-  throw new Error(error)
+
+  logger.warn(`Academy "${academy}" not found in pricing; using 0. Add it in Admin Pricing (payments) or in academies_2026_spring.`)
+  return 0
 }
 
 type StudentOption = { id: string; label: string; reg: Registration }
 
 
 
-function tuitionFullyPaidForSelected(reg: Registration, invs: Invoice[]) {
-  const needs: Array<{ academy: string; period: 1|2 }> = []
-  const a1 = norm(reg.firstPeriod?.academy)
-  const a2 = norm(reg.secondPeriod?.academy)
-  if (a1 && a1.toLowerCase() !== 'n/a') needs.push({ academy: a1, period: 1 })
-  if (a2 && a2.toLowerCase() !== 'n/a') needs.push({ academy: a2, period: 2 })
-  if (!needs.length) return true
+function paidAcademyKeys(invs: Invoice[]): Set<string> {
   const covered = new Set<string>()
   for (const inv of invs) {
     if (inv.status !== 'paid' && inv.status !== 'exonerated') continue
-    for (const l of inv.lines) covered.add(`${norm(l.academy)}|${l.period}`)
+    for (const l of inv.lines) {
+      const key = `${norm(l.academy)}|${(l.level || '').toString().trim().toLowerCase()}`
+      covered.add(key)
+    }
   }
-  return needs.every(n => covered.has(`${n.academy}|${n.period}`))
+  return covered
+}
+
+function tuitionFullyPaidForSelected(reg: Registration, invs: Invoice[]) {
+  const r = reg as any
+  const needs: string[] = []
+  if (Array.isArray(r.selectedAcademies)) {
+    r.selectedAcademies.forEach((a: { academy?: string; level?: string }) => {
+      const ac = norm(a?.academy)
+      if (ac && ac !== 'n/a') needs.push(`${ac}|${(a?.level || '').toString().trim().toLowerCase()}`)
+    })
+  } else {
+    const a1 = norm(reg.firstPeriod?.academy)
+    const a2 = norm(reg.secondPeriod?.academy)
+    if (a1 && a1 !== 'n/a') needs.push(`${a1}|${(reg.firstPeriod?.level || '').toString().trim().toLowerCase()}`)
+    if (a2 && a2 !== 'n/a') needs.push(`${a2}|${(reg.secondPeriod?.level || '').toString().trim().toLowerCase()}`)
+  }
+  if (!needs.length) return true
+  const covered = paidAcademyKeys(invs)
+  return needs.every((k) => covered.has(k))
 }
 
 // --- Styled Components ---
@@ -114,16 +149,43 @@ const GlassCard = ({ children, sx = {}, onClick, ...props }: any) => {
   )
 }
 
+import { useSearchParams } from 'react-router-dom'
+
 // --- Main Page ---
 const PaymentsPage = React.memo(() => {
+  const [searchParams] = useSearchParams()
   const { data: regs } = useRegistrations()
-  const { data: pricing, savePricing } = usePricingSettings()
+  // Get academy prices from academies_2026_spring (single source of truth)
+  const { academyPrices: academyPricesFromSpring, loading: loadingAcademies } = useAcademyPricing()
+  // Get lunch prices from settings/pricing
+  const { data: settingsPricing, savePricing, refreshPricing } = usePricingSettings()
+  
+  // Combine both sources into a single pricing object
+  const pricing: PricingDoc = React.useMemo(() => ({
+    academyPrices: academyPricesFromSpring,
+    lunch: settingsPricing.lunch || { semester: 4000, single: 400 },
+    items: settingsPricing.items || [],
+    currency: 'USD',
+  }), [academyPricesFromSpring, settingsPricing.lunch, settingsPricing.items])
   // NOTE: allInvoices and allPayments are used for Export, do not remove
   const { data: allInvoices } = useInvoices()
   const { data: allPayments } = usePayments()
   const { getInstructorByAcademy } = useInstructors()
+  const latestInvoices = React.useMemo(() => latestInvoicePerStudent(allInvoices ?? []), [allInvoices])
 
   const [student, setStudent] = React.useState<StudentOption | null>(null)
+  
+  // Auto-select student from URL
+  React.useEffect(() => {
+    const sid = searchParams.get('studentId')
+    if (sid && regs.length > 0 && !student) {
+      const found = regs.find(r => r.id === sid)
+      if (found) {
+        setStudent({ id: found.id, label: `${found.firstName} ${found.lastName}`.trim(), reg: found })
+      }
+    }
+  }, [searchParams, regs]) // Don't include student in dependency to allow manual change
+
   const [studentInvoices, setStudentInvoices] = React.useState<Invoice[]>([])
   const [studentPayments, setStudentPayments] = React.useState<Payment[]>([])
   const [selectedInvoiceId, setSelectedInvoiceId] = React.useState<string | null>(null)
@@ -131,10 +193,10 @@ const PaymentsPage = React.memo(() => {
   // Composer State
   const [lines, setLines] = React.useState<InvoiceLine[]>([])
   const [lunchSemester, setLunchSemester] = React.useState<boolean>(false)
-  const [lunchSingleQty, setLunchSingleQty] = React.useState<number>(0)
+  const [lunchSingleQty, setLunchSingleQty] = React.useState<number>(0) // Added for lint
   const [filterByAcademy] = React.useState<string>('')
   const [filterByPeriod] = React.useState<1 | 2 | 'all'>('all')
-  
+
   // Invoice Details Editing
   const [invoiceDialogOpen, setInvoiceDialogOpen] = React.useState(false)
   const [editingLine, setEditingLine] = React.useState<InvoiceLine | null>(null)
@@ -161,11 +223,119 @@ const PaymentsPage = React.memo(() => {
   // UI State
   const [activeTab, setActiveTab] = React.useState(0)
 
+  // Auto-fix pricing conversion - reads directly from Firestore to avoid permission issues
+  const autoFixPricing = React.useCallback(async () => {
+    const MIN_REASONABLE_CENTS = 1000 // $10.00
+    const MIN_LUNCH_CENTS = 100 // $1.00 for lunch (semester should be $40 = 4000, single should be $4 = 400)
+    
+    try {
+      // Read directly from Firestore
+      const pricingRef = doc(db, 'settings', 'pricing')
+      const pricingSnap = await getDoc(pricingRef)
+      
+      if (!pricingSnap.exists()) {
+        Swal.fire({ title: 'No hay datos', text: 'No se encontró el documento de precios', icon: 'info' })
+        return
+      }
+      
+      const data = pricingSnap.data() as any
+      const academyPrices = data.academyPrices || {}
+      const lunch = data.lunch || { semester: 0, single: 0 }
+      
+      const fixedPrices: Record<string, number> = {}
+      const fixes: string[] = []
+      let hasFixes = false
+      
+      // Check academy prices
+      Object.keys(academyPrices).forEach(key => {
+        const priceCents = Number(academyPrices[key] || 0)
+        if (priceCents > 0 && priceCents < MIN_REASONABLE_CENTS) {
+          // Likely stored in dollars, fix it
+          const fixed = Math.round(priceCents * 100)
+          fixedPrices[key] = fixed
+          fixes.push(`${key}: $${(priceCents / 100).toFixed(2)} → $${(fixed / 100).toFixed(2)}`)
+          hasFixes = true
+        } else {
+          fixedPrices[key] = priceCents
+        }
+      })
+      
+      // Check lunch prices - use lower threshold for lunch
+      const lunchSem = Number(lunch.semester || 0)
+      const lunchSingle = Number(lunch.single || 0)
+      
+      const fixedLunch = {
+        semester: lunchSem > 0 && lunchSem < MIN_LUNCH_CENTS
+          ? Math.round(lunchSem * 100)
+          : lunchSem,
+        single: lunchSingle > 0 && lunchSingle < MIN_LUNCH_CENTS
+          ? Math.round(lunchSingle * 100)
+          : lunchSingle
+      }
+      
+      if (fixedLunch.semester !== lunchSem) {
+        fixes.push(`Lunch Semester: $${(lunchSem / 100).toFixed(2)} → $${(fixedLunch.semester / 100).toFixed(2)}`)
+        hasFixes = true
+      }
+      if (fixedLunch.single !== lunchSingle) {
+        fixes.push(`Lunch Single: $${(lunchSingle / 100).toFixed(2)} → $${(fixedLunch.single / 100).toFixed(2)}`)
+        hasFixes = true
+      }
+      
+      if (hasFixes) {
+        const fixesList = fixes.length > 0 ? '<br/><br/>' + fixes.map(f => `• ${f}`).join('<br/>') : ''
+        const result = await Swal.fire({
+          title: 'Corregir precios?',
+          html: `Se detectaron precios guardados en dólares en lugar de centavos.${fixesList}<br/><br/>¿Deseas corregirlos automáticamente?`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, corregir',
+          cancelButtonText: 'Cancelar',
+          width: 500
+        })
+        
+        if (result.isConfirmed) {
+          try {
+            await savePricing({
+              academyPrices: Object.keys(fixedPrices).length > 0 ? fixedPrices : academyPrices,
+              items: data.items || [],
+              lunch: fixedLunch
+            })
+            notifySuccess('Precios corregidos', `Se corrigieron ${fixes.length} precio(s)`)
+            // Force refresh of pricing data
+            await refreshPricing()
+            // Also reload page to ensure UI updates
+            setTimeout(() => window.location.reload(), 1500)
+          } catch (e: any) {
+            console.error('Error saving pricing:', e)
+            notifyError('Error al corregir', e?.message || 'No se pudieron guardar los cambios. Verifica que tengas permisos de escritura.')
+          }
+        }
+      } else {
+        Swal.fire({ 
+          title: 'Todo correcto', 
+          text: 'No se encontraron precios que necesiten corrección. Todos los precios están en centavos.',
+          icon: 'success' 
+        })
+      }
+    } catch (e: any) {
+      console.error('Error reading pricing:', e)
+      notifyError('Error al leer precios', e?.message || 'No se pudieron leer los precios. Verifica que tengas permisos de lectura.')
+    }
+  }, [savePricing])
+
   // --- Effects ---
   React.useEffect(() => {
-    setEditMap(pricing.academyPrices || {})
-    setEditLunchSem(Number(pricing.lunch?.semester || 0))
-    setEditLunchSingle(Number(pricing.lunch?.single || 0))
+    // Convert from cents to dollars for display in admin
+    const pricesInDollars: Record<string, number> = {}
+    if (pricing.academyPrices) {
+      Object.keys(pricing.academyPrices).forEach(key => {
+        pricesInDollars[key] = (pricing.academyPrices[key] || 0) / 100
+      })
+    }
+    setEditMap(pricesInDollars)
+    setEditLunchSem((Number(pricing.lunch?.semester || 0)) / 100)
+    setEditLunchSingle((Number(pricing.lunch?.single || 0)) / 100)
   }, [pricing])
 
   React.useEffect(() => {
@@ -192,62 +362,85 @@ const PaymentsPage = React.memo(() => {
     return () => { ui(); up() }
   }, [student?.id, selectedInvoiceId])
 
-  // Logic to build invoice lines from registration
+  // Logic to build invoice lines from registration (supports selectedAcademies and legacy firstPeriod/secondPeriod)
   React.useEffect(() => {
     if (!student?.reg) { setLines([]); return }
-    const r = student.reg
-    const p1Paid = tuitionFullyPaidForSelected({ ...r, secondPeriod: undefined }, studentInvoices)
-    const p2Paid = tuitionFullyPaidForSelected({ ...r, firstPeriod: undefined }, studentInvoices)
-
+    const r = student.reg as any
+    const covered = paidAcademyKeys(studentInvoices)
     const L: InvoiceLine[] = []
-    
-    // Period 1
-    const a1 = norm(r.firstPeriod?.academy)
-    const shouldP1 = a1 && a1 !== 'n/a' && !p1Paid && 
-      (!filterByAcademy || filterByAcademy === a1) && (filterByPeriod === 'all' || filterByPeriod === 1)
-      
-    if (shouldP1) {
-      const unit = priceFor(a1, r.firstPeriod?.level, 1, pricing)
-      const instructor = getInstructorByAcademy(norm(a1), r.firstPeriod?.level || null)
-      
-      L.push({
-        academy: a1, period: 1, level: isKoreanLanguage(a1) ? mapKoreanLevel(r.firstPeriod?.level) : null,
-        unitPrice: unit, qty: 1, amount: unit,
-        instructor: instructor ? {
-          firstName: instructor.name.split(' ')[0] || '',
-          lastName: instructor.name.split(' ').slice(1).join(' ') || '',
-          email: instructor.email || '', phone: instructor.phone || '',
-          credentials: instructor.credentials || (isKoreanLanguage(a1) ? 'volunteer teacher' : '')
-        } : undefined,
-        instructionDates: { startDate: '2025-08-16', endDate: '2025-11-22', totalHours: 14, schedule: 'Saturdays, 1 hour' }
+
+    if (Array.isArray(r.selectedAcademies) && r.selectedAcademies.length > 0) {
+      // 2026 structure: one line per academy in selectedAcademies that is not yet paid
+      r.selectedAcademies.forEach((ac: { academy?: string; level?: string }, idx: number) => {
+        const a = norm(ac?.academy)
+        if (!a || a === 'n/a') return
+        const key = `${a}|${(ac?.level || '').toString().trim().toLowerCase()}`
+        if (covered.has(key)) return
+        if (filterByAcademy && filterByAcademy !== a) return
+        if (filterByPeriod !== 'all' && filterByPeriod !== idx + 1) return
+        const unit = priceFor(a, ac?.level ?? null, (idx + 1) as 1 | 2, pricing)
+        const instructor = getInstructorByAcademy(a, ac?.level ?? null)
+        L.push({
+          academy: a,
+          period: (idx + 1) as 1 | 2,
+          level: isKoreanLanguage(a) ? mapKoreanLevel(ac?.level) : null,
+          unitPrice: unit,
+          qty: 1,
+          amount: unit,
+          instructor: instructor
+            ? {
+                firstName: instructor.name.split(' ')[0] || '',
+                lastName: instructor.name.split(' ').slice(1).join(' ') || '',
+                email: instructor.email || '',
+                phone: instructor.phone || '',
+                credentials: instructor.credentials || (isKoreanLanguage(a) ? 'volunteer teacher' : ''),
+              }
+            : undefined,
+          instructionDates: { startDate: '', endDate: '', totalHours: 14, schedule: 'Saturdays, 1 hour' },
+        })
       })
+    } else {
+      // Legacy: firstPeriod / secondPeriod
+      const p1Paid = tuitionFullyPaidForSelected({ ...r, secondPeriod: undefined }, studentInvoices)
+      const p2Paid = tuitionFullyPaidForSelected({ ...r, firstPeriod: undefined }, studentInvoices)
+      const a1 = norm(r.firstPeriod?.academy)
+      const a2 = norm(r.secondPeriod?.academy)
+      const shouldP1 = a1 && a1 !== 'n/a' && !p1Paid && (!filterByAcademy || filterByAcademy === a1) && (filterByPeriod === 'all' || filterByPeriod === 1)
+      const shouldP2 = a2 && a2 !== 'n/a' && !p2Paid && (!filterByAcademy || filterByAcademy === a2) && (filterByPeriod === 'all' || filterByPeriod === 2)
+      if (shouldP1) {
+        const unit = priceFor(a1, r.firstPeriod?.level, 1, pricing)
+        const instructor = getInstructorByAcademy(a1, r.firstPeriod?.level || null)
+        L.push({
+          academy: a1,
+          period: 1,
+          level: isKoreanLanguage(a1) ? mapKoreanLevel(r.firstPeriod?.level) : null,
+          unitPrice: unit,
+          qty: 1,
+          amount: unit,
+          instructor: instructor ? { firstName: instructor.name.split(' ')[0] || '', lastName: instructor.name.split(' ').slice(1).join(' ') || '', email: instructor.email || '', phone: instructor.phone || '', credentials: instructor.credentials || (isKoreanLanguage(a1) ? 'volunteer teacher' : '') } : undefined,
+          instructionDates: { startDate: '', endDate: '', totalHours: 14, schedule: 'Saturdays, 1 hour' },
+        })
+      }
+      if (shouldP2) {
+        const unit = priceFor(a2, r.secondPeriod?.level, 2, pricing)
+        const instructor = getInstructorByAcademy(a2, r.secondPeriod?.level || null)
+        L.push({
+          academy: a2,
+          period: 2,
+          level: isKoreanLanguage(a2) ? mapKoreanLevel(r.secondPeriod?.level) : null,
+          unitPrice: unit,
+          qty: 1,
+          amount: unit,
+          instructor: instructor ? { firstName: instructor.name.split(' ')[0] || '', lastName: instructor.name.split(' ').slice(1).join(' ') || '', email: instructor.email || '', phone: instructor.phone || '', credentials: instructor.credentials || (isKoreanLanguage(a2) ? 'volunteer teacher' : '') } : undefined,
+          instructionDates: { startDate: '2025-08-16', endDate: '2025-11-22', totalHours: 14, schedule: 'Saturdays, 1 hour' },
+        })
+      }
     }
 
-    // Period 2
-    const a2 = norm(r.secondPeriod?.academy)
-    const shouldP2 = a2 && a2 !== 'n/a' && !p2Paid && 
-      (!filterByAcademy || filterByAcademy === a2) && (filterByPeriod === 'all' || filterByPeriod === 2)
-      
-    if (shouldP2) {
-      const unit = priceFor(a2, r.secondPeriod?.level, 2, pricing)
-      const instructor = getInstructorByAcademy(norm(a2), r.secondPeriod?.level || null)
-      
-      L.push({
-        academy: a2, period: 2, level: isKoreanLanguage(a2) ? mapKoreanLevel(r.secondPeriod?.level) : null,
-        unitPrice: unit, qty: 1, amount: unit,
-        instructor: instructor ? {
-          firstName: instructor.name.split(' ')[0] || '',
-          lastName: instructor.name.split(' ').slice(1).join(' ') || '',
-          email: instructor.email || '', phone: instructor.phone || '',
-          credentials: instructor.credentials || (isKoreanLanguage(a2) ? 'volunteer teacher' : '')
-        } : undefined,
-        instructionDates: { startDate: '2025-08-16', endDate: '2025-11-22', totalHours: 14, schedule: 'Saturdays, 1 hour' }
-      })
-    }
-    
     setLines(L)
-    // Reset transient fields
-    setLunchSemester(false); setLunchSingleQty(0); setDiscountNote('')
+    setLunchSemester(false)
+    setLunchSingleQty(0)
+    setDiscountNote('')
   }, [student?.id, pricing, studentInvoices, getInstructorByAcademy, filterByAcademy, filterByPeriod])
 
   // --- Handlers ---
@@ -278,6 +471,9 @@ const PaymentsPage = React.memo(() => {
   // Actions
   const createInvoice = async (mode: 'normal'|'lunchOnly' = 'normal') => {
     if (!student) return
+    if (studentInvoices.length > 0) {
+      return notifyError('Este alumno ya tiene factura. Usa la factura existente en la lista o edítala desde Registrations.')
+    }
     const effLines = mode === 'lunchOnly' ? [] : lines
     const effSub = effLines.reduce((s, l) => s + l.amount, 0)
     const effDisc = Math.min(discountAmount, effSub)
@@ -457,7 +653,6 @@ const PaymentsPage = React.memo(() => {
     doc.setTextColor(GRAY[0], GRAY[1], GRAY[2])
     doc.setFontSize(10); doc.setFont('helvetica', 'bold')
     doc.text('ITEM', 50, y + 20)
-    doc.text('PERIOD', 300, y + 20)
     doc.text('AMOUNT', 480, y + 20)
     
     // Lines
@@ -468,7 +663,6 @@ const PaymentsPage = React.memo(() => {
     inv.lines.forEach(l => {
       y += 20
       doc.text(l.academy, 50, y)
-      doc.text(`P${l.period}`, 300, y)
       doc.text(usd(l.amount), 480, y)
       
       if (l.instructor) {
@@ -484,7 +678,6 @@ const PaymentsPage = React.memo(() => {
     if (inv.lunchAmount) {
       y += 20
       doc.text('Lunch / Other', 50, y)
-      doc.text('-', 300, y)
       doc.text(usd(inv.lunchAmount), 480, y)
       y += 10; doc.line(40, y, w-40, y)
     }
@@ -515,10 +708,19 @@ const PaymentsPage = React.memo(() => {
   }
   
   const savePricingNow = async () => {
+     // Convert from dollars to cents for storage
+     const pricesInCents: Record<string, number> = {}
+     Object.keys(editMap).forEach(key => {
+       pricesInCents[key] = Math.round((editMap[key] || 0) * 100)
+     })
+     
      await savePricing({
-       academyPrices: editMap,
+       academyPrices: pricesInCents,
        items: pricing.items || [],
-       lunch: { semester: editLunchSem, single: editLunchSingle }
+       lunch: { 
+         semester: Math.round(editLunchSem * 100), 
+         single: Math.round(editLunchSingle * 100) 
+       }
      })
      setOpenPricing(false)
      notifySuccess('Pricing updated')
@@ -540,17 +742,20 @@ const PaymentsPage = React.memo(() => {
                  value={student}
                  onChange={(_, v) => setStudent(v)}
                  renderInput={params => <TextField {...params} label="Select Student" variant="outlined" />}
-                 renderOption={(props, option) => (
-                   <li {...props}>
-                     <Stack direction="row" alignItems="center" spacing={1}>
-                       <PersonIcon color="action" />
-                       <Box>
-                         <Typography variant="body1">{option.label}</Typography>
-                         <Typography variant="caption" color="text.secondary">{option.reg.email}</Typography>
-                       </Box>
-                     </Stack>
-                   </li>
-                 )}
+                 renderOption={(props, option) => {
+                   const { key, ...restProps } = props
+                   return (
+                     <li key={key} {...restProps}>
+                       <Stack direction="row" alignItems="center" spacing={1}>
+                         <PersonIcon color="action" />
+                         <Box>
+                           <Typography variant="body1">{option.label}</Typography>
+                           <Typography variant="caption" color="text.secondary">{option.reg.email}</Typography>
+                         </Box>
+                       </Stack>
+                     </li>
+                   )
+                 }}
                />
                <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
                  <Button size="small" startIcon={<FileDownloadIcon />} onClick={handleExportExcel}>Export Excel</Button>
@@ -569,7 +774,7 @@ const PaymentsPage = React.memo(() => {
                  {lines.map((l, i) => (
                    <Paper key={i} elevation={0} sx={{ p: 1, bgcolor: 'action.hover', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Box>
-                        <Typography variant="subtitle2">{l.academy} (P{l.period})</Typography>
+                        <Typography variant="subtitle2">{l.academy}</Typography>
                         <Stack direction="row" spacing={1}>
                           <Chip label={usd(l.amount)} size="small" color="primary" variant="outlined" />
                           {l.instructor && <Chip label={l.instructor.firstName} size="small" icon={<PersonIcon />} />}
@@ -649,11 +854,112 @@ const PaymentsPage = React.memo(() => {
               <Typography variant="h5" fontWeight={700} gutterBottom>Payment Terminal</Typography>
               
               <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+                <Tab label="Dashboard" />
                 <Tab label="Pay Invoice" />
                 <Tab label="Records" />
               </Tabs>
 
               {activeTab === 0 && (
+                <Stack spacing={3} component={motion.div} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                   {/* One invoice per student (latest). Outstanding = sum of latest invoice balance only. */}
+                   <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Paper sx={{ p: 2, bgcolor: 'primary.main', color: '#fff' }}>
+                           <Typography variant="caption" sx={{ opacity: 0.8 }}>Total Revenue</Typography>
+                           <Typography variant="h5" fontWeight={700}>
+                             {usd(allInvoices?.reduce((s,i) => s + (i.paid ?? 0), 0) || 0)}
+                           </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Paper sx={{ p: 2, bgcolor: '#ff9800', color: '#fff' }}>
+                           <Typography variant="caption" sx={{ opacity: 0.8 }}>Outstanding</Typography>
+                           <Typography variant="h5" fontWeight={700}>
+                             {usd(latestInvoices.reduce((s,i) => s + (i.balance ?? 0), 0))}
+                           </Typography>
+                        </Paper>
+                      </Grid>
+                   </Grid>
+
+                   {/* Charts Section */}
+                   <Grid container spacing={2}>
+                     <Grid item xs={12} lg={6}>
+                        <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, height: 250 }}>
+                          <Typography variant="subtitle2" gutterBottom>Revenue Status</Typography>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={[
+                              { name: 'Paid', value: (latestInvoices.reduce((s,i) => s + (i.paid ?? 0), 0))/100 },
+                              { name: 'Due', value: (latestInvoices.reduce((s,i) => s + (i.balance ?? 0), 0))/100 }
+                            ]}>
+                              <XAxis dataKey="name" />
+                              <YAxis />
+                              <RTooltip formatter={(v:any) => `$${v}`} />
+                              <Bar dataKey="value" fill="#2196F3" radius={[4, 4, 0, 0]}>
+                                {
+                                  [{ name: 'Paid', value: 0 }, { name: 'Due', value: 0 }].map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#4CAF50' : '#FF9800'} />
+                                  ))
+                                }
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </Box>
+                     </Grid>
+                     <Grid item xs={12} lg={6}>
+                        <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, height: 250 }}>
+                          <Typography variant="subtitle2" gutterBottom>Payment Methods</Typography>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={Object.entries(allPayments?.reduce((acc:any, p) => {
+                                  const m = p.method || 'Unknown'
+                                  acc[m] = (acc[m] || 0) + p.amount
+                                  return acc
+                                }, {}) || {}).map(([name, value]) => ({ name, value: (value as number)/100 }))}
+                                cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5}
+                                dataKey="value"
+                              >
+                                {['#0088FE', '#00C49F', '#FFBB28', '#FF8042'].map((color, index) => (
+                                  <Cell key={`cell-${index}`} fill={color} />
+                                ))}
+                              </Pie>
+                              <RTooltip formatter={(v:any) => `$${v}`} />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </Box>
+                     </Grid>
+                   </Grid>
+
+                   {/* Recent Transactions */}
+                   <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>Recent Transactions</Typography>
+                      {(!allPayments || allPayments.length === 0) ? (
+                        <Typography variant="body2" color="text.secondary">No transactions yet</Typography>
+                      ) : (
+                        <Stack spacing={1.5}>
+                           {allPayments.slice().sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)).slice(0, 5).map(p => (
+                             <Stack key={p.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                                <Box>
+                                   <Typography variant="subtitle2" fontWeight={600}>
+                                      {allInvoices?.find(i => i.id === p.invoiceId)?.studentName || 'Student'}
+                                   </Typography>
+                                   <Typography variant="caption" color="text.secondary">
+                                      {p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'} • {p.method?.toUpperCase()}
+                                   </Typography>
+                                </Box>
+                                <Typography fontWeight={700} color="success.main">
+                                   +{usd(p.amount)}
+                                </Typography>
+                             </Stack>
+                           ))}
+                        </Stack>
+                      )}
+                   </Box>
+                </Stack>
+              )}
+
+              {activeTab === 2 && (
                 <Stack spacing={3} component={motion.div} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 3 }}>
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>Balance Due</Typography>
@@ -723,18 +1029,47 @@ const PaymentsPage = React.memo(() => {
       
       {/* Dialogs */}
       <Dialog open={openPricing} onClose={() => setOpenPricing(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Admin Pricing</DialogTitle>
+        <DialogTitle>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <span>Admin Pricing</span>
+            <Stack direction="row" spacing={1}>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                onClick={refreshPricing}
+                startIcon={<span>🔄</span>}
+              >
+                Refresh
+              </Button>
+              <Button 
+                size="small" 
+                variant="contained" 
+                color="warning"
+                onClick={autoFixPricing}
+                startIcon={<span>🔧</span>}
+                sx={{ minWidth: 120 }}
+              >
+                Auto-Fix
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogTitle>
         <DialogContent>
            <Stack spacing={2} sx={{ mt: 1 }}>
+             <Alert severity="warning" sx={{ mb: 2 }}>
+               <Typography variant="body2">
+                 Si ves precios como $0.40 en lugar de $40.00, usa el botón "Auto-Fix" arriba o abajo para corregirlos automáticamente.
+               </Typography>
+             </Alert>
              <Box sx={{ borderBottom: 1, borderColor: 'divider', pb: 2 }}>
-               <Typography variant="subtitle2" gutterBottom>Lunch settings</Typography>
+               <Typography variant="subtitle2" gutterBottom>Lunch settings (USD)</Typography>
                <Stack direction="row" spacing={2}>
-                 <TextField label="Lunch Semester" fullWidth size="small" value={editLunchSem} onChange={e => setEditLunchSem(Number(e.target.value))} type="number" />
-                 <TextField label="Lunch Single" fullWidth size="small" value={editLunchSingle} onChange={e => setEditLunchSingle(Number(e.target.value))} type="number" />
+                 <TextField label="Lunch Semester ($)" fullWidth size="small" value={editLunchSem} onChange={e => setEditLunchSem(Number(e.target.value))} type="number" inputProps={{ step: '0.01' }} />
+                 <TextField label="Lunch Single ($)" fullWidth size="small" value={editLunchSingle} onChange={e => setEditLunchSingle(Number(e.target.value))} type="number" inputProps={{ step: '0.01' }} />
                </Stack>
              </Box>
              
-             <Typography variant="subtitle2">Academy Prices</Typography>
+             <Typography variant="subtitle2">Academy Prices (USD)</Typography>
              <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
                {[...PERIOD_1_ACADEMIES, ...PERIOD_2_ACADEMIES]
                  .filter((v, i, a) => a.indexOf(v) === i)
@@ -746,6 +1081,8 @@ const PaymentsPage = React.memo(() => {
                         size="small" type="number" sx={{ width: 100 }} 
                         value={editMap[norm(name)] || 0}
                         onChange={e => setEditMap(prev => ({ ...prev, [norm(name)]: Number(e.target.value) }))}
+                        inputProps={{ step: '0.01' }}
+                        InputProps={{ startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography> }}
                       />
                    </Stack>
                  ))
@@ -754,7 +1091,7 @@ const PaymentsPage = React.memo(() => {
              {/* Manual Add */}
              <Stack direction="row" spacing={1}>
                 <TextField placeholder="Custom Academy" size="small" fullWidth value={newAcademy} onChange={e => setNewAcademy(e.target.value)} />
-                <TextField placeholder="$" type="number" size="small" sx={{ width: 80 }} value={newPrice} onChange={e => setNewPrice(Number(e.target.value))} />
+                <TextField placeholder="Price ($)" type="number" size="small" sx={{ width: 100 }} value={newPrice} onChange={e => setNewPrice(Number(e.target.value))} inputProps={{ step: '0.01' }} />
                 <IconButton onClick={() => { 
                    if(newAcademy) { 
                      setEditMap(prev => ({ ...prev, [norm(newAcademy)]: newPrice }))
@@ -765,6 +1102,15 @@ const PaymentsPage = React.memo(() => {
            </Stack>
         </DialogContent>
         <DialogActions>
+           <Button 
+             variant="outlined" 
+             color="warning"
+             onClick={autoFixPricing}
+             startIcon={<span>🔧</span>}
+           >
+             Auto-Fix Prices
+           </Button>
+           <Box sx={{ flexGrow: 1 }} />
            <Button onClick={() => setOpenPricing(false)}>Cancel</Button>
            <Button variant="contained" onClick={savePricingNow}>Save Changes</Button>
         </DialogActions>
@@ -783,13 +1129,36 @@ const PaymentsPage = React.memo(() => {
         />
       )}
       
-      {/* Floating Action Button for Admin Settings */}
-      <Box sx={{ position: 'absolute', bottom: 20, left: 20 }}>
-         <Tooltip title="Admin Settings">
-           <IconButton onClick={() => setOpenPricing(true)} sx={{ bgcolor: 'background.paper', boxShadow: 3 }}>
+      {/* Floating Action Button for Admin Settings - Right side to avoid sidebar */}
+      <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
+         <Tooltip title="Admin Pricing Settings">
+           <IconButton 
+             onClick={() => setOpenPricing(true)} 
+             sx={{ 
+               bgcolor: 'warning.main', 
+               color: 'white',
+               boxShadow: 3,
+               '&:hover': { bgcolor: 'warning.dark' },
+               width: 56,
+               height: 56
+             }}
+           >
              <SettingsIcon />
            </IconButton>
          </Tooltip>
+      </Box>
+      
+      {/* Also add a button in the top right for easier access */}
+      <Box sx={{ position: 'fixed', top: 80, right: 20, zIndex: 1000 }}>
+         <Button
+           variant="contained"
+           color="warning"
+           startIcon={<SettingsIcon />}
+           onClick={() => setOpenPricing(true)}
+           sx={{ boxShadow: 3 }}
+         >
+           Pricing Settings
+         </Button>
       </Box>
 
     </Box>

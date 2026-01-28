@@ -3,7 +3,8 @@ import {
   Grid, Card, CardContent, Typography, Box, Button, useTheme, Chip, Stack
 } from '@mui/material'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
-import { useInvoices } from '../../payments/hooks/useInvoices' // Use Invoices for financials
+import { useInvoices } from '../../payments/hooks/useInvoices'
+import { latestInvoicePerStudent } from '../../payments/utils'
 import { useAutoInvoice } from '../../registrations/hooks/useAutoInvoice'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -15,8 +16,10 @@ import {
 } from 'recharts'
 import { motion } from 'framer-motion'
 import { 
-  Download, Users, School, TrendingUp, DollarSign, Clock
+  Download, Users, School, TrendingUp, DollarSign, Clock,
+  Plus, CreditCard, FileText, AlertCircle, CheckCircle, XCircle
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 // --- Types ---
 type CountRow = { academy: string; count: number }
@@ -82,16 +85,22 @@ const StatValue = ({ value, label, icon: Icon, color, subValue }: any) => (
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1']
 
-export default function DashboardPage() {
+import { useTeacherContext } from '../../auth/context/TeacherContext'
+import TeacherDashboardPage from './TeacherDashboardPage'
+
+// Old "DashboardPage" becomes "AdminDashboard"
+function AdminDashboard() {
   const theme = useTheme()
+  const navigate = useNavigate()
+  // ... existing hooks
   const { data: registrations, loading: regLoading } = useRegistrations()
   const { data: invoices, loading: invLoading } = useInvoices()
   
   // Auto-invoice hook
   useAutoInvoice(true)
 
-  // Memoized Calculations
-  const { totals, academyRows, koreanLevelRows, dailyStats, financialStats } = React.useMemo(() => {
+  // ... existing calculation logic ...
+  const { totals, academyRows, koreanLevelRows, dailyStats, financialStats, unpaidCount, partialPaidCount } = React.useMemo(() => {
     // 1. Registration Stats
     const academies = new Map<string, number>()
     const koreanLevels = new Map<string, number>()
@@ -149,10 +158,23 @@ export default function DashboardPage() {
 
     const totalAcademies = Array.from(academies.values()).reduce((a, b) => a + b, 0)
 
-    // 2. Financial Stats (from Invoices)
-    const totalCollected = invoices.reduce((sum, inv) => sum + (inv.paid || 0), 0)
-    const totalPending = invoices.reduce((sum, inv) => sum + (inv.balance || 0), 0)
-    const fullyPaidCount = invoices.filter(inv => inv.status === 'paid').length
+    // 2. Financial Stats — one invoice per student (the latest); older ones are history and don't count
+    const latest = latestInvoicePerStudent(invoices)
+    const totalCollected = invoices.reduce((sum, inv) => sum + (inv.paid ?? 0), 0)
+    const totalPending = latest.reduce((sum, inv) => sum + (inv.balance ?? 0), 0)
+    const fullyPaidCount = latest.filter(inv => inv.status === 'paid').length
+    const partialPaidCount = latest.filter(inv => inv.status === 'partial').length
+    const unpaidCount = latest.filter(inv => inv.status === 'unpaid').length
+    const withBalance = latest.filter(inv => (inv.balance ?? 0) > 0)
+    const invoicesWithBalance = withBalance.length
+    const studentsWithBalance = withBalance.length
+
+    // Payment Status Breakdown for chart
+    const paymentStatusData = [
+      { status: 'Paid', count: fullyPaidCount, color: '#4CAF50' },
+      { status: 'Partial', count: partialPaidCount, color: '#FF9800' },
+      { status: 'Unpaid', count: unpaidCount, color: '#F44336' }
+    ].filter(item => item.count > 0)
 
     // Today's Registrations
     const todayStr = displayYMD(new Date())
@@ -170,8 +192,13 @@ export default function DashboardPage() {
       financialStats: {
         collected: totalCollected,
         pending: totalPending,
-        paidInvoices: fullyPaidCount
-      }
+        paidInvoices: fullyPaidCount,
+        paymentStatusData,
+        invoicesWithBalance,
+        studentsWithBalance
+      },
+      unpaidCount,
+      partialPaidCount
     }
   }, [registrations, invoices])
 
@@ -179,7 +206,6 @@ export default function DashboardPage() {
 
   // Setup PDF export
   const exportPDF = () => {
-    // ... [Same PDF Logic as before, keeping it for utility] ...
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
     const marginX = 40
     doc.setFontSize(24).text('IYF Dashboard Report', marginX, 40)
@@ -188,8 +214,8 @@ export default function DashboardPage() {
       head: [['Metric', 'Value']],
       body: [
         ['Total Registrations', String(totals.registrations)],
-        ['Total Revenue (Collected)', `$${financialStats.collected.toFixed(2)}`],
-        ['Pending Revenue', `$${financialStats.pending.toFixed(2)}`],
+        ['Total Revenue (Collected)', formatCurrency(financialStats.collected)],
+        ['Pending Revenue', formatCurrency(financialStats.pending)],
       ]
     })
     doc.save('dashboard-report.pdf')
@@ -197,7 +223,7 @@ export default function DashboardPage() {
 
   // Formatting Currency
   const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val / 100)
 
   return (
     <Box 
@@ -218,7 +244,7 @@ export default function DashboardPage() {
             Dashboard
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Live overview of Spring 2026
+            Live overview of Academy
           </Typography>
         </Box>
         <Button 
@@ -276,7 +302,7 @@ export default function DashboardPage() {
                 label="Pending Payments" 
                 icon={Clock} 
                 color="#FF9800" 
-                subValue={`${invoices.length - financialStats.paidInvoices} Unpaid Invoices`}
+                subValue={`${financialStats.studentsWithBalance} students with balance`}
               />
             </CardContent>
           </GlassCard>
@@ -299,6 +325,171 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
+      {/* Quick Actions & Alerts Row */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Quick Actions */}
+        <Grid item xs={12} md={7}>
+          <GlassCard>
+            <CardContent>
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                🚀 Quick Actions
+              </Typography>
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={6} sm={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<Plus size={18} />}
+                    onClick={() => navigate('/registrations')}
+                    sx={{
+                      borderRadius: 3,
+                      py: 2,
+                      borderColor: '#2196F3',
+                      color: '#2196F3',
+                      '&:hover': { bgcolor: 'rgba(33, 150, 243, 0.08)', borderColor: '#2196F3' }
+                    }}
+                  >
+                    New Student
+                  </Button>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<CreditCard size={18} />}
+                    onClick={() => navigate('/payments')}
+                    sx={{
+                      borderRadius: 3,
+                      py: 2,
+                      borderColor: '#4CAF50',
+                      color: '#4CAF50',
+                      '&:hover': { bgcolor: 'rgba(76, 175, 80, 0.08)', borderColor: '#4CAF50' }
+                    }}
+                  >
+                    Record Payment
+                  </Button>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<FileText size={18} />}
+                    onClick={() => navigate('/payments')}
+                    sx={{
+                      borderRadius: 3,
+                      py: 2,
+                      borderColor: '#FF9800',
+                      color: '#FF9800',
+                      '&:hover': { bgcolor: 'rgba(255, 152, 0, 0.08)', borderColor: '#FF9800' }
+                    }}
+                  >
+                    View Invoices
+                  </Button>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<Download size={18} />}
+                    onClick={exportPDF}
+                    sx={{
+                      borderRadius: 3,
+                      py: 2,
+                      borderColor: '#9C27B0',
+                      color: '#9C27B0',
+                      '&:hover': { bgcolor: 'rgba(156, 39, 176, 0.08)', borderColor: '#9C27B0' }
+                    }}
+                  >
+                    Export Data
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </GlassCard>
+        </Grid>
+
+        {/* Alerts */}
+        <Grid item xs={12} md={5}>
+          <GlassCard>
+            <CardContent>
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                ⚠️ Attention Needed
+              </Typography>
+              <Stack spacing={2} sx={{ mt: 2 }}>
+                {unpaidCount > 0 && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'rgba(244, 67, 54, 0.08)',
+                      border: '1px solid rgba(244, 67, 54, 0.2)'
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <XCircle size={20} color="#F44336" />
+                      <Typography variant="body2" fontWeight={600} color="error">
+                        {unpaidCount} students with unpaid invoices
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+                {partialPaidCount > 0 && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'rgba(255, 152, 0, 0.08)',
+                      border: '1px solid rgba(255, 152, 0, 0.2)'
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <AlertCircle size={20} color="#FF9800" />
+                      <Typography variant="body2" fontWeight={600} color="warning">
+                        {partialPaidCount} students with partial payments
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+                {totals.registrationsToday > 0 && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'rgba(33, 150, 243, 0.08)',
+                      border: '1px solid rgba(33, 150, 243, 0.2)'
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <TrendingUp size={20} color="#2196F3" />
+                      <Typography variant="body2" fontWeight={600} color="primary">
+                        {totals.registrationsToday} new registrations today
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+                {financialStats.paidInvoices > 0 && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'rgba(76, 175, 80, 0.08)',
+                      border: '1px solid rgba(76, 175, 80, 0.2)'
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CheckCircle size={20} color="#4CAF50" />
+                      <Typography variant="body2" fontWeight={600} color="success">
+                        {financialStats.paidInvoices} students fully paid ✅
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            </CardContent>
+          </GlassCard>
+        </Grid>
+      </Grid>
+
       {/* Charts Row */}
       <Grid container spacing={3}>
         {/* Main Trend Chart */}
@@ -307,8 +498,9 @@ export default function DashboardPage() {
             <CardContent sx={{ height: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Registration Trend</Typography>
               {dailyStats.length > 0 ? (
-                <ResponsiveContainer width="100%" height="90%">
-                  <AreaChart data={dailyStats}>
+                <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dailyStats}>
                     <defs>
                       <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#2196F3" stopOpacity={0.8}/>
@@ -347,7 +539,8 @@ export default function DashboardPage() {
                       activeDot={{ r: 6 }}
                     />
                   </AreaChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </Box>
               ) : (
                 <Box display="flex" alignItems="center" justifyContent="center" height="100%">
                   <Typography color="text.secondary">No trend data available yet.</Typography>
@@ -357,14 +550,55 @@ export default function DashboardPage() {
           </GlassCard>
         </Grid>
 
-        {/* Breakdown Box (Korean OR Pie) */}
+        {/* Payment Status Breakdown */}
+        <Grid item xs={12} lg={4}>
+          <GlassCard>
+            <CardContent sx={{ height: 400 }}>
+              <Typography variant="h6" fontWeight={700} gutterBottom>Payment Status</Typography>
+              {financialStats.paymentStatusData.length > 0 ? (
+                <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                    <Pie
+                      data={financialStats.paymentStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      dataKey="count"
+                      nameKey="status"
+                    >
+                      {financialStats.paymentStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: 8 }}
+                      formatter={(value: number) => [`${value} students`, 'Count']}
+                    />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No payment data available.</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </GlassCard>
+        </Grid>
+
+        {/* Korean Levels (moved to bottom) */}
         <Grid item xs={12} lg={4}>
           <GlassCard>
             <CardContent sx={{ height: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Korean Levels</Typography>
               {koreanLevelRows.length > 0 ? (
-                <ResponsiveContainer width="100%" height="90%">
-                  <PieChart>
+                <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
                     <Pie
                       data={koreanLevelRows}
                       cx="50%"
@@ -398,26 +632,28 @@ export default function DashboardPage() {
             <CardContent sx={{ minHeight: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Academy Distribution</Typography>
               {academyRows.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={academyRows} layout="vertical" margin={{ left: 40, right: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.2} />
-                    <XAxis type="number" hide />
-                    <YAxis 
-                      dataKey="academy" 
-                      type="category" 
-                      width={120}
-                      tick={{ fill: theme.palette.text.primary, fontWeight: 500, fontSize: 13 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: 8 }} />
-                    <Bar dataKey="count" fill="#2196F3" radius={[0, 6, 6, 0]} barSize={24}>
-                      {academyRows.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <Box sx={{ width: '100%', height: 300, minHeight: 0, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={academyRows} layout="vertical" margin={{ left: 40, right: 20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.2} />
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="academy" 
+                        type="category" 
+                        width={120}
+                        tick={{ fill: theme.palette.text.primary, fontWeight: 500, fontSize: 13 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: 8 }} />
+                      <Bar dataKey="count" fill="#2196F3" radius={[0, 6, 6, 0]} barSize={24}>
+                        {academyRows.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
               ) : (
                  <Box display="flex" alignItems="center" justifyContent="center" height={200}>
                   <Typography color="text.secondary">No academies selected.</Typography>
@@ -429,4 +665,14 @@ export default function DashboardPage() {
       </Grid>
     </Box>
   )
+}
+
+export default function DashboardPage() {
+  const { role } = useTeacherContext()
+
+  if (role === 'teacher') {
+    return <TeacherDashboardPage />
+  }
+
+  return <AdminDashboard />
 }

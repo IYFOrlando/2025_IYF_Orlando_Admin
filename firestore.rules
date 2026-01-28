@@ -1,238 +1,114 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is admin
+    
+    // --- Helper Functions ---
+    
+    // Super Admin check
     function isAdmin() {
       return request.auth != null && 
-             request.auth.token.email in [
-               'orlando@iyfusa.org',
-               'jodlouis.dev@gmail.com',
-               'michellemoralespradis@gmail.com'
+             request.auth.token.email != null &&
+             request.auth.token.email.lower() in [
+                'orlando@iyfusa.org',
+                'jodlouis.dev@gmail.com',
+                'joddev.com@gmail.com',
+                'michellemoralespradis@gmail.com',
+                'admin@iyforlando.org',
+                'director@iyforlando.org'
              ];
     }
     
-    // Helper function to check if user has Gmail access
+    // Gmail access check (legacy/broad admin)
     function hasGmailAccess() {
       return request.auth != null && 
-             request.auth.token.email.matches('.*@gmail\\.com$');
+             request.auth.token.email.lower().matches('.*@gmail\\.com$');
     }
     
-    // Helper function to check if user is authorized (admin or Gmail)
+    // Authorized for read-only access to most admin data
     function isAuthorized() {
       return request.auth != null && (isAdmin() || hasGmailAccess());
     }
     
-    // Allow public read/write access to registration collections (for frontend forms)
-    match /fall_academy_2025/{document} {
-      allow read, write: if true;
+    // Teacher check via index
+    function isTeacher() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/teachers_index/$(request.auth.token.email.lower()));
     }
     
-    // 2026 Spring Semester registration collection
-    // SECURITY: Allow public write for frontend forms, restrict read to authenticated admins
+    function getTeacherData() {
+      return get(/databases/$(database)/documents/teachers_index/$(request.auth.token.email.lower())).data;
+    }
+    
+    // Check if teacher is assigned to this specific academy
+    // Expects academyName as used in attendance/progress records
+    function isAuthorizedTeacher(academyName) {
+      return isTeacher() && (academyName in getTeacherData().authorizedAcademies);
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Teachers Index (Admin write, Teacher/Admin read)
+    match /teachers_index/{email} {
+      allow read: if request.auth != null && (request.auth.token.email.lower() == email.lower() || isAuthorized());
+      allow write: if isAdmin();
+    }
+
+    // 2. Attendance (Admin full, Teacher scoped write)
+    match /academy_attendance/{document} {
+      allow read: if isAuthorized() || isTeacher();
+      allow create, update: if isAdmin() || isAuthorizedTeacher(request.resource.data.academy);
+      allow delete: if isAdmin();
+    }
+
+    // 3. Progress (Admin full, Teacher scoped write)
+    match /academy_progress/{document} {
+      allow read: if isAuthorized() || isTeacher();
+      allow create, update: if isAdmin() || isAuthorizedTeacher(request.resource.data.academy);
+      allow delete: if isAdmin();
+    }
+
+    // 4. Registrations (2026 Spring)
     match /2026-iyf_orlando_academy_spring_semester/{document} {
-      // Allow anyone to create registrations (for public forms)
-      allow create: if true;
-      // Only authenticated admins can read (prevents data scraping)
-      // Frontend forms don't need to read, only create
-      allow read: if isAuthorized();
-      // Only admins can update/delete
+      allow create: if true; // Public forms
+      allow read: if isAuthorized() || isTeacher(); // Teachers can see their students
       allow update, delete: if isAdmin();
     }
-    
-    // Academies 2026 Spring collection - public read for frontend pricing, admin write
+
+    // 5. Academy Config (Public read for forms, Admin write)
     match /academies_2026_spring/{document} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Allow public read/write access to volunteer applications (for frontend forms)
-    match /volunteer_applications/{document} {
-      allow read, write: if true;
+
+    // 6. Notifications & Logs (Admin full, Teacher create only)
+    match /teacher_notifications/{document} {
+      allow read: if isAuthorized();
+      allow update, delete: if isAdmin();
+      allow create: if isTeacher(); // Teachers log their actions
     }
-    
-    // Allow public read/write access to trip to korea applications (for frontend forms)
-    match /trip_to_korea_applications/{document} {
-      allow read, write: if true;
+    match /teacher_activity_log/{document} {
+      allow read: if isAuthorized();
+      allow create: if isTeacher();
+      allow update, delete: if false; // Immutable logs
     }
+
+    // 7. Legacy/Public Collections (Restricting broad access)
+    // We only allow CREATE for public forms. READ is restricted.
+    match /volunteer_applications/{document} { allow create: if true; allow read, write: if isAuthorized(); }
+    match /trip_to_korea_applications/{document} { allow create: if true; allow read, write: if isAuthorized(); }
+    match /cooking_class_applications/{document} { allow create: if true; allow read, write: if isAuthorized(); }
+    match /kdrama_applications/{document} { allow create: if true; allow read, write: if isAuthorized(); }
+    match /volunteer_schedule/{document} { allow read: if true; allow write: if isAdmin(); }
     
-    // Allow public read/write access to cooking class applications (for frontend forms)
-    match /cooking_class_applications/{document} {
-      allow read, write: if true;
-    }
-    
-    // Allow public read/write access to kdrama applications (for frontend forms)
-    match /kdrama_applications/{document} {
-      allow read, write: if true;
-    }
-    
-    // Allow public read/write access to volunteer schedule (for frontend forms)
-    match /volunteer_schedule/{document} {
-      allow read, write: if true;
-    }
-    
-    // Events collection - admins have full access, others read-only
-    match /events/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Volunteer hours collection - admins have full access, others read-only
-    match /volunteer_hours/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Volunteer codes collection - admins have full access, others read-only
-    match /volunteer_codes/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Settings collection - admins have full access, others read-only
-    match /settings/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Academy invoices collection - admins have full access, others read-only
-    match /academy_invoices/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Academy payments collection - admins have full access, others read-only
-    match /academy_payments/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Academy attendance collection - admins have full access, others read-only
-    match /academy_attendance/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Academy progress collection - admins have full access, others read-only
-    match /academy_progress/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Academy classes collection - admins have full access, others read-only
-    match /academy_classes/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Academy pricing collection - admins have full access, others read-only
-    match /academy_pricing/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Food tickets collection - admins have full access, others read-only
-    match /food_tickets/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Weekly reports collection - admins have full access, others read-only
-    match /weekly_reports/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Teachers collection - admins have full access, others read-only
-    match /teachers/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Email database collection - public read, admin or Gmail user write
-    match /email_database/{document} {
-      allow read: if true;
-      allow create, update, delete: if isAuthorized();
-    }
-    
-    // Eventbrite emails collection - public read, admin or Gmail user write
-    match /eventbrite_emails/{document} {
-      allow read: if true;
-      allow create, update, delete: if isAuthorized();
-    }
-    
-    // Volunteer commitments collection - admins have full access, others read-only
-    match /volunteer_commitments/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Registrations collection - public read access for email import
-    match /registrations/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Staff collection - public read access for email import
-    match /staff/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Staff profiles collection - public read access for email import
-    match /staff_profiles/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Teachers collection - public read access for email import
-    match /teachers/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Payments collection - public read access for email import
-    match /payments/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Spring academy collection - public read access for email import
-    match /spring_academy_2025/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // K-drama registration collection - public read access for email import
-    match /k_drama_with_friends_registration/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Trip to korea registration collection - public read access for email import
-    match /trip_to_korea_registration/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Subscribers collection - public read access for email import
-    match /subscribers/{document} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Allow public read/write access to any future registration collections (for frontend forms)
-    match /{collection}/{document} {
-      allow read, write: if 
-        collection.matches('.*academy.*') || 
-        collection.matches('.*registration.*') || 
-        collection.matches('.*volunteer.*') ||
-        collection.matches('.*trip.*') ||
-        collection.matches('.*cooking.*') ||
-        collection.matches('.*kdrama.*') ||
-        collection.matches('.*application.*');
-    }
-    
-    // Default rule - deny all other access
+    // 8. General Admin Collections
+    match /events/{document} { allow read: if true; allow write: if isAdmin(); }
+    match /volunteer_hours/{document} { allow read: if isAuthorized(); allow write: if isAdmin(); }
+    match /academy_invoices/{document} { allow read: if isAuthorized(); allow write: if isAdmin(); }
+    match /academy_payments_2026/{document} { allow read: if isAuthorized() || isTeacher(); allow write: if isAdmin(); }
+    match /settings/{document} { allow read: if true; allow write: if isAdmin(); }
+    match /email_database/{document} { allow read: if isAuthorized(); allow write: if isAuthorized(); }
+
+    // --- Final Catch-all ---
     match /{document=**} {
       allow read, write: if false;
     }

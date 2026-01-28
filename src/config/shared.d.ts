@@ -41,7 +41,11 @@ export interface CollectionsConfig {
   academyClasses: string
   academyPricing: string
   academies2026Spring: string
+  springAcademy2026: string
   settings: string
+  teacherNotifications: string
+  teacherActivityLog: string
+  teachersIndex: string
 }
 
 export interface ApiEndpoints {
@@ -63,6 +67,7 @@ export interface EnvironmentConfig {
 export interface SharedConfig {
   firebase: FirebaseConfig
   recaptcha: RecaptchaConfig
+  dashboardUrl: string
   contact: ContactConfig
   collections: CollectionsConfig
   api: ApiConfig

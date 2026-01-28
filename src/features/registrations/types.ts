@@ -2,7 +2,7 @@ export type Period = { academy?: string; level?: string }
 export type SelectedAcademy = {
   academy?: string
   level?: string
-  schedule?: string
+  schedule?: string | null
 }
 export type Registration = {
   id: string
@@ -23,4 +23,7 @@ export type Registration = {
   selectedAcademies?: SelectedAcademy[] // 2026: new structure with array of academies
   createdAt?: any
   isDuplicate?: boolean // Mark duplicate registrations
+  guardianName?: string
+  guardianPhone?: string
+  tShirtSize?: string
 }

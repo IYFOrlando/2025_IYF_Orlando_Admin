@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 
+import { AuthProvider } from '../context/AuthContext'
+import { TeacherProvider } from '../features/auth/context/TeacherContext'
 import AppLayout from './layout/AppLayout'
 import AuthGate from './layout/auth/AuthGate'
 import theme from '../theme'
@@ -23,6 +25,9 @@ import CheckInPage from '../features/volunteers/pages/CheckInPage'
 import PublicVolunteerSchedulePage from '../features/volunteers/pages/PublicVolunteerSchedulePage'
 import EmailDatabasePage from '../features/emails/pages/EmailDatabasePage'
 import VolunteerRegistrationPage from '../features/volunteers/pages/VolunteerRegistrationPage'
+import InvoiceDebugPage from '../pages/InvoiceDebugPage'
+import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
+import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
 import '../index.css'
@@ -53,6 +58,15 @@ const router = createBrowserRouter([
       { path: 'classes', element: <AcademiesPage /> },
       { path: 'volunteers', element: <VolunteersPage /> },
       { path: 'emails', element: <EmailDatabasePage /> },
+      
+      // Debug tools
+      { path: 'debug/invoices', element: <InvoiceDebugPage /> },
+      
+      // Teacher Management (Phase 2)
+      { path: 'teachers', element: <TeachersManagementPage /> },
+      
+      // Audit Log (Phase 10)
+      { path: 'dashboard/activity-log', element: <ActivityLogPage /> },
     ],
   },
   // Public pages (no auth required)
@@ -74,7 +88,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <TeacherProvider>
+          <RouterProvider router={router} />
+        </TeacherProvider>
+      </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>
 )

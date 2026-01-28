@@ -1,10 +1,15 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField,
+  Card, CardContent, Stack, Box, Alert, Button, TextField,
   Tabs, Tab, Typography, Chip, FormControl, InputLabel, Select, MenuItem,
   Grid, Table, TableHead, TableRow, TableCell, TableBody, Paper
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
+
+import {
+  TrendingUp as TrendingUpIcon, TrendingDown, Users, DollarSign, Calendar,
+  School
+} from 'lucide-react'
 import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
 import PaymentIcon from '@mui/icons-material/Payment'
@@ -13,7 +18,6 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import PendingIcon from '@mui/icons-material/Pending'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import DownloadIcon from '@mui/icons-material/Download'
-import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import LocationOnIcon from '@mui/icons-material/LocationOn'
 import GroupIcon from '@mui/icons-material/Group'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
@@ -30,6 +34,13 @@ import { db } from '../../../lib/firebase'
 import { normalizeAcademy } from '../../../lib/normalization'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
+import { latestInvoicePerStudent } from '../../payments/utils'
+import { usd } from '../../../lib/query'
+import { displayYMD } from '../../../lib/date'
+import { sendEmail } from '../../../lib/emailService'
+import { dailyReportTemplate, type DailyReportData } from '../../../lib/reportEmailTemplates'
+import { notifySuccess, notifyError } from '../../../lib/alerts'
+import { GlassCard } from '../../../components/GlassCard'
 
 
 interface TabPanelProps {
@@ -53,6 +64,47 @@ function TabPanel(props: TabPanelProps) {
     </div>
   )
 }
+
+// Stat Card Component
+const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }: any) => (
+  <GlassCard>
+    <CardContent>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+        <Box>
+          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+            {title}
+          </Typography>
+          <Typography variant="h4" fontWeight={800} sx={{ mt: 1, mb: 0.5 }}>
+            {value}
+          </Typography>
+          {trend && (
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              {trend === 'up' ? (
+                <TrendingUpIcon size={16} color="#4CAF50" />
+              ) : (
+                <TrendingDown size={16} color="#F44336" />
+              )}
+              <Typography variant="caption" color={trend === 'up' ? 'success.main' : 'error.main'}>
+                {trendValue}
+              </Typography>
+            </Stack>
+          )}
+        </Box>
+        <Box
+          sx={{
+            p: 1.5,
+            borderRadius: 2,
+            bgcolor: `${color}20`,
+            color: color,
+            display: 'flex'
+          }}
+        >
+          <Icon size={24} />
+        </Box>
+      </Stack>
+    </CardContent>
+  </GlassCard>
+)
 
 function computeAge(birthday?: string | null): number | '' {
   if (!birthday) return ''
@@ -97,8 +149,11 @@ interface AttendanceRecord {
 
 export default function ReportsPage() {
   const { data: registrations, loading, error } = useRegistrations()
-  const { data: invoices } = useInvoices()
+  const { data: allInvoices } = useInvoices()
   const { data: payments } = usePayments()
+  
+  const latestInvoices = React.useMemo(() => latestInvoicePerStudent(allInvoices || []), [allInvoices])
+  const invoices = allInvoices // Keep for backward compatibility
   
   const [tabValue, setTabValue] = React.useState(0)
   const [dateRange, setDateRange] = React.useState<{start: string, end: string}>({
@@ -108,6 +163,299 @@ export default function ReportsPage() {
   const [selectedAcademy, setSelectedAcademy] = React.useState<string>('all')
   const [selectedPeriod, setSelectedPeriod] = React.useState<'all' | 'p1' | 'p2'>('all')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<'all' | 'zelle' | 'cash'>('all')
+  const [dailyReportEmailTo, setDailyReportEmailTo] = React.useState('orlando@iyfusa.org')
+  const [sendingDailyReportEmail, setSendingDailyReportEmail] = React.useState(false)
+
+  const generateDailyReportPDF = () => {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    
+    // Add logo
+    try {
+      doc.addImage(logoImage, 'JPEG', 20, 15, 30, 30)
+    } catch (error) {
+      // Logo could not be added, continue without it
+    }
+
+    // Header
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('IYF Orlando Academy - Daily Report', pageWidth / 2, 25, { align: 'center' })
+    
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('2026 Spring Semester', pageWidth / 2, 33, { align: 'center' })
+    
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    const reportDate = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+    doc.text(reportDate, pageWidth / 2, 41, { align: 'center' })
+
+    let yPos = 55
+
+    // Total Students - Large and Prominent
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Total Students', pageWidth / 2, yPos, { align: 'center' })
+    yPos += 12
+    
+    doc.setFontSize(32)
+    doc.setTextColor(33, 150, 243) // Blue color
+    doc.text(dailyStats.overall.totalStudents.toString(), pageWidth / 2, yPos, { align: 'center' })
+    doc.setTextColor(0, 0, 0) // Reset to black
+    yPos += 25
+
+    // New Students Today
+    if (dailyStats.today.newStudents.length > 0) {
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('New Students Today', 20, yPos)
+      yPos += 10
+
+      const newStudentsData = dailyStats.today.newStudents.map((student, idx) => [
+        (idx + 1).toString(),
+        `${student.firstName} ${student.lastName}`,
+        student.email,
+        (student as any).selectedAcademies?.[0]?.academy || 'N/A'
+      ])
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['#', 'Name', 'Email', 'Academy']],
+        body: newStudentsData,
+        theme: 'striped',
+        headStyles: { fillColor: [33, 150, 243], fontStyle: 'bold' },
+        styles: { fontSize: 9 }
+      })
+
+      yPos = (doc as any).lastAutoTable.finalY + 15
+    }
+
+    // Add new page if needed
+    if (yPos > 250) {
+      doc.addPage()
+      yPos = 20
+    }
+
+    // Enrollment by Academy
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Enrollment by Academy', 20, yPos)
+    yPos += 6
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Total students enrolled in each academy', 20, yPos)
+    yPos += 8
+
+    const academyData = dailyStats.allAcademies.map((academy, idx) => [
+      (idx + 1).toString(),
+      academy.name,
+      `${academy.count} student${academy.count > 1 ? 's' : ''}`
+    ])
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Rank', 'Academy', 'Students']],
+      body: academyData,
+      theme: 'grid',
+      headStyles: { fillColor: [33, 150, 243], fontStyle: 'bold' },
+      styles: { fontSize: 10 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 100 },
+        2: { cellWidth: 50, halign: 'right' }
+      }
+    })
+
+    yPos = (doc as any).lastAutoTable.finalY + 15
+
+    // Korean Language Levels (if exists) - Without emoji
+    if (dailyStats.koreanLevels.length > 0) {
+      if (yPos > 240) {
+        doc.addPage()
+        yPos = 20
+      }
+
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Korean Language - Levels', 20, yPos)
+      yPos += 6
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Students enrolled in each Korean level', 20, yPos)
+      yPos += 8
+
+      const koreanLevelData = dailyStats.koreanLevels.map((levelData) => [
+        levelData.level,
+        `${levelData.count} student${levelData.count > 1 ? 's' : ''}`
+      ])
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Level', 'Students']],
+        body: koreanLevelData,
+        theme: 'grid',
+        headStyles: { fillColor: [156, 39, 176], fontStyle: 'bold' },
+        styles: { fontSize: 10 },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 90, halign: 'right' }
+        }
+      })
+    }
+
+    doc.save(`daily-report-${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
+  // Daily stats calculation (for Daily Report tab)
+  const dailyStats = React.useMemo(() => {
+    const today = displayYMD(new Date())
+    const yesterday = displayYMD(new Date(Date.now() - 86400000))
+    
+    // Registrations
+    const todayRegs = (registrations || []).filter(r => displayYMD(r.createdAt) === today)
+    const yesterdayRegs = (registrations || []).filter(r => displayYMD(r.createdAt) === yesterday)
+    
+    // Payments
+    const todayPayments = (payments || []).filter(p => displayYMD(p.createdAt) === today)
+    const yesterdayPayments = (payments || []).filter(p => displayYMD(p.createdAt) === yesterday)
+    const todayRevenue = todayPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    const yesterdayRevenue = yesterdayPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    
+    // Financial overview
+    const totalRevenue = (allInvoices || []).reduce((sum, inv) => sum + (inv.paid ?? 0), 0)
+    const totalPending = latestInvoices.reduce((sum, inv) => sum + (inv.balance ?? 0), 0)
+    const paidCount = latestInvoices.filter(inv => inv.status === 'paid').length
+    const unpaidCount = latestInvoices.filter(inv => inv.status === 'unpaid').length
+    
+    // Total enrollment by academy (ALL students, not just today)
+    const totalAcademyMap = new Map<string, number>()
+    ;(registrations || []).forEach(r => {
+      const academies = (r as any).selectedAcademies || [r.firstPeriod, r.secondPeriod].filter(Boolean)
+      academies.forEach((a: any) => {
+        if (a?.academy) {
+          totalAcademyMap.set(a.academy, (totalAcademyMap.get(a.academy) || 0) + 1)
+        }
+      })
+    })
+    const allAcademyStats = Array.from(totalAcademyMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+    
+    // Korean language level breakdown
+    const koreanLevelMap = new Map<string, number>()
+    ;(registrations || []).forEach(r => {
+      const academies = (r as any).selectedAcademies || [r.firstPeriod, r.secondPeriod].filter(Boolean)
+      academies.forEach((a: any) => {
+        if (a?.academy?.toLowerCase() === 'korean language' && a?.level) {
+          koreanLevelMap.set(a.level, (koreanLevelMap.get(a.level) || 0) + 1)
+        }
+      })
+    })
+    const koreanLevelStats = Array.from(koreanLevelMap.entries())
+      .map(([level, count]) => ({ level, count }))
+      .sort((a, b) => {
+        // Sort by level (assuming numeric or alphabetical)
+        const levelA = parseInt(a.level) || a.level
+        const levelB = parseInt(b.level) || b.level
+        if (typeof levelA === 'number' && typeof levelB === 'number') {
+          return levelA - levelB
+        }
+        return String(levelA).localeCompare(String(levelB))
+      })
+    
+    // Today's academy breakdown (for comparison)
+    const todayAcademyMap = new Map<string, number>()
+    todayRegs.forEach(r => {
+      const academies = (r as any).selectedAcademies || [r.firstPeriod, r.secondPeriod].filter(Boolean)
+      academies.forEach((a: any) => {
+        if (a?.academy) {
+          todayAcademyMap.set(a.academy, (todayAcademyMap.get(a.academy) || 0) + 1)
+        }
+      })
+    })
+    const todayAcademyStats = Array.from(todayAcademyMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+    
+    return {
+      today: {
+        registrations: todayRegs.length,
+        payments: todayPayments.length,
+        revenue: todayRevenue,
+        newStudents: todayRegs,
+        academies: todayAcademyStats
+      },
+      yesterday: {
+        registrations: yesterdayRegs.length,
+        revenue: yesterdayRevenue
+      },
+      overall: {
+        totalRevenue,
+        totalPending,
+        paidCount,
+        unpaidCount,
+        totalStudents: (registrations || []).length
+      },
+      allAcademies: allAcademyStats,
+      koreanLevels: koreanLevelStats
+    }
+  }, [registrations, payments, allInvoices, latestInvoices])
+
+  const regTrend = dailyStats.today.registrations > dailyStats.yesterday.registrations ? 'up' : dailyStats.today.registrations < dailyStats.yesterday.registrations ? 'down' : undefined
+  const revTrend = dailyStats.today.revenue > dailyStats.yesterday.revenue ? 'up' : dailyStats.today.revenue < dailyStats.yesterday.revenue ? 'down' : undefined
+
+  const sendDailyReportEmail = async () => {
+    if (!dailyReportEmailTo?.trim()) {
+      notifyError('Enter a recipient email')
+      return
+    }
+    setSendingDailyReportEmail(true)
+    try {
+      const reportDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      const payload: DailyReportData = {
+        reportDate,
+        today: {
+          registrations: dailyStats.today.registrations,
+          payments: dailyStats.today.payments,
+          revenue: dailyStats.today.revenue,
+          newStudents: dailyStats.today.newStudents,
+          academies: dailyStats.today.academies,
+        },
+        overall: {
+          totalStudents: dailyStats.overall.totalStudents,
+          totalRevenue: dailyStats.overall.totalRevenue,
+          totalPending: dailyStats.overall.totalPending,
+          paidCount: dailyStats.overall.paidCount,
+          unpaidCount: dailyStats.overall.unpaidCount,
+        },
+        allAcademies: dailyStats.allAcademies,
+        koreanLevels: dailyStats.koreanLevels,
+      }
+      const html = dailyReportTemplate(payload)
+      const result = await sendEmail({
+        to: dailyReportEmailTo.trim(),
+        subject: `Daily Report – ${reportDate} – IYF Orlando Academy`,
+        html,
+        fromName: 'IYF Orlando Admin',
+      })
+      if (result.success) {
+        notifySuccess('Report sent', `Email sent to ${dailyReportEmailTo}`)
+      } else {
+        notifyError(result.error)
+      }
+    } catch (e) {
+      notifyError(e instanceof Error ? e.message : 'Failed to send email')
+    } finally {
+      setSendingDailyReportEmail(false)
+    }
+  }
 
   // Attendance State
   const [attendance, setAttendance] = React.useState<AttendanceRecord[]>([])
@@ -689,86 +1037,93 @@ export default function ReportsPage() {
   }
 
   return (
-    <Card elevation={0} sx={{ borderRadius: 3 }}>
-      <CardHeader
-        title="Comprehensive Reports" 
-        subheader="Track registration, payments, lunch, and attendance with detailed reporting" 
-      />
+    <Card elevation={0} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+      {/* Premium Header */}
+      <Box sx={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        p: 4,
+        color: 'white'
+      }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <AssessmentIcon sx={{ fontSize: 50 }} />
+          <Box>
+            <Typography variant="h3" fontWeight={800}>
+              Comprehensive Reports
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.95, mt: 0.5 }}>
+              Track registration, payments, lunch, and attendance with detailed reporting
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
       <CardContent>
         {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
 
-        {/* Filters */}
-        <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>Filters:</Typography>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Academy</InputLabel>
-                <Select
-                  value={selectedAcademy}
-                  onChange={(e) => setSelectedAcademy(e.target.value)}
-                  label="Academy"
-                >
-                  <MenuItem value="all">All Academies</MenuItem>
-                  {academies.map(academy => (
-                    <MenuItem key={academy} value={academy}>{academy}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+        {/* Filters with Glassmorphism */}
+        <GlassCard sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom fontWeight={700} sx={{ mb: 3 }}>
+              Filters
+            </Typography>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Academy</InputLabel>
+                  <Select
+                    value={selectedAcademy}
+                    onChange={(e) => setSelectedAcademy(e.target.value)}
+                    label="Academy"
+                  >
+                    <MenuItem value="all">All Academies</MenuItem>
+                    {academies.map(academy => (
+                      <MenuItem key={academy} value={academy}>{academy}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  size="small"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  label="End Date"
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  size="small"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Payment Method</InputLabel>
+                  <Select
+                    value={selectedPaymentMethod}
+                    onChange={(e) => setSelectedPaymentMethod(e.target.value as 'all' | 'zelle' | 'cash')}
+                    label="Payment Method"
+                  >
+                    <MenuItem value="all">All Methods</MenuItem>
+                    <MenuItem value="zelle">Zelle</MenuItem>
+                    <MenuItem value="cash">Cash</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Period</InputLabel>
-                <Select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value as 'all' | 'p1' | 'p2')}
-                  label="Period"
-                >
-                  <MenuItem value="all">All Periods</MenuItem>
-                  <MenuItem value="p1">Period 1</MenuItem>
-                  <MenuItem value="p2">Period 2</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField
-                label="Start Date"
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                size="small"
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField
-                label="End Date"
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                size="small"
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Payment Method</InputLabel>
-                <Select
-                  value={selectedPaymentMethod}
-                  onChange={(e) => setSelectedPaymentMethod(e.target.value as 'all' | 'zelle' | 'cash')}
-                  label="Payment Method"
-                >
-                  <MenuItem value="all">All Methods</MenuItem>
-                  <MenuItem value="zelle">Zelle</MenuItem>
-                  <MenuItem value="cash">Cash</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </Box>
+          </CardContent>
+        </GlassCard>
 
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                     <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+          <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+            <Tab label="📊 Daily Report" />
             <Tab label={`Registration (${filteredRegistrations.length})`} />
             <Tab label={`Payments (${filteredPayments.length})`} />
             <Tab label={`Lunch (${lunchAnalytics.totalLunches})`} />
@@ -776,260 +1131,580 @@ export default function ReportsPage() {
           </Tabs>
         </Box>
 
+        {/* Daily Report Tab */}
         <TabPanel value={tabValue} index={0}>
-          <Stack spacing={3}>
-            {/* Header with Export Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <GroupIcon color="primary" />
-                Registration Analytics
+          <Box sx={{ pb: 4 }}>
+            {/* Header */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h4" fontWeight={800} sx={{
+                background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 1
+              }}>
+                Daily Report
               </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Calendar size={18} />
+                <Typography variant="body1" color="text.secondary">
+                  {new Date().toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </Typography>
+              </Stack>
+            </Box>
+
+            {/* Export & Send by email */}
+            <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'flex-end' }}>
               <Button
-                startIcon={<DownloadIcon />}
                 variant="contained"
-                onClick={generateRegistrationReport}
+                onClick={generateDailyReportPDF}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  fontWeight: 600,
+                  px: 3,
+                  '&:hover': { background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' }
+                }}
               >
-                Export Full Report
+                📄 Export to PDF
+              </Button>
+              <TextField
+                size="small"
+                label="Send report to"
+                type="email"
+                value={dailyReportEmailTo}
+                onChange={(e) => setDailyReportEmailTo(e.target.value)}
+                placeholder="orlando@iyfusa.org"
+                sx={{ minWidth: 220 }}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={sendingDailyReportEmail || !dailyReportEmailTo?.trim()}
+                onClick={sendDailyReportEmail}
+                sx={{ fontWeight: 600, px: 3 }}
+              >
+                {sendingDailyReportEmail ? 'Sending…' : '📧 Send by email'}
               </Button>
             </Box>
 
-            {/* Summary Cards */}
-        <Grid container spacing={3}>
-              <Grid item xs={12} sm={4}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    {filteredRegistrations.length}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Students</Typography>
-                </Paper>
+            {/* Today's Stats */}
+            <Typography variant="h6" fontWeight={700} gutterBottom sx={{ mb: 2 }}>
+              📊 Today's Activity
+            </Typography>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="New Registrations"
+                  value={dailyStats.today.registrations}
+                  icon={Users}
+                  color="#2196F3"
+                  trend={regTrend}
+                  trendValue={regTrend ? `${Math.abs(dailyStats.today.registrations - dailyStats.yesterday.registrations)} vs yesterday` : 'Same as yesterday'}
+                />
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'secondary.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    {latestRegistrations.length > 0 
-                      ? `${latestRegistrations[0].firstName} ${latestRegistrations[0].lastName}`
-                      : 'No registrations'
-                    }
-                  </Typography>
-                  <Typography variant="subtitle1">Latest Registration</Typography>
-                </Paper>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Total Students"
+                  value={dailyStats.overall.totalStudents}
+                  icon={School}
+                  color="#9C27B0"
+                  trend={undefined}
+                  trendValue="All time"
+                />
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    {chartData.cities.length}
-                  </Typography>
-                  <Typography variant="subtitle1">Cities Represented</Typography>
-                </Paper>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Payments Received"
+                  value={dailyStats.today.payments}
+                  icon={DollarSign}
+                  color="#4CAF50"
+                  trend={undefined}
+                  trendValue="Today"
+                />
               </Grid>
-          </Grid>
-
-            {/* Charts Row */}
-            <Grid container spacing={3}>
-              {/* Academy Chart */}
-              <Grid item xs={12} lg={6}>
-                <Paper sx={{ p: 3, height: 400 }}>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SchoolIcon color="primary" />
-                    Registrations by Academy
-                  </Typography>
-                                       <ResponsiveContainer width="100%" height="100%">
-                       <BarChart data={chartData.academies}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                         <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                  <YAxis />
-                         <RechartsTooltip 
-                           formatter={(value, _, props) => [
-                             `${value} students`, 
-                             props.payload.fullName
-                           ]}
-                         />
-                         <Bar dataKey="value" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
-                </Paper>
-          </Grid>
-
-              {/* City Chart */}
-              <Grid item xs={12} lg={6}>
-                <Paper sx={{ p: 3, height: 400 }}>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocationOnIcon color="primary" />
-                    Registrations by City (Top 10)
-                  </Typography>
-                                       <ResponsiveContainer width="100%" height="100%">
-                       <BarChart data={chartData.cities}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                         <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                  <YAxis />
-                         <RechartsTooltip 
-                           formatter={(value, _, props) => [
-                             `${value} students`, 
-                             props.payload.fullName
-                           ]}
-                         />
-                         <Bar dataKey="value" fill="#82ca9d" />
-                       </BarChart>
-                     </ResponsiveContainer>
-                </Paper>
+              <Grid item xs={12} sm={6} md={3}>
+                <StatCard
+                  title="Revenue Today"
+                  value={usd(dailyStats.today.revenue)}
+                  icon={DollarSign}
+                  color="#FF9800"
+                  trend={revTrend}
+                  trendValue={revTrend ? `${usd(Math.abs(dailyStats.today.revenue - dailyStats.yesterday.revenue))} vs yesterday` : 'Same as yesterday'}
+                />
               </Grid>
             </Grid>
 
-            {/* Latest Registrations */}
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PersonIcon color="primary" />
-                Latest Registrations (Last 10)
-              </Typography>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>#</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Age</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>City</TableCell>
-                    <TableCell>Period 1</TableCell>
-                    <TableCell>Period 2</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {latestRegistrations.map((reg, index) => (
-                    <TableRow key={reg.id}>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {index + 1}
+            {/* Two Column Layout */}
+            <Grid container spacing={3}>
+              {/* Left Column: New Students */}
+              <Grid item xs={12} md={6}>
+                <GlassCard>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={700} gutterBottom>
+                      🆕 New Students Today
+                    </Typography>
+                    {dailyStats.today.newStudents.length > 0 ? (
+                      <Stack spacing={2} sx={{ mt: 2 }}>
+                        {dailyStats.today.newStudents.map((student, idx) => (
+                          <Box
+                            key={student.id}
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              bgcolor: 'rgba(33, 150, 243, 0.05)',
+                              border: '1px solid rgba(33, 150, 243, 0.1)'
+                            }}
+                          >
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Box>
+                                <Typography variant="body1" fontWeight={600}>
+                                  {idx + 1}. {student.firstName} {student.lastName}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {student.email}
+                                </Typography>
+                              </Box>
+                              <Chip
+                                label={(student as any).selectedAcademies?.[0]?.academy || 'N/A'}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Box sx={{ py: 4, textAlign: 'center' }}>
+                        <Typography color="text.secondary">No new registrations today</Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+
+              {/* Right Column: Enrollment by Academy */}
+              <Grid item xs={12} md={6}>
+                <Stack spacing={3}>
+                  {/* All Academies Enrollment */}
+                  <GlassCard>
+                    <CardContent>
+                      <Typography variant="h6" fontWeight={700} gutterBottom>
+                        🎓 Enrollment by Academy
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                        Total students enrolled in each academy
+                      </Typography>
+                      {dailyStats.allAcademies.length > 0 ? (
+                        <Stack spacing={1.5} sx={{ mt: 2, maxHeight: 400, overflowY: 'auto' }}>
+                          {dailyStats.allAcademies.map((academy, idx) => (
+                            <Stack key={academy.name} direction="row" alignItems="center" spacing={2}>
+                              <Chip
+                                label={idx + 1}
+                                size="small"
+                                sx={{
+                                  minWidth: 32,
+                                  bgcolor: idx < 3 ? '#2196F3' : 'grey.400',
+                                  color: 'white',
+                                  fontWeight: 700
+                                }}
+                              />
+                              <Box sx={{ flex: 1 }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {academy.name}
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight={700} color="primary">
+                                    {academy.count} student{academy.count > 1 ? 's' : ''}
+                                  </Typography>
+                                </Stack>
+                              </Box>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Box sx={{ py: 2, textAlign: 'center' }}>
+                          <Typography color="text.secondary">No academy enrollments yet</Typography>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </GlassCard>
+
+                  {/* Korean Language Levels */}
+                  {dailyStats.koreanLevels.length > 0 && (
+                    <GlassCard>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight={700} gutterBottom>
+                          🇰🇷 Korean Language - Levels
                         </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="subtitle2">
-                          {reg.firstName} {reg.lastName}
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                          Students enrolled in each Korean level
                         </Typography>
-                      </TableCell>
-                      <TableCell>{computeAge(reg.birthday)}</TableCell>
-                      <TableCell>{reg.email}</TableCell>
-                      <TableCell>{reg.city}</TableCell>
-                      <TableCell>
-                        {reg.firstPeriod?.academy ? (
-                          <Chip 
-                            label={`${reg.firstPeriod.academy}${reg.firstPeriod.level ? ` (${reg.firstPeriod.level})` : ''}`}
-                            size="small" 
-                            color="primary" 
-                            variant="outlined"
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {reg.secondPeriod?.academy ? (
-                          <Chip 
-                            label={`${reg.secondPeriod.academy}${reg.secondPeriod.level ? ` (${reg.secondPeriod.level})` : ''}`}
-                            size="small" 
-                            color="secondary" 
-                            variant="outlined"
-                          />
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                        <Stack spacing={1.5} sx={{ mt: 2 }}>
+                          {dailyStats.koreanLevels.map((levelData) => (
+                            <Stack key={levelData.level} direction="row" alignItems="center" spacing={2}>
+                              <Box
+                                sx={{
+                                  minWidth: 60,
+                                  px: 1.5,
+                                  py: 0.5,
+                                  borderRadius: 1,
+                                  bgcolor: '#9C27B0',
+                                  color: 'white',
+                                  textAlign: 'center'
+                                }}
+                              >
+                                <Typography variant="body2" fontWeight={700}>
+                                  {levelData.level}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" fontWeight={700} color="primary">
+                                  {levelData.count} student{levelData.count > 1 ? 's' : ''}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      </CardContent>
+                    </GlassCard>
+                  )}
+                </Stack>
+              </Grid>
+            </Grid>
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Box>
+            {/* Header with Gradient */}
+            <Box sx={{ 
+              mb: 4,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: 3,
+              p: 3,
+              color: 'white'
+            }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <GroupIcon sx={{ fontSize: 40 }} />
+                  <Box>
+                    <Typography variant="h4" fontWeight={800}>
+                      Registration Analytics
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Student enrollment overview and statistics
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  startIcon={<DownloadIcon />}
+                  variant="contained"
+                  onClick={generateRegistrationReport}
+                  sx={{
+                    bgcolor: 'white',
+                    color: '#667eea',
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.9)'
+                    }
+                  }}
+                >
+                  Export Report
+                </Button>
+              </Stack>
+            </Box>
+
+            {/* Summary Cards */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={4}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h3" fontWeight={800} color="primary">
+                      {filteredRegistrations.length}
+                    </Typography>
+                    <Typography variant="subtitle1" color="text.secondary" fontWeight={600}>
+                      Total Students
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h6" fontWeight={700} noWrap>
+                      {latestRegistrations.length > 0 
+                        ? `${latestRegistrations[0].firstName} ${latestRegistrations[0].lastName}`
+                        : 'No registrations'
+                      }
+                    </Typography>
+                    <Typography variant="subtitle1" color="text.secondary" fontWeight={600}>
+                      Latest Registration
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h3" fontWeight={800} color="success.main">
+                      {chartData.cities.length}
+                    </Typography>
+                    <Typography variant="subtitle1" color="text.secondary" fontWeight={600}>
+                      Cities Represented
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+            </Grid>
+
+            {/* Modern Stats Grid - Academy Breakdown */}
+            <GlassCard sx={{ mb: 4 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                  <SchoolIcon color="primary" />
+                  Registrations by Academy
+                </Typography>
+                <Grid container spacing={2}>
+                  {chartData.academies.map((item, idx) => (
+                    <Grid item xs={12} sm={6} md={3} key={idx}>
+                      <Box sx={{ 
+                        p: 2, 
+                        borderRadius: 2,
+                        background: `linear-gradient(135deg, ${['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a'][idx % 6]} 0%, ${['#764ba2', '#667eea', '#f5576c', '#00f2fe', '#38f9d7', '#fee140'][idx % 6]} 100%)`,
+                        color: 'white',
+                        textAlign: 'center',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'scale(1.05)'
+                        }
+                      }}>
+                        <Typography variant="h3" fontWeight={800}>
+                          {item.value}
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.95, fontWeight: 600 }}>
+                          {item.fullName}
+                        </Typography>
+                      </Box>
+                    </Grid>
                   ))}
-                </TableBody>
-              </Table>
-              {latestRegistrations.length === 0 && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="text.secondary">
+                </Grid>
+              </CardContent>
+            </GlassCard>
+
+            {/* Modern Stats Grid - City Breakdown */}
+            <GlassCard sx={{ mb: 4 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                  <LocationOnIcon color="primary" />
+                  Top 10 Cities
+                </Typography>
+                <Grid container spacing={2}>
+                  {chartData.cities.map((item, idx) => (
+                    <Grid item xs={12} sm={6} md={4} lg={2.4} key={idx}>
+                      <Box sx={{ 
+                        p: 2, 
+                        borderRadius: 2,
+                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                        border: '2px solid',
+                        borderColor: 'primary.main',
+                        textAlign: 'center',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: 3
+                        }
+                      }}>
+                        <Typography variant="h4" fontWeight={800} color="primary">
+                          {item.value}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ mt: 0.5 }}>
+                          {item.fullName}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </GlassCard>
+
+            {/* Latest Registrations */}
+            <GlassCard>
+              <CardContent>
+                <Typography variant="h6" gutterBottom fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                  <PersonIcon color="primary" />
+                  Latest Registrations (Last 10)
+                </Typography>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>#</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Age</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>City</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Academies</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {latestRegistrations.map((reg, index) => {
+                      const academies = (reg as any).selectedAcademies || 
+                        [reg.firstPeriod, reg.secondPeriod].filter(Boolean)
+                      
+                      return (
+                        <TableRow key={reg.id}>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {index + 1}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="subtitle2" fontWeight={600}>
+                              {reg.firstName} {reg.lastName}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>{computeAge(reg.birthday)}</TableCell>
+                          <TableCell>{reg.email}</TableCell>
+                          <TableCell>{reg.city}</TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                              {academies.length > 0 ? (
+                                academies.map((acad: any, idx: number) => (
+                                  <Chip 
+                                    key={idx}
+                                    label={`${acad.academy}${acad.level ? ` (${acad.level})` : ''}`}
+                                    size="small" 
+                                    color="primary" 
+                                    variant="outlined"
+                                    sx={{ mb: 0.5 }}
+                                  />
+                                ))
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">-</Typography>
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+                {latestRegistrations.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
                     No registrations found with current filters
                   </Typography>
                 </Box>
               )}
-            </Paper>
-
-            {/* Period Chart */}
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUpIcon color="primary" />
-                Registrations by Period
-              </Typography>
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData.periods}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {chartData.periods.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip formatter={(value) => [`${value} students`, 'Count']} />
-                  </PieChart>
-              </ResponsiveContainer>
-              </Box>
-            </Paper>
-          </Stack>
+              </CardContent>
+            </GlassCard>
+          </Box>
         </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
-          <Stack spacing={3}>
+
+        <TabPanel value={tabValue} index={2}>
+          <Box>
+            {/* Header with Gradient */}
+            <Box sx={{ 
+              mb: 4,
+              background: 'linear-gradient(135deg, #4CAF50 0%, #2196F3 100%)',
+              borderRadius: 3,
+              p: 3,
+              color: 'white'
+            }}>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <PaymentIcon sx={{ fontSize: 40 }} />
+                <Box>
+                  <Typography variant="h4" fontWeight={800}>
+                    Payment Analytics
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    Financial overview and payment tracking
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+
             {/* Summary Cards */}
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={2}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${totalPayments.toFixed(2)}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Payments</Typography>
-                </Paper>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={4} md={2}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h5" fontWeight={800} color="primary">
+                      ${(totalPayments / 100).toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Total Payments
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
               </Grid>
-              <Grid item xs={12} sm={2}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${totalPaid.toFixed(2)}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Collected</Typography>
-                </Paper>
+              <Grid item xs={12} sm={4} md={2}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h5" fontWeight={800} color="success.main">
+                      ${(totalPaid / 100).toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Total Collected
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
               </Grid>
-              <Grid item xs={12} sm={2}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'warning.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${totalPending.toFixed(2)}
-                  </Typography>
-                  <Typography variant="subtitle1">Pending Amount</Typography>
-                </Paper>
+              <Grid item xs={12} sm={4} md={2}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h5" fontWeight={800} color="warning.main">
+                      ${(totalPending / 100).toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Pending Amount
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
               </Grid>
-              <Grid item xs={12} sm={2}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'info.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${lunchAnalytics.totalRevenue.toFixed(2)}
-                  </Typography>
-                  <Typography variant="subtitle1">Lunch Revenue</Typography>
-                </Paper>
+              <Grid item xs={12} sm={4} md={2}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h5" fontWeight={800} color="info.main">
+                      ${(lunchAnalytics.totalRevenue / 100).toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Lunch Revenue
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
               </Grid>
-              <Grid item xs={12} sm={2}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'secondary.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${saturdayAnalytics.summary?.totalZelle?.toFixed(2) || '0.00'}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Zelle</Typography>
-                </Paper>
+              <Grid item xs={12} sm={4} md={2}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h5" fontWeight={800} color="secondary.main">
+                      ${(saturdayAnalytics.summary?.totalZelle / 100)?.toFixed(2) || '0.00'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Total Zelle
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
               </Grid>
-              <Grid item xs={12} sm={2}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'error.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${saturdayAnalytics.summary?.totalCash?.toFixed(2) || '0.00'}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Cash</Typography>
-                </Paper>
+              <Grid item xs={12} sm={4} md={2}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h5" fontWeight={800} color="error.main">
+                      ${(saturdayAnalytics.summary?.totalCash / 100)?.toFixed(2) || '0.00'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Total Cash
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
               </Grid>
-          </Grid>
+            </Grid>
 
             {/* No Data Alert */}
             {processedPaymentData.length === 0 && (
@@ -1051,6 +1726,10 @@ export default function ReportsPage() {
                 </Typography>
               </Alert>
             )}
+
+            <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
+            <Typography variant="body2" color="error">DEBUG: Total Revenue Raw: {dailyStats.overall.totalRevenue}</Typography>
+          </Stack>
 
             {/* Charts Row */}
             {processedPaymentData.length > 0 ? (
@@ -1154,8 +1833,8 @@ export default function ReportsPage() {
                         </TableCell>
                         <TableCell>{payment.academy || '-'}</TableCell>
                         <TableCell>{payment.period?.toUpperCase() || '-'}</TableCell>
-                        <TableCell>${payment.amount.toFixed(2)}</TableCell>
-                        <TableCell>${payment.paidAmount.toFixed(2)}</TableCell>
+                        <TableCell>${(payment.amount / 100).toFixed(2)}</TableCell>
+                        <TableCell>${(payment.paidAmount / 100).toFixed(2)}</TableCell>
                                                  <TableCell>
                            <Chip
                              label={payment.status}
@@ -1202,68 +1881,108 @@ export default function ReportsPage() {
                   Export Payment Report
                 </Button>
               </Box>
-          </Stack>
+          </Box>
         </TabPanel>
 
-        <TabPanel value={tabValue} index={2}>
-          <Stack spacing={3}>
-            {/* Header with Export Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <RestaurantIcon color="primary" />
-                Lunch Analytics
-              </Typography>
-              <Button
-                startIcon={<DownloadIcon />}
-                variant="contained"
-                onClick={generatePaymentReport}
-              >
-                Export Lunch Report
-              </Button>
+        <TabPanel value={tabValue} index={3}>
+          <Box>
+            {/* Header with Gradient */}
+            <Box sx={{ 
+              mb: 4,
+              background: 'linear-gradient(135deg, #FF6F00 0%, #D84315 100%)',
+              borderRadius: 3,
+              p: 3,
+              color: 'white'
+            }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <RestaurantIcon sx={{ fontSize: 40 }} />
+                  <Box>
+                    <Typography variant="h4" fontWeight={800}>
+                      Lunch Analytics
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Meal program statistics and revenue
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  startIcon={<DownloadIcon />}
+                  variant="contained"
+                  onClick={generatePaymentReport}
+                  sx={{
+                    bgcolor: 'white',
+                    color: '#FF6F00',
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.9)'
+                    }
+                  }}
+                >
+                  Export Report
+                </Button>
+              </Stack>
             </Box>
 
             {/* Summary Cards */}
-                <Grid container spacing={3}>
-              <Grid item xs={12} sm={3}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    ${lunchAnalytics.totalRevenue.toFixed(2)}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Lunch Revenue</Typography>
-                </Paper>
-                  </Grid>
-              <Grid item xs={12} sm={3}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    {lunchAnalytics.totalLunches}
-                  </Typography>
-                  <Typography variant="subtitle1">Total Lunches</Typography>
-                </Paper>
-                  </Grid>
-              <Grid item xs={12} sm={3}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'secondary.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    {lunchAnalytics.semesterCount}
-                  </Typography>
-                  <Typography variant="subtitle1">Semester Lunches</Typography>
-                </Paper>
-                </Grid>
-              <Grid item xs={12} sm={3}>
-                <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'warning.main', color: 'white' }}>
-                  <Typography variant="h4" fontWeight="bold">
-                    {lunchAnalytics.singleCount}
-                  </Typography>
-                  <Typography variant="subtitle1">Single Lunches</Typography>
-                </Paper>
-          </Grid>
-        </Grid>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight={800} color="success.main">
+                      ${lunchAnalytics.totalRevenue.toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Total Lunch Revenue
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight={800} color="primary">
+                      {lunchAnalytics.totalLunches}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Total Lunches
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight={800} color="secondary.main">
+                      {lunchAnalytics.semesterCount}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Semester Lunches
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <GlassCard>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight={800} color="warning.main">
+                      {lunchAnalytics.singleCount}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                      Single Lunches
+                    </Typography>
+                  </CardContent>
+                </GlassCard>
+              </Grid>
+            </Grid>
 
             {/* Lunch Chart */}
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <RestaurantIcon color="primary" />
-                Lunch Distribution
-              </Typography>
+            <GlassCard sx={{ mb: 4 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <RestaurantIcon color="primary" />
+                  Lunch Distribution
+                </Typography>
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -1284,10 +2003,11 @@ export default function ReportsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               </Box>
-            </Paper>
+              </CardContent>
+            </GlassCard>
 
             {/* Lunch Details Table */}
-            <Paper sx={{ p: 3 }}>
+            <GlassCard>
               <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <RestaurantIcon color="primary" />
                 Lunch Details
@@ -1342,69 +2062,100 @@ export default function ReportsPage() {
                   </TableBody>
                 </Table>
               )}
-            </Paper>
-          </Stack>
+            </GlassCard>
+          </Box>
         </TabPanel>
 
-        <TabPanel value={tabValue} index={3}>
-          <Stack spacing={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6">Attendance Tracking</Typography>
-              <Button
-                startIcon={<DownloadIcon />}
-                variant="contained"
-                onClick={generateAttendanceReport}
-              >
-                Export Attendance Report
-              </Button>
-            </Box>
-            <Box sx={{ height: 600 }}>
-              <DataGrid
-                rows={filteredAttendance}
-                columns={[
-                  { field: 'studentName', headerName: 'Student Name', minWidth: 150, flex: 1 },
-                  { field: 'academy', headerName: 'Academy', minWidth: 120, flex: 1 },
-                  { field: 'period', headerName: 'Period', width: 80 },
-                  { field: 'level', headerName: 'Level', width: 100 },
-                  { field: 'date', headerName: 'Date', width: 120,
-                    valueFormatter: (params) => new Date(params.value).toLocaleDateString()
-                  },
-                  { 
-                    field: 'status', headerName: 'Status', width: 120,
-                    renderCell: (params) => {
-                      const status = params.value as AttendanceStatus
-                      const statusConfig = {
-                        present: { color: 'success', icon: <CheckCircleIcon />, label: 'Present' },
-                        absent: { color: 'error', icon: <CancelIcon />, label: 'Absent' },
-                        late: { color: 'warning', icon: <PendingIcon />, label: 'Late' },
-                        excused: { color: 'info', icon: <CheckCircleIcon />, label: 'Excused' }
-                      }
-                      const config = statusConfig[status]
-                      return (
-                        <Chip
-                          icon={config.icon}
-                          label={config.label}
-                          color={config.color as any}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )
+        <TabPanel value={tabValue} index={4}>
+          <Box>
+            {/* Header with Gradient */}
+            <Box sx={{ 
+              mb: 4,
+              background: 'linear-gradient(135deg, #3F51B5 0%, #1976D2 100%)',
+              borderRadius: 3,
+              p: 3,
+              color: 'white'
+            }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <CheckCircleIcon sx={{ fontSize: 40 }} />
+                  <Box>
+                    <Typography variant="h4" fontWeight={800}>
+                      Attendance Tracking
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Student attendance records and monitoring
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  startIcon={<DownloadIcon />}
+                  variant="contained"
+                  onClick={generateAttendanceReport}
+                  sx={{
+                    bgcolor: 'white',
+                    color: '#3F51B5',
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.9)'
                     }
-                  },
-                  { field: 'notes', headerName: 'Notes', minWidth: 150, flex: 1 }
-                ]}
-                loading={loading}
-                disableRowSelectionOnClick
-                getRowId={(r) => r.id}
-                slots={{ toolbar: GridToolbar }}
-                density="compact"
-                initialState={{
-                  pagination: { paginationModel: { page: 0, pageSize: 25 } }
-                }}
-                pageSizeOptions={[10, 25, 50, 100]}
-              />
+                  }}
+                >
+                  Export Report
+                </Button>
+              </Stack>
             </Box>
-          </Stack>
+
+            <GlassCard>
+              <CardContent>
+                <Box sx={{ height: 600 }}>
+                  <DataGrid
+                    rows={filteredAttendance}
+                    columns={[
+                      { field: 'studentName', headerName: 'Student Name', minWidth: 150, flex: 1 },
+                      { field: 'academy', headerName: 'Academy', minWidth: 150, flex: 1 },
+                      { field: 'level', headerName: 'Level', width: 120 },
+                      { field: 'date', headerName: 'Date', width: 120,
+                        valueFormatter: (params) => new Date(params.value).toLocaleDateString()
+                      },
+                      { 
+                        field: 'status', headerName: 'Status', width: 120,
+                        renderCell: (params) => {
+                          const status = params.value as AttendanceStatus
+                          const statusConfig = {
+                            present: { color: 'success', icon: <CheckCircleIcon />, label: 'Present' },
+                            absent: { color: 'error', icon: <CancelIcon />, label: 'Absent' },
+                            late: { color: 'warning', icon: <PendingIcon />, label: 'Late' },
+                            excused: { color: 'info', icon: <CheckCircleIcon />, label: 'Excused' }
+                          }
+                          const config = statusConfig[status]
+                          return (
+                            <Chip
+                              icon={config.icon}
+                              label={config.label}
+                              color={config.color as any}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )
+                        }
+                      },
+                      { field: 'notes', headerName: 'Notes', minWidth: 150, flex: 1 }
+                    ]}
+                    loading={loading}
+                    disableRowSelectionOnClick
+                    getRowId={(r) => r.id}
+                    slots={{ toolbar: GridToolbar }}
+                    density="compact"
+                    initialState={{
+                      pagination: { paginationModel: { page: 0, pageSize: 25 } }
+                    }}
+                    pageSizeOptions={[10, 25, 50, 100]}
+                  />
+                </Box>
+              </CardContent>
+            </GlassCard>
+          </Box>
         </TabPanel>
       </CardContent>
     </Card>

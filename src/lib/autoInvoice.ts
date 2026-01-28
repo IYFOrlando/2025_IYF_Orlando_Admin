@@ -137,7 +137,7 @@ function createInvoiceLines(
   // This is how the frontend stores multiple academies
   if ((registration as any).selectedAcademies && Array.isArray((registration as any).selectedAcademies)) {
     const selectedAcademies = (registration as any).selectedAcademies
-    selectedAcademies.forEach((academyData: any) => {
+    selectedAcademies.forEach((academyData: any, index: number) => {
       if (academyData.academy && academyData.academy !== 'N/A') {
         // This will throw error if academy not found in Firestore
         const price = getAcademyPrice(
@@ -148,7 +148,7 @@ function createInvoiceLines(
         
         lines.push({
           academy: academyData.academy,
-          period: null, // No periods in 2026
+          period: index + 1, // Assign pseudo-period (1, 2, 3...) for legacy template compatibility
           level: academyData.level || null,
           schedule: academyData.schedule || null, // Include schedule if available
           unitPrice: price,
@@ -207,16 +207,13 @@ function createInvoiceLines(
 }
 
 /**
- * Check if an invoice already exists for a registration
+ * Check if ANY invoice already exists for this registration (studentId).
+ * We must not create a second invoice even when the existing one is paid/exonerated.
  */
 async function invoiceExists(studentId: string): Promise<boolean> {
   try {
     const invoicesRef = collection(db, COLLECTIONS_CONFIG.academyInvoices)
-    const q = query(
-      invoicesRef,
-      where('studentId', '==', studentId),
-      where('status', 'in', ['unpaid', 'partial'])
-    )
+    const q = query(invoicesRef, where('studentId', '==', studentId))
     const snapshot = await getDocs(q)
     return !snapshot.empty
   } catch (error) {
@@ -354,5 +351,84 @@ export async function processPendingRegistrations(): Promise<number> {
   } catch (error) {
     logger.error('❌ Error processing pending registrations:', error)
     throw error
+  }
+}
+
+/**
+ * Update an existing invoice when registration details change
+ * logic:
+ * 1. Find the invoice for this student (unpaid or partial preferred)
+ * 2. Regenerate lines based on new registration data
+ * 3. Recalculate totals
+ * 4. Update invoice
+ */
+export async function updateInvoiceForRegistration(registration: Registration): Promise<void> {
+  try {
+    // 1. Find Invoice
+    const invoicesRef = collection(db, COLLECTIONS_CONFIG.academyInvoices)
+    // Try to find ANY invoice for this student, but prefer latest.
+    // Usually there is only one active invoice per semester.
+    const q = query(invoicesRef, where('studentId', '==', registration.id))
+    const snapshot = await getDocs(q)
+    
+    if (snapshot.empty) {
+        // If no invoice exists, try creating one?
+        // Yes, if they just added academies to a previously academy-less student.
+        await createAutoInvoice(registration)
+        return
+    }
+
+    // Sort by date desc to get latest
+    const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Invoice))
+                         .sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0))
+    
+    // Pick the most relevant invoice to update.
+    // If there is an 'unpaid' or 'partial' invoice, pick that.
+    // If only 'paid' invoice exists, we might need to update it too (e.g. they added a class).
+    const targetInvoice = docs.find(i => i.status !== 'paid' && i.status !== 'exonerated') || docs[0]
+    
+    if (!targetInvoice) return 
+
+    // 2. Get Pricing
+    const pricing = await getPricing()
+    if (!pricing) throw new Error('Pricing unavailable')
+
+    // 3. Generate Lines (New)
+    const newLines = createInvoiceLines(registration, pricing)
+    
+    // 4. Recalculate
+    const subtotal = newLines.reduce((s, l) => s + (l.amount || 0), 0)
+    
+    // Preserve lunch/discount from existing invoice unless we want to recalc them?
+    // For now, preserve existing extra items.
+    const lunchAmount = targetInvoice.lunchAmount || 0
+    const discountAmount = targetInvoice.discountAmount || 0
+    
+    const newTotal = Math.max(0, subtotal + lunchAmount - discountAmount)
+    const newBalance = newTotal - (targetInvoice.paid || 0)
+    
+    let newStatus = targetInvoice.status
+    if (newBalance <= 0) newStatus = 'paid'
+    else if (targetInvoice.paid > 0) newStatus = 'partial'
+    else newStatus = 'unpaid'
+
+    // Update student name just in case it changed
+    const studentName = [registration.firstName, registration.lastName].filter(Boolean).join(' ')
+
+    await updateDoc(doc(db, COLLECTIONS_CONFIG.academyInvoices, targetInvoice.id), {
+        studentName,
+        lines: newLines,
+        subtotal,
+        total: newTotal,
+        balance: newBalance,
+        status: newStatus,
+        updatedAt: serverTimestamp()
+    })
+
+    logger.info(`Updated Invoice ${targetInvoice.id} for Student ${registration.id}`)
+
+  } catch (error) {
+    logger.error('Error updating invoice', error)
+    // Don't crash the UI for background invoice updates
   }
 }

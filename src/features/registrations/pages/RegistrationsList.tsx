@@ -1,18 +1,19 @@
 import * as React from 'react'
 import {
-  Box, Card, Alert, IconButton, Chip, Stack, Button,
-  Dialog, DialogTitle, DialogContent, TextField, MenuItem, Grid, Typography, useTheme
+  Box, Card, IconButton, Chip, Stack, Button, Typography, useTheme
 } from '@mui/material'
 import {
   DataGrid, GridToolbar, type GridColDef,
   gridClasses
 } from '@mui/x-data-grid'
 import {
-  collection, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp
+  collection, onSnapshot, doc, deleteDoc
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
 import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
+import { useTeacherContext } from '../../auth/context/TeacherContext'
+import { useRegistrationsExpectedTotals } from '../hooks/useRegistrationExpectedTotal'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
@@ -23,11 +24,15 @@ import { computeAge } from '../../../lib/validations'
 import * as XLSX from 'xlsx'
 import { motion } from 'framer-motion'
 import { 
-  Download, Trash2, Edit2, ShieldAlert 
+  Download, Trash2, Edit2, Plus 
 } from 'lucide-react'
+import RegistrationDrawer from '../components/RegistrationDrawer'
+
+import AdminRegistrationForm from '../components/AdminRegistrationForm'
 
 // --- Types & Helpers ---
 type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid'|'exonerated' }
+const isValidDate = (d: unknown): d is Date => d instanceof Date && !isNaN(d.getTime())
 
 function useInvoiceAggByStudent() {
   const [map, setMap] = React.useState<Map<string, BillingAgg>>(new Map())
@@ -35,7 +40,7 @@ function useInvoiceAggByStudent() {
     const unsub = onSnapshot(collection(db, COLLECTIONS_CONFIG.academyInvoices), (snap) => {
       const agg = new Map<string, BillingAgg>()
       for (const d of snap.docs) {
-        const inv: any = d.data()
+        const inv = d.data() as { studentId?: string | number, total?: number, paid?: number, status?: string }
         const id = String(inv.studentId || '')
         if (!id) continue
         const cur = agg.get(id) || { total:0, paid:0, balance:0, status:'unpaid' as const }
@@ -53,13 +58,7 @@ function useInvoiceAggByStudent() {
   return map
 }
 
-const STATES = [
-  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho',
-  'Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi',
-  'Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio',
-  'Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia',
-  'Washington','West Virginia','Wisconsin','Wyoming'
-]
+
 
 // --- Animations ---
 const containerVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4 } } }
@@ -91,6 +90,7 @@ const GlassCard = ({ children, sx = {}, ...props }: any) => {
 }
 
 const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
+  const { isTeacher, teacherProfile, isAdmin: contextIsAdmin } = useTeacherContext()
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
   
@@ -98,16 +98,63 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     ['orlando@iyfusa.org', 'jodlouis.dev@gmail.com', 'michellemoralespradis@gmail.com'].includes(_userEmail || ''), 
   [_userEmail])
   
-  const effectiveIsAdmin = isAdmin || forceIsAdmin
+  const effectiveIsAdmin = isAdmin || forceIsAdmin || contextIsAdmin
   const { data, loading } = useRegistrations()
   const { data: invoices } = useInvoices()
   const { data: payments } = usePayments()
-  const rows = data ?? []
   const byStudent = useInvoiceAggByStudent()
-  const [selection, setSelection] = React.useState<string[]>([])
-  const [editOpen, setEditOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<Registration | null>(null)
   
+  const rows = React.useMemo(() => {
+    const raw = data ?? []
+    if (isTeacher && teacherProfile?.academies) {
+      const assigned = teacherProfile.academies.map(a => a.academyName)
+      return raw.filter(r => {
+        const academies = r.selectedAcademies?.length 
+          ? r.selectedAcademies 
+          : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
+        return academies.some((a:any) => assigned.includes(a.academy))
+      })
+    }
+    return raw
+  }, [data, isTeacher, teacherProfile])
+
+  const { expectedByRegId, loading: expectedLoading } = useRegistrationsExpectedTotals(rows)
+  const [selection, setSelection] = React.useState<string[]>([])
+
+  // Derive status per row (same logic as drawer: expected from academies - paid)
+  const rowStatus = React.useCallback((id: string): 'unpaid' | 'partial' | 'paid' | 'exonerated' => {
+    const b = byStudent.get(id)
+    const paid = b?.paid ?? 0
+    const expected = expectedByRegId.get(id) ?? (expectedLoading ? (b?.total ?? 0) : 0)
+    if (b?.status === 'exonerated') return 'exonerated'
+    if (expectedLoading) return (b?.status ?? 'unpaid') as 'unpaid' | 'partial' | 'paid' | 'exonerated'
+    const balance = Math.max(0, expected - paid)
+    return (balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid') as 'unpaid' | 'partial' | 'paid' | 'exonerated'
+  }, [byStudent, expectedByRegId, expectedLoading])
+
+  // Dialog State
+  const [formOpen, setFormOpen] = React.useState(false)
+  const [editingId, setEditingId] = React.useState<string | undefined>(undefined)
+  const [initialData, setInitialData] = React.useState<Registration | undefined>(undefined)
+  
+  const [drawerOpen, setDrawerOpen] = React.useState(false)
+  const [selectedReg, setSelectedReg] = React.useState<Registration | null>(null)
+  
+  // Payment Status Filter
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'paid' | 'partial' | 'unpaid'>('all')
+  
+  // Handlers for Form
+  const handleCreate = () => {
+    setEditingId(undefined)
+    setInitialData(undefined)
+    setFormOpen(true)
+  }
+
+  const handleEdit = (reg: Registration) => {
+    setEditingId(reg.id)
+    setInitialData(reg)
+    setFormOpen(true)
+  }
 
   // Export Logic Map
   const paymentDataMap = React.useMemo(() => {
@@ -152,9 +199,9 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
           'Age': computeAge(row.birthday)||'', 'Phone': row.cellNumber||'',
           'Academies': (row.selectedAcademies||[]).map((a:any)=>`${a.academy||''}${a.level?` (${a.level})`:''}`).join(' | '),
           'City': row.city||'', 'State': row.state||'', 'Zip': row.zipCode||'',
-          'Created': row.createdAt?.seconds ? new Date(row.createdAt.seconds*1000).toLocaleString() : '',
+          'Created': row.createdAt?.seconds ? new Date(row.createdAt.seconds*1000).toLocaleString() : (isValidDate(new Date(row.createdAt)) ? new Date(row.createdAt).toLocaleString() : ''),
           'Fee': usd(pData.totalFee), 'Paid': usd(pData.paid), 'Balance': usd(pData.balance),
-          'Status': byStudent.get(String(row.id))?.status?.toUpperCase() || 'UNPAID'
+          'Status': rowStatus(String(row.id)).toUpperCase()
         }
       })
       const ws = XLSX.utils.json_to_sheet(exportData)
@@ -171,22 +218,34 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     { field: 'firstName', headerName: 'First Name', minWidth: 120, flex: 1 },
     { field: 'lastName', headerName: 'Last Name', minWidth: 120, flex: 1 },
     { field: 'email', headerName: 'Email', minWidth: 200, flex: 1.2 },
-    { field: 'cellNumber', headerName: 'Phone', width: 130 },
+    { field: 'gender', headerName: 'Gender', width: 90 },
+    { field: 'age', headerName: 'Age', width: 70, valueGetter: (p) => computeAge(p.row.birthday) },
+    { field: 'address', headerName: 'Address', width: 200 },
+    { field: 'city', headerName: 'City', width: 120 },
+    { field: 'state', headerName: 'State', width: 100 },
+    { field: 'zipCode', headerName: 'Zip', width: 90 },
     { 
       field: 'academies', headerName: 'Academies', minWidth: 250, flex: 1.5,
       valueGetter: (p) => {
         const r = p.row as any
-        if(r.selectedAcademies?.length) return r.selectedAcademies.map((a:any)=>a.academy).join(', ')
-        return [r.firstPeriod?.academy, r.secondPeriod?.academy].filter(Boolean).join(', ')
+        const list = r.selectedAcademies?.length ? r.selectedAcademies : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
+        return list.map((a:any) => {
+          const isKorean = a.academy?.includes('Korean')
+          return isKorean && a.level ? `${a.academy} (${a.level})` : a.academy
+        }).join(', ')
       },
       renderCell: (p) => {
         const r = p.row as any
         const list = r.selectedAcademies?.length ? r.selectedAcademies : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
         return (
           <Box sx={{ py: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {list.map((a:any, i:number) => (
-              <Chip key={i} label={a.academy} size="small" variant="outlined" sx={{ borderRadius: 1.5, borderColor: 'divider' }} />
-            ))}
+            {list.map((a:any, i:number) => {
+              const isKorean = a.academy?.includes('Korean')
+              const label = isKorean && a.level ? `${a.academy} (${a.level})` : a.academy
+              return (
+                <Chip key={i} label={label} size="small" variant="outlined" sx={{ borderRadius: 1.5, borderColor: 'divider' }} />
+              )
+            })}
           </Box>
         )
       }
@@ -194,17 +253,38 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     { 
       field: 'paymentStatus', headerName: 'Status', width: 140,
       renderCell: (p) => {
-        const s = byStudent.get(String(p.id)) || { status:'unpaid', balance:0 }
-        const color = s.status === 'paid' ? '#4CAF50' : s.status === 'partial' ? '#FF9800' : '#F44336'
-        const label = s.status === 'exonerated' ? 'Exonerated' : s.status.charAt(0).toUpperCase() + s.status.slice(1)
+        const status = rowStatus(String(p.id))
+        const b = byStudent.get(String(p.id))
+        const paid = b?.paid ?? 0
+        const expected = expectedByRegId.get(String(p.id)) ?? (expectedLoading ? (b?.total ?? 0) : 0)
+        const balance = expectedLoading ? (b?.balance ?? 0) : Math.max(0, expected - paid)
+        const color = status === 'paid' ? '#4CAF50' : status === 'partial' ? '#FF9800' : '#F44336'
+        const label = status === 'exonerated' ? 'Exonerated' : status.charAt(0).toUpperCase() + status.slice(1)
         return (
           <Stack direction="row" alignItems="center" spacing={1}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
             <Box>
               <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1 }}>{label}</Typography>
-              <Typography variant="caption" color="text.secondary">{usd(s.balance)} due</Typography>
+              <Typography variant="caption" color="text.secondary">{usd(balance)} due</Typography>
             </Box>
           </Stack>
+        )
+      }
+    },
+    {
+      field: 'createdAt', headerName: 'Registered', width: 120,
+      valueGetter: (p) => {
+        const val = p.row.createdAt
+        if (!val) return ''
+        // Handle Firestore Timestamp or Date or millis
+        const date = val.seconds ? new Date(val.seconds * 1000) : new Date(val)
+        return isValidDate(date) ? date : ''
+      },
+      renderCell: (p) => {
+        const val = p.value
+        if (!val) return '-'
+        return (
+          <Typography variant="body2">{val.toLocaleDateString()}</Typography>
         )
       }
     },
@@ -212,16 +292,22 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
       field: 'actions', headerName: '', width: 100, sortable: false,
       renderCell: (p) => (
         <Stack direction="row">
-          <IconButton size="small" onClick={() => { if(effectiveIsAdmin) { setEditing(p.row as Registration); setEditOpen(true) }}} disabled={!effectiveIsAdmin}>
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); if(effectiveIsAdmin) { handleEdit(p.row as Registration) }}} disabled={!effectiveIsAdmin}>
             <Edit2 size={16} />
           </IconButton>
-          <IconButton size="small" color="error" onClick={() => { if(effectiveIsAdmin) { setSelection([String(p.id)]); handleBulkDelete(); }}} disabled={!effectiveIsAdmin}>
+          <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); if(effectiveIsAdmin) { setSelection([String(p.id)]); handleBulkDelete(); }}} disabled={!effectiveIsAdmin}>
             <Trash2 size={16} />
           </IconButton>
         </Stack>
       )
     }
-  ], [effectiveIsAdmin, byStudent])
+  ], [effectiveIsAdmin, byStudent, expectedByRegId, expectedLoading, rowStatus])
+
+  // Filter rows by payment status (uses same logic as column and drawer)
+  const filteredRows = React.useMemo(() => {
+    if (statusFilter === 'all') return rows
+    return rows.filter(row => rowStatus(row.id) === statusFilter)
+  }, [rows, statusFilter, rowStatus])
 
   return (
     <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" sx={{ height: 'calc(100vh - 120px)', pb: 2 }}>
@@ -234,10 +320,17 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
             }}>
               Registrations
             </Typography>
-            <Typography variant="body2" color="text.secondary">{effectiveIsAdmin ? 'Manage student capabilities' : 'View only mode'}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {effectiveIsAdmin ? 'Manage student capabilities' : isTeacher ? 'Teacher mode (Read-Only)' : 'View only mode'}
+            </Typography>
           </Box>
-          <Stack direction="row" spacing={1}>
-            {(effectiveIsAdmin || hasGmailAccess) && (
+            <Stack direction="row" spacing={1}>
+             {effectiveIsAdmin && (
+               <Button variant="contained" startIcon={<Plus size={16} />} onClick={handleCreate} sx={{ borderRadius: 2, background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)' }}>
+                 New Registration
+               </Button>
+             )}
+            {(effectiveIsAdmin || hasGmailAccess || isTeacher) && (
               <Button variant="outlined" startIcon={<Download size={16} />} onClick={handleExportExcel} sx={{ borderRadius: 2 }}>
                 Export
               </Button>
@@ -250,10 +343,51 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
           </Stack>
         </Box>
 
+        {/* Payment Status Filter */}
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mr: 1 }}>
+              Payment Status:
+            </Typography>
+            {(['all', 'paid', 'partial', 'unpaid'] as const).map((status) => {
+              const isActive = statusFilter === status
+              const counts = {
+                all: rows.length,
+                paid: rows.filter(r => rowStatus(r.id) === 'paid').length,
+                partial: rows.filter(r => rowStatus(r.id) === 'partial').length,
+                unpaid: rows.filter(r => rowStatus(r.id) === 'unpaid').length,
+              }
+              const colors = {
+                all: '#2196F3',
+                paid: '#4CAF50',
+                partial: '#FF9800',
+                unpaid: '#F44336'
+              }
+              return (
+                <Chip
+                  key={status}
+                  label={`${status.charAt(0).toUpperCase() + status.slice(1)} (${counts[status]})`}
+                  onClick={() => setStatusFilter(status)}
+                  sx={{
+                    bgcolor: isActive ? colors[status] : 'transparent',
+                    color: isActive ? 'white' : colors[status],
+                    borderColor: colors[status],
+                    border: '1px solid',
+                    fontWeight: isActive ? 700 : 500,
+                    '&:hover': {
+                      bgcolor: isActive ? colors[status] : `${colors[status]}20`
+                    }
+                  }}
+                />
+              )
+            })}
+          </Stack>
+        </Box>
+
         {/* Content */}
         <Box sx={{ flex: 1, width: '100%', overflow: 'hidden' }}>
           <DataGrid
-            rows={rows} columns={columns} loading={loading}
+            rows={filteredRows} columns={columns} loading={loading}
             checkboxSelection={effectiveIsAdmin}
             onRowSelectionModelChange={(m) => effectiveIsAdmin && setSelection(m as string[])}
             rowSelectionModel={selection}
@@ -267,95 +401,60 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
                 csvOptions: { disableToolbarButton: true } // We have custom export
               }
             }}
+            getRowHeight={() => 'auto'}
+            onRowClick={(params) => {
+              setSelectedReg(params.row as Registration)
+              setDrawerOpen(true)
+            }}
             sx={{
               border: 'none',
               [`& .${gridClasses.columnHeaders}`]: { bgcolor: 'transparent', borderBottom: '1px solid', borderColor: 'divider' },
-              [`& .${gridClasses.row}:hover`]: { bgcolor: 'action.hover' },
+              [`& .${gridClasses.row}:hover`]: { bgcolor: 'action.hover', cursor: 'pointer' },
               [`& .${gridClasses.cell}`]: { borderBottom: '1px solid', borderColor: 'divider', py: 1 },
             }}
-            getRowHeight={() => 'auto'}
           />
         </Box>
       </GlassCard>
 
-      <EditRegistrationDialog 
-        open={editOpen} onClose={() => { setEditOpen(false); setEditing(null) }} 
-        row={editing} isAdmin={effectiveIsAdmin} 
+      {/* Replaced old EditRegistrationDialog with AdminRegistrationForm */}
+      <AdminRegistrationForm 
+        open={formOpen} 
+        onClose={() => setFormOpen(false)} 
+        docId={editingId}
+        initial={initialData}
+      />
+
+      <RegistrationDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        registration={selectedReg}
+        billingInfo={selectedReg ? byStudent.get(String(selectedReg.id)) : undefined}
+        isAdmin={effectiveIsAdmin}
+        onEdit={() => {
+          if (selectedReg) {
+             handleEdit(selectedReg)
+             setDrawerOpen(false)
+          }
+        }}
+        onDelete={async () => {
+          if (selectedReg) {
+            setDrawerOpen(false)
+            // ... (delete logic reuse would be better but keeping it simple)
+             const res = await confirmDelete('Delete registration?', `Remove ${selectedReg.firstName} ${selectedReg.lastName}?`)
+            if (res.isConfirmed) {
+              try {
+                await deleteDoc(doc(db, REG_COLLECTION, selectedReg.id))
+                notifySuccess('Deleted', 'Registration removed')
+                setSelectedReg(null)
+              } catch (e: any) {
+                notifyError('Error', e?.message)
+              }
+            }
+          }
+        }}
       />
     </Box>
   )
 })
-
-// --- Edit Dialog ---
-function EditRegistrationDialog({ open, onClose, row, isAdmin }: { open:boolean, onClose:()=>void, row:Registration|null, isAdmin:boolean }) {
-  const [firstName, setFirstName] = React.useState('')
-  const [lastName, setLastName] = React.useState('')
-  const [email, setEmail] = React.useState('')
-  const [cell, setCell] = React.useState('')
-  const [birthday, setBirthday] = React.useState('')
-  const [city, setCity] = React.useState('')
-  const [stateVal, setStateVal] = React.useState('')
-  const [zip, setZip] = React.useState('')
-
-  React.useEffect(() => {
-    if(row) {
-      setFirstName(row.firstName||'')
-      setLastName(row.lastName||'')
-      setEmail(row.email||'')
-      setCell(row.cellNumber||'')
-      setBirthday(row.birthday||'')
-      setCity(row.city||'')
-      setStateVal(row.state||'')
-      setZip(row.zipCode||'')
-    }
-  }, [row])
-
-  const handleSave = async () => {
-    if(!row) return
-    try {
-      await updateDoc(doc(db, REG_COLLECTION, row.id), { 
-        firstName, lastName, email, cellNumber: cell, birthday, city, state: stateVal, zipCode: zip,
-        updatedAt: serverTimestamp() 
-      })
-      notifySuccess('Saved', 'Updated successfully')
-      onClose()
-    } catch(e:any) { notifyError('Error', e.message) }
-  }
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle sx={{ fontWeight: 700, borderBottom: '1px solid #eee' }}>Edit Registration</DialogTitle>
-      <DialogContent sx={{ pt: 3 }}>
-        <Grid container spacing={2} sx={{ mt: 0 }}>
-          <Grid item xs={12} md={6}><TextField label="First Name" value={firstName} onChange={e=>setFirstName(e.target.value)} fullWidth /></Grid>
-          <Grid item xs={12} md={6}><TextField label="Last Name" value={lastName} onChange={e=>setLastName(e.target.value)} fullWidth /></Grid>
-          <Grid item xs={12} md={6}><TextField label="Email" value={email} onChange={e=>setEmail(e.target.value)} fullWidth /></Grid>
-          <Grid item xs={12} md={6}><TextField label="Phone" value={cell} onChange={e=>setCell(e.target.value)} fullWidth /></Grid>
-          
-          <Grid item xs={12} md={6}><TextField label="Birthday" type="date" InputLabelProps={{shrink:true}} value={birthday} onChange={e=>setBirthday(e.target.value)} fullWidth /></Grid>
-          <Grid item xs={12} md={6}>
-            <TextField select label="State" value={stateVal} onChange={e=>setStateVal(e.target.value)} fullWidth>
-              {STATES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-            </TextField>
-          </Grid>
-          
-          <Grid item xs={12} md={6}><TextField label="City" value={city} onChange={e=>setCity(e.target.value)} fullWidth /></Grid>
-          <Grid item xs={12} md={6}><TextField label="Zip Code" value={zip} onChange={e=>setZip(e.target.value)} fullWidth /></Grid>
-
-          {/* Read Only Academies for reference */}
-          <Grid item xs={12}>
-             <Alert severity="info" icon={<ShieldAlert size={18}/>} sx={{ mt: 2 }}>
-                Academies are managed via the registration form.
-             </Alert>
-          </Grid>
-        </Grid>
-      </DialogContent>
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 1, borderTop: '1px solid #eee' }}>
-        <Button onClick={onClose} sx={{ borderRadius: 2 }}>Cancel</Button>
-        <Button variant="contained" onClick={handleSave} disabled={!isAdmin} sx={{ borderRadius: 2 }}>Save Changes</Button>
-      </Box>
-    </Dialog>
-  )
-}
 
 export default RegistrationsList

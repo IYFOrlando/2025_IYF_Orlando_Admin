@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 // Valid academies for each period
 const VALID_ACADEMIES = [
   'N/A', 'Art', 'DIY', 'Korean Language', 'Korean Cooking', 'Piano', 
-  'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen', 'Kids'
+  'Pickleball', 'Senior', 'Soccer', 'Stretch and Strengthen', 'Kids Academy'
 ]
 
 type InvalidAcademyRecord = {

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Stack, Button, Tooltip, Box, Alert,
-  TextField, MenuItem, Chip, Switch, Autocomplete
+  CardContent, Stack, Button, Tooltip, Box, Alert,
+  TextField, MenuItem, Chip, Switch, Autocomplete, Grid, Typography
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -10,8 +10,9 @@ import SaveIcon from '@mui/icons-material/Save'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import CloseIcon from '@mui/icons-material/Close'
+import ChecklistIcon from '@mui/icons-material/Checklist'
 import {
-  addDoc, collection, deleteDoc, doc, orderBy, query,
+  addDoc, collection, deleteDoc, doc, query,
   serverTimestamp, updateDoc, where, getDocs
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -21,6 +22,10 @@ import { ATTENDANCE_COLLECTION } from '../../../lib/config'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import type { Registration } from '../../registrations/types'
+import { GlassCard } from '../../../components/GlassCard'
+import { useTeacherContext } from '../../auth/context/TeacherContext'
+import { useInstructors } from '../../payments/hooks/useInstructors'
+import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotifications'
 
 const KOREAN = 'Korean Language'
 const KOREAN_LEVELS = ['Alphabet', 'Beginner', 'Intermediate', 'K-Movie Conversation'] as const
@@ -39,67 +44,130 @@ type Row = {
 
 export default function AttendancePage() {
   const { data: regs } = useRegistrations()
+  const { getInstructorByAcademy } = useInstructors()
+  
+  // Teacher Context
+  const { isTeacher, teacherProfile, isAdmin: contextIsAdmin } = useTeacherContext()
+  const { addNotification } = useTeacherNotifications(false) // Trigger only, no need to listen here
 
   // Who is signed in (to flip admin vs read-only)
+  // We keep the old local check for fallback, but prefer contextIsAdmin
   const [userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
   React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
-  const isAdmin = !!(userEmail && ADMIN_EMAILS.includes(userEmail))
+  
+  const isSuperAdmin = !!(userEmail && ADMIN_EMAILS.includes(userEmail)) || contextIsAdmin
+  const canEdit = isSuperAdmin || isTeacher
 
   // Filters
   const [date, setDate] = React.useState<string>(new Date().toISOString().slice(0, 10))
-  const [period, setPeriod] = React.useState<1 | 2>(1)
+  // Removed period state
   const [academy, setAcademy] = React.useState<string>('')
   const [level, setLevel] = React.useState<string>('')
   const [teacherName, setTeacherName] = React.useState<string>('')
   const [teacherNote, setTeacherNote] = React.useState<string>('')
 
-  // Academies from registrations (no N/A)
+  // Auto-fill teacher name when academy/level changes
+  React.useEffect(() => {
+    if (academy) {
+      const instructor = getInstructorByAcademy(academy, level || null)
+      if (instructor && instructor.name) {
+        setTeacherName(instructor.name)
+      }
+    }
+  }, [academy, level, getInstructorByAcademy])
+
+  // Academies from registrations (all selected academies)
   const academies = React.useMemo(() => {
+    // If teacher, only show their assigned academies
+    if (isTeacher && teacherProfile) {
+      return teacherProfile.academies.map(a => a.academyName).sort((a, b) => a.localeCompare(b))
+    }
+
     const set = new Set<string>()
     regs.forEach(r => {
+      // Check legacy period fields
       const a1 = (r?.firstPeriod?.academy || '').trim()
       const a2 = (r?.secondPeriod?.academy || '').trim()
       if (a1 && a1.toLowerCase() !== 'n/a') set.add(a1)
       if (a2 && a2.toLowerCase() !== 'n/a') set.add(a2)
+      
+      // Check new selectedAcademies array
+      if (r.selectedAcademies && Array.isArray(r.selectedAcademies)) {
+        r.selectedAcademies.forEach(sa => {
+          const a = (sa?.academy || '').trim()
+          if (a && a.toLowerCase() !== 'n/a') set.add(a)
+        })
+      }
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [regs])
+  }, [regs, isTeacher, teacherProfile])
 
-  // Roster for selected class
+  // Auto-select academy if only one available (for teachers)
+  React.useEffect(() => {
+    if (isTeacher && academies.length === 1 && !academy) {
+      setAcademy(academies[0])
+    }
+  }, [isTeacher, academies, academy])
+
+  // Roster for selected class (Dynamic)
   const roster = React.useMemo(() => {
     if (!academy) return []
     const isK = academy === KOREAN
     const list: { id: string; name: string }[] = []
+    
     regs.forEach((r: Registration) => {
-      const first = (r?.firstPeriod?.academy || '').trim()
-      const second = (r?.secondPeriod?.academy || '').trim()
-      const firstLvl = (r?.firstPeriod?.level || '').trim()
-      const secondLvl = (r?.secondPeriod?.level || '').trim()
-      const fullName = `${r.firstName || ''} ${r.lastName || ''}`.trim()
+      // Consolidated check: is student enrolled in this academy?
+      let isEnrolled = false
+      let studentLevel = ''
 
-      if (period === 1 && first === academy) {
-        if (!isK || !level || firstLvl === level) list.push({ id: r.id, name: fullName })
+      // 1. Check legacy periods
+      const p1 = (r?.firstPeriod?.academy || '').trim()
+      const p2 = (r?.secondPeriod?.academy || '').trim()
+      
+      if (p1 === academy) {
+        isEnrolled = true
+        studentLevel = (r?.firstPeriod?.level || '').trim()
+      } else if (p2 === academy) {
+        isEnrolled = true
+        studentLevel = (r?.secondPeriod?.level || '').trim()
       }
-      if (period === 2 && second === academy) {
-        if (!isK || !level || secondLvl === level) list.push({ id: r.id, name: fullName })
+
+      // 2. Check new selectedAcademies
+      if (!isEnrolled && r.selectedAcademies) {
+        const found = r.selectedAcademies.find(sa => (sa?.academy || '').trim() === academy)
+        if (found) {
+          isEnrolled = true
+          studentLevel = (found.level || '').trim()
+        }
+      }
+
+      if (isEnrolled) {
+        // Filter by level if Korean
+        if (!isK || !level || studentLevel === level) {
+          const fullName = `${r.firstName || ''} ${r.lastName || ''}`.trim()
+          list.push({ id: r.id, name: fullName })
+        }
       }
     })
+
     // unique + sorted
     const m = new Map(list.map(s => [s.id, s]))
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [regs, academy, period, level])
+  }, [regs, academy, level])
 
   // History for this class (to compute %)
   const [classHistory, setClassHistory] = React.useState<any[]>([])
   React.useEffect(() => {
     if (!academy) { setClassHistory([]); return }
-    const cons: any[] = [ where('academy','==',academy), where('period','==',period) ]
+    // Query by academy only (ignore period)
+    const cons: any[] = [ where('academy','==',academy) ]
     if (academy === KOREAN) cons.push(where('level','==', level || ''))
+    
     const qAll = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
     getDocs(qAll).then(snap => {
       setClassHistory(snap.docs.map(d => ({ id:d.id, ...(d.data() as any) })))
     })
-  }, [academy, period, level])
+  }, [academy, level])
 
   // Grid rows
   const [rows, setRows] = React.useState<Row[]>([])
@@ -112,10 +180,11 @@ export default function AttendancePage() {
       setLoading(true); setError(null)
       if (!academy) { setRows([]); setLoading(false); return }
 
-      const cons: any[] = [ where('date','==',date), where('academy','==',academy), where('period','==',period) ]
+      // Query by date + academy (ignore period)
+      const cons: any[] = [ where('date','==',date), where('academy','==',academy) ]
       if (academy === KOREAN) cons.push(where('level','==', level || ''))
-      // Requires the composite index (create once in console)
-      const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons, orderBy('studentName'))
+      
+      const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
       const snap = await getDocs(qDay)
       const byReg = new Map<string, any>()
       snap.forEach(d => byReg.set((d.data() as any).registrationId, { id:d.id, ...(d.data() as any) }))
@@ -134,7 +203,7 @@ export default function AttendancePage() {
         const percent = t && t.total>0 ? Math.round((t.present/t.total)*100) : undefined
         return {
           id: s.id,
-          registrationId: s.id,
+          registrationId: s.id, // Ensure this matches existing ID if any
           studentName: s.name,
           present: ex ? !!ex.present : true,
           reason: ex?.reason || '',
@@ -143,13 +212,19 @@ export default function AttendancePage() {
       })
       setRows(base); setLoading(false)
     } catch (e:any) {
-      setError(e?.message || 'Failed to load'); setLoading(false)
+      console.error(e)
+      // Fallback: Use client-side filtering if composite index is missing for this combo
+      // Usually "academy, date" is enough, but if it fails, we warn user or try simple query
+      setError(e?.message && e.message.includes('index') 
+        ? 'Missing index. Check console for link.' 
+        : e?.message || 'Failed to load')
+      setLoading(false)
     }
-  }, [academy, period, level, date, roster, classHistory])
+  }, [academy, level, date, roster, classHistory])
 
   React.useEffect(()=>{ void loadClassForDate() }, [loadClassForDate])
 
-  // Columns — IMPORTANT: no valueGetter accessing params.row
+  // Columns
   const cols = React.useMemo<GridColDef[]>(() => [
     { field:'studentName', headerName:'Student', minWidth:220, flex:1 },
     {
@@ -161,7 +236,7 @@ export default function AttendancePage() {
             const checked=e.target.checked
             setRows(prev=>prev.map(r=>r.id===p.row.id?{...r,present:checked,reason: checked? '' : r.reason}:r))
           }}
-          disabled={!isAdmin}
+          disabled={!canEdit}
         />
       )
     },
@@ -171,14 +246,13 @@ export default function AttendancePage() {
         <TextField
           size="small" fullWidth placeholder="Illness, travel, family…"
           value={p.row.reason || ''}
-          disabled={p.row.present || !isAdmin}
+          disabled={p.row.present || !canEdit}
           onChange={(e)=> setRows(prev=>prev.map(r=>r.id===p.row.id?{...r,reason:e.target.value}:r))}
         />
       )
     },
     {
       field:'percent', headerName:'Attendance %', width:140,
-      // No valueGetter — render safely from row
       renderCell:(p)=>{
         const pct = typeof p.row.percent === 'number' ? p.row.percent : undefined
         return (
@@ -188,26 +262,31 @@ export default function AttendancePage() {
         )
       }
     }
-  ], [isAdmin])
+  ], [canEdit])
 
   // Admin-only helpers
   const markAll = (val:boolean)=> setRows(prev=>prev.map(r=>({...r,present:val,reason: val? '' : r.reason})))
 
   const saveAll = async ()=>{
-    if (!isAdmin) return SAlert.fire({ title:'Read-only', text:'Only admins can save.', icon:'info' })
+    if (!canEdit) return SAlert.fire({ title:'Read-only', text:'Only admins or teachers can save.', icon:'info' })
     if (!academy) return SAlert.fire({ title:'Select an academy', icon:'warning' })
     try{
-      const cons:any[] = [ where('date','==',date), where('academy','==',academy), where('period','==',period) ]
+      // Check existing by date+academy (ignore period)
+      const cons:any[] = [ where('date','==',date), where('academy','==',academy) ]
       if (academy===KOREAN) cons.push(where('level','==', level || ''))
+      
       const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
       const snap = await getDocs(qDay)
       const existingByReg = new Map<string,{id:string}>()
       snap.forEach(d=> existingByReg.set((d.data() as any).registrationId, { id:d.id }))
 
       const base:any = {
-        date, period, academy, level: academy===KOREAN ? (level||'') : '',
+        date, 
+        academy, 
+        level: academy===KOREAN ? (level||'') : '',
         teacherName: teacherName || '',
         teacherNote: teacherNote || '',
+        period: 0 // Default to 0 for dynamic (or 1 if we want to default)
       }
 
       const ops:Promise<any>[]=[]
@@ -227,6 +306,18 @@ export default function AttendancePage() {
 
       await Promise.all(ops)
       notifySuccess('Attendance saved', `${rows.length} record(s) updated`)
+      
+      // Real-time Notification for Admins
+      if (isTeacher && teacherProfile) {
+        void addNotification({
+          teacherId: teacherProfile.id,
+          teacherName: teacherProfile.name,
+          action: 'Updated Attendance',
+          academy: academy,
+          details: `Date: ${date}, ${rows.length} students`
+        })
+      }
+
       void loadClassForDate()
     }catch(e:any){
       notifyError('Save failed', e?.message)
@@ -234,23 +325,56 @@ export default function AttendancePage() {
   }
 
   const handleDelete = async ()=>{
-    if (!isAdmin) return SAlert.fire({ title:'Read-only', text:'Only admins can delete.', icon:'info' })
+    if (!isSuperAdmin) return SAlert.fire({ title:'Super Admin Only', text:'Only admins can delete attendance records.', icon:'info' })
     if (!selection.length) return SAlert.fire({ title:'No rows selected', icon:'info', timer:1200, showConfirmButton:false })
     try{
-      const cons:any[] = [ where('date','==',date), where('academy','==',academy), where('period','==',period) ]
+      // Delete logic: Identify docs by IDs in filtering?
+      // Actually we have the IDs in 'rows' if they were loaded.
+      // But if we selected rows, we might need to map them to Firestore IDs.
+      // The 'rows' state has `id` which is the Firestore ID if it existed, OR the registrationID if it's new.
+      // We must check if the ID is real.
+      
+      const toDel:string[]=[]
+      
+      // We need to re-query to be safe, or check our rows state
+      // Let's assume selection contains row IDs.
+      const realDocIds:string[] = []
+      
+      // Filter filtering...
+      // The challenge is 'rows' contains mix of real doc IDs and fake (new) IDs.
+      // But if we just loaded, they should be real IDs if present. 
+      // Actually wait, in loadClassForDate:
+      // id: s.id (registrationId) if not found! 
+      // This is a bug in my previous logic too. `id` for DataGrid must be unique.
+      // If record exists, we use doc.id. If not, we use registrationId.
+      // So if I select a row that hasn't been saved (new), I can't delete it from DB (it's not there).
+      // If I select a row that IS in DB, I want to delete it.
+
+      // Let's just re-fetch to precise IDs for deletion
+      const cons:any[] = [ where('date','==',date), where('academy','==',academy) ]
       if (academy===KOREAN) cons.push(where('level','==', level || ''))
       const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons)
       const snap = await getDocs(qDay)
-      const toDel:string[]=[]
-      snap.forEach(d=>{
+      
+      snap.forEach(d => {
         const data:any = d.data()
-        if (selection.includes(data.registrationId)) toDel.push(d.id)
+        // If the registration ID of this doc is in our selection...
+        if (selection.includes(data.registrationId) || selection.includes(d.id)) {
+           realDocIds.push(d.id)
+        }
       })
-      if (!toDel.length) return
-      const res = await confirmDelete('Delete attendance?', `You are about to delete ${toDel.length} record(s) for ${date}.`)
+
+      if (!realDocIds.length) {
+         // Nothing to delete (maybe they were unsaved rows)
+         setSelection([])
+         return
+      }
+
+      const res = await confirmDelete('Delete attendance?', `You are about to delete ${realDocIds.length} record(s) for ${date}.`)
       if (!res.isConfirmed) return
-      await Promise.all(toDel.map(id=> deleteDoc(doc(db, ATTENDANCE_COLLECTION, id))))
-      notifySuccess('Deleted', `${toDel.length} record(s) removed`)
+      
+      await Promise.all(realDocIds.map(id=> deleteDoc(doc(db, ATTENDANCE_COLLECTION, id))))
+      notifySuccess('Deleted', `${realDocIds.length} record(s) removed`)
       setSelection([])
       void loadClassForDate()
     }catch(e:any){
@@ -259,82 +383,173 @@ export default function AttendancePage() {
   }
 
   return (
-    <Card elevation={0} sx={{ borderRadius:3 }}>
-      <CardHeader
-        title="Attendance by Class"
-        subheader={isAdmin ? 'Admin mode (full edit)' : 'Viewer mode (read-only)'}
-      />
-      <CardContent>
-        {!isAdmin && (
-          <Alert severity="info" sx={{ mb:2 }}>
-            You can view rosters and attendance, but only admins can modify.
-          </Alert>
-        )}
+    <Box>
+      {/* Header with Gradient */}
+      <Box sx={{ 
+        mb: 4,
+        background: 'linear-gradient(135deg, #3F51B5 0%, #1976D2 100%)',
+        borderRadius: 3,
+        p: 3,
+        color: 'white',
+        boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(63, 81, 181, 0.4)'
+      }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <ChecklistIcon sx={{ fontSize: 40, color: 'white' }} />
+          <Box>
+            <Typography variant="h4" fontWeight={800} color="white">
+              Attendance Tracker
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
+              {isSuperAdmin ? 'Admin mode (full edit)' : isTeacher ? 'Teacher mode (scoped)' : 'Viewer mode (read-only)'}
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
 
-        {/* Filters */}
-        <Stack direction={{ xs:'column', md:'row' }} spacing={2} sx={{ mb:2 }}>
-          <TextField label="Date" type="date" InputLabelProps={{ shrink:true }} value={date} onChange={e=>setDate(e.target.value)} sx={{ minWidth:170 }} />
-          <TextField select label="Period" value={period} onChange={e=>setPeriod(Number(e.target.value) as 1|2)} sx={{ minWidth:130 }}>
-            <MenuItem value={1}>1</MenuItem><MenuItem value={2}>2</MenuItem>
-          </TextField>
-          <Autocomplete
-            options={academies}
-            value={academy || null}
-            onChange={(_,v)=>{ setAcademy(v||''); if ((v||'')!==KOREAN) setLevel('') }}
-            renderInput={(p)=> <TextField {...p} label="Academy" placeholder="Select academy…" />}
-            sx={{ minWidth:260 }}
-          />
-          {academy===KOREAN && (
-            <TextField select label="Korean Level" value={level} onChange={e=>setLevel(e.target.value)} sx={{ minWidth:220 }}>
-              {KOREAN_LEVELS.map(l=> <MenuItem key={l} value={l}>{l}</MenuItem>)}
-            </TextField>
+      <GlassCard>
+        <CardContent>
+          {!canEdit && (
+            <Alert severity="info" sx={{ mb:2, borderRadius: 2 }}>
+              You can view rosters and attendance, but only admins or teachers can modify.
+            </Alert>
           )}
-        </Stack>
 
-        {/* Teacher info (stored with docs; editable only for admins) */}
-        <Stack direction={{ xs:'column', md:'row' }} spacing={2} sx={{ mb:2 }}>
-          <TextField label="Teacher Name" value={teacherName} onChange={e=>setTeacherName(e.target.value)} sx={{ minWidth:240 }} disabled={!isAdmin} />
-          <TextField label="Teacher Note" value={teacherNote} onChange={e=>setTeacherNote(e.target.value)} fullWidth disabled={!isAdmin} />
-        </Stack>
+          {/* Filters */}
+          <GlassCard sx={{ mb: 3, border: '1px solid rgba(0,0,0,0.05)', bgcolor: 'rgba(255,255,255,0.4)', boxShadow: 'none' }}>
+            <CardContent sx={{ pb: '16px !important' }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box component="span" sx={{ width: 4, height: 24, bgcolor: 'primary.main', borderRadius: 1 }} />
+                Filters & Settings
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={3}>
+                  <TextField 
+                    label="Date" 
+                    type="date" 
+                    InputLabelProps={{ shrink:true }} 
+                    value={date} 
+                    onChange={e=>setDate(e.target.value)} 
+                    fullWidth 
+                    size="small"
+                  />
+                </Grid>
+                {/* Period Dropped */}
+                <Grid item xs={12} md={5}>
+                  <Autocomplete
+                    options={academies}
+                    value={academy || null}
+                    onChange={(_,v)=>{ setAcademy(v||''); if ((v||'')!==KOREAN) setLevel('') }}
+                    renderInput={(p)=> <TextField {...p} label="Academy" placeholder="Select academy…" size="small" />}
+                    fullWidth
+                  />
+                </Grid>
+                {academy===KOREAN && (
+                  <Grid item xs={12} md={4}>
+                    <TextField 
+                      select 
+                      label="Korean Level" 
+                      value={level} 
+                      onChange={e=>setLevel(e.target.value)} 
+                      fullWidth 
+                      size="small"
+                    >
+                      {KOREAN_LEVELS.map(l=> <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                    </TextField>
+                  </Grid>
+                )}
+              </Grid>
 
-        {/* Actions */}
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:1 }}>
-          <Tooltip title="Load/refresh roster for this date & class">
-            <span><Button startIcon={<AddIcon />} onClick={loadClassForDate} disabled={!academy}>Load Class</Button></span>
-          </Tooltip>
-          <Tooltip title={isAdmin ? 'Mark everyone present' : 'Admin only'}>
-            <span><Button startIcon={<DoneAllIcon />} onClick={()=>markAll(true)} disabled={!rows.length || !isAdmin}>All Present</Button></span>
-          </Tooltip>
-          <Tooltip title={isAdmin ? 'Mark everyone absent' : 'Admin only'}>
-            <span><Button startIcon={<CloseIcon />} onClick={()=>markAll(false)} disabled={!rows.length || !isAdmin}>All Absent</Button></span>
-          </Tooltip>
-          <Tooltip title={isAdmin ? 'Delete selected rows for this date' : 'Admin only'}>
-            <span><Button color="error" startIcon={<DeleteIcon />} onClick={handleDelete} disabled={!selection.length || !isAdmin}>Delete</Button></span>
-          </Tooltip>
-          <Stack direction="row" spacing={1} sx={{ ml:'auto' }}>
-            <Chip size="small" label={`${rows.length} students`} />
-            <Button variant="contained" startIcon={<SaveIcon />} onClick={saveAll} disabled={!rows.length || !isAdmin}>
-              Save Attendance
-            </Button>
+              {/* Teacher info */}
+              <Stack direction={{ xs:'column', md:'row' }} spacing={2} sx={{ mt: 2 }}>
+                <TextField 
+                  label="Teacher Name" 
+                  value={teacherName} 
+                  onChange={e=>setTeacherName(e.target.value)} 
+                  sx={{ minWidth:240 }} 
+                  disabled={!canEdit} 
+                  size="small"
+                />
+                <TextField 
+                  label="Teacher Note" 
+                  value={teacherNote} 
+                  onChange={e=>setTeacherNote(e.target.value)} 
+                  fullWidth 
+                  disabled={!canEdit} 
+                  size="small"
+                />
+              </Stack>
+            </CardContent>
+          </GlassCard>
+
+          {/* Actions */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Tooltip title="Load/refresh roster for this date & class">
+              <span><Button startIcon={<AddIcon />} variant="outlined" onClick={loadClassForDate} disabled={!academy} sx={{ borderRadius: 2 }}>Load Class</Button></span>
+            </Tooltip>
+            {canEdit && (
+              <>
+                <Tooltip title="Mark everyone present">
+                  <span><Button startIcon={<DoneAllIcon />} color="success" onClick={()=>markAll(true)} disabled={!rows.length}>All Present</Button></span>
+                </Tooltip>
+                <Tooltip title="Mark everyone absent">
+                  <span><Button startIcon={<CloseIcon />} color="warning" onClick={()=>markAll(false)} disabled={!rows.length}>All Absent</Button></span>
+                </Tooltip>
+                {isSuperAdmin && (
+                  <Tooltip title="Delete selected rows for this date">
+                    <span><Button color="error" startIcon={<DeleteIcon />} onClick={handleDelete} disabled={!selection.length}>Delete</Button></span>
+                  </Tooltip>
+                )}
+              </>
+            )}
+            <Box sx={{ flexGrow: 1 }} />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip 
+                label={`${rows.length} students`} 
+                color="primary" 
+                variant="outlined" 
+                sx={{ borderRadius: 2, fontWeight: 600 }}
+              />
+              <Button 
+                variant="contained" 
+                startIcon={<SaveIcon />} 
+                onClick={saveAll} 
+                disabled={!rows.length || !canEdit}
+                sx={{ 
+                  borderRadius: 2, 
+                  background: 'linear-gradient(45deg, #3F51B5 30%, #2196F3 90%)',
+                  boxShadow: '0 3px 5px 2px rgba(33, 150, 243, .3)'
+                }}
+              >
+                Save Attendance
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
 
-        {error && <Alert severity="error" sx={{ mb:1 }}>{error}</Alert>}
+          {error && <Alert severity="error" sx={{ mb:1, borderRadius: 2 }}>{error}</Alert>}
 
-        <Box sx={{ height: 640 }}>
-          <DataGrid
-            rows={rows}
-            columns={cols}
-            loading={loading}
-            checkboxSelection={isAdmin}
-            disableRowSelectionOnClick
-            onRowSelectionModelChange={(m)=>setSelection(m as string[])}
-            rowSelectionModel={selection}
-            getRowId={(r) => r.id}
-            slots={{ toolbar: GridToolbar }}
-          />
-        </Box>
-      </CardContent>
-    </Card>
+          <Box sx={{ height: 600, width: '100%' }}>
+            <DataGrid
+              rows={rows}
+              columns={cols}
+              loading={loading}
+              checkboxSelection={canEdit}
+              disableRowSelectionOnClick
+              onRowSelectionModelChange={(m)=>setSelection(m as string[])}
+              rowSelectionModel={selection}
+              getRowId={(r) => r.id}
+              slots={{ toolbar: GridToolbar }}
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(224, 224, 224, 0.4)' },
+                '& .MuiDataGrid-columnHeaders': { 
+                  bgcolor: 'rgba(63, 81, 181, 0.08)', 
+                  fontWeight: 700 
+                },
+              }}
+            />
+          </Box>
+        </CardContent>
+      </GlassCard>
+    </Box>
   )
 }

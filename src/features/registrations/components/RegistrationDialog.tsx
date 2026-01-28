@@ -23,9 +23,9 @@ const STATES = [
 ]
 
 // Admin editor constraints similar to your public form
-const NO_LEVELS = ["N/A","Art","DIY","Kids","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen"]
-const P1_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen","Kids"]
-const P2_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Senior","Kids"]
+const NO_LEVELS = ["N/A","Art","DIY","Kids Academy","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen"]
+const P1_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Pickleball","Senior","Soccer","Stretch and Strengthen","Kids Academy"]
+const P2_ACADEMIES = ["N/A","Art","DIY","Korean Language","Korean Cooking","Piano","Senior","Kids Academy"]
 
 type Props = {
   open: boolean

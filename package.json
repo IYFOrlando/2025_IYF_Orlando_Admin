@@ -20,7 +20,8 @@
     "cf-build": "npm install && npm run build",
     "build:pages": "npm install && npm run build",
     "seed:academies": "node scripts/seed-academies-2026.js",
-    "seed:academies:admin": "node scripts/seed-academies-admin.cjs"
+    "seed:academies:admin": "node scripts/seed-academies-admin.cjs",
+    "import:spring-registrations": "node scripts/import-spring-academy-registrations.cjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

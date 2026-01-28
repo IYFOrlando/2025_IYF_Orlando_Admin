@@ -18,6 +18,9 @@ export const SHARED_CONFIG = {
     siteKey: "6LeXChwqAAAAAAGlZ5G86_ZOVXKecHJyeOCSFjIM",
   },
   
+  // Dashboard (Admin app – Cloudflare Pages)
+  dashboardUrl: "https://2025-iyf-orlando-admin.pages.dev",
+
   // Contact Information
   contact: {
     email: "orlando@iyfusa.org",
@@ -41,14 +44,17 @@ export const SHARED_CONFIG = {
     volunteerSchedule: "volunteer_schedule",
     volunteerCodes: "volunteer_codes",
     volunteerCommitments: "volunteer_commitments",
-    academyInvoices: "academy_invoices",
-    academyPayments: "academy_payments",
+    academyInvoices: "2026_spring_academy_invoices_2026",
+    academyPayments: "academy_payments_2026",
     academyAttendance: "academy_attendance",
     academyProgress: "academy_progress",
     academyClasses: "academy_classes",
     academyPricing: "academy_pricing",
     academies2026Spring: "academies_2026_spring", // Academy data with prices and schedules
     settings: "settings",
+    teacherNotifications: "teacher_notifications",
+    teacherActivityLog: "teacher_activity_log",
+    teachersIndex: "teachers_index",
   },
   
   // API Endpoints (if using custom backend)
