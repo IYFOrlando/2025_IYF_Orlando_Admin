@@ -4,17 +4,17 @@ import {
   Stack, Checkbox, TextField, Divider, Chip, CircularProgress 
 } from '@mui/material'
 import { 
-  ChevronLeft, ChevronRight, Calendar as CalendarIcon, 
-  CheckCircle, Circle, Plus, Trash2, Clock 
+  Calendar as CalendarIcon, 
+  CheckCircle, Plus, Trash2, Clock 
 } from 'lucide-react'
+import { format } from 'date-fns'
+import FullCalendar from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
+import interactionPlugin from '@fullcalendar/interaction'
 import { 
-  format, addMonths, subMonths, startOfMonth, endOfMonth, 
-  eachDayOfInterval, isSameMonth, isSameDay, isToday, 
-  startOfWeek, endOfWeek 
-} from 'date-fns'
-import { 
-  doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, 
-  serverTimestamp 
+  collection, doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, 
+  serverTimestamp, query, where, getDoc 
 } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
@@ -41,48 +41,10 @@ interface PlanDoc {
   events: Event[]
 }
 
-// --- Components ---
-interface DayCellProps {
-  date: Date
-  isSelected: boolean
-  hasPlan: boolean
-  onClick: (date: Date) => void
-}
-
-const DayCell = ({ date, isSelected, hasPlan, onClick }: DayCellProps) => {
-  const isCurrentMonth = isSameMonth(date, new Date())
-  
-  return (
-    <Box 
-      onClick={() => onClick(date)}
-      sx={{
-        height: 100,
-        border: '1px solid',
-        borderColor: 'divider',
-        p: 1,
-        cursor: 'pointer',
-        bgcolor: isSelected ? 'primary.light' : 'background.paper',
-        opacity: isCurrentMonth ? 1 : 0.4,
-        position: 'relative',
-        transition: 'all 0.2s',
-        '&:hover': { bgcolor: 'action.hover' }
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between">
-        <Typography variant="body2" fontWeight={isToday(date) ? 700 : 400} 
-          color={isToday(date) ? 'primary.main' : 'text.primary'}
-        >
-          {format(date, 'd')}
-        </Typography>
-        {hasPlan && <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'secondary.main' }} />}
-      </Stack>
-    </Box>
-  )
-}
+// DayCell removed in favor of FullCalendar
 
 export default function TeacherPlannerPage() {
   const { teacherProfile } = useTeacherContext()
-  const [currentDate, setCurrentDate] = React.useState(new Date())
   const [selectedDate, setSelectedDate] = React.useState(new Date())
   
   // Plan Data
@@ -114,14 +76,107 @@ export default function TeacherPlannerPage() {
     return () => unsub()
   }, [docId])
 
-  // Calendar Construction
-  const calendarDays = React.useMemo(() => {
-    const monthStart = startOfMonth(currentDate)
-    const monthEnd = endOfMonth(currentDate)
-    const startDate = startOfWeek(monthStart)
-    const endDate = endOfWeek(monthEnd)
-    return eachDayOfInterval({ start: startDate, end: endDate })
-  }, [currentDate])
+  // Details for selected date handled by onSnapshot hook below
+  const [allPlans, setAllPlans] = React.useState<PlanDoc[]>([])
+
+  React.useEffect(() => {
+    if (!teacherProfile?.email) return
+    const q = query(
+      collection(db, 'teacher_plans'),
+      where('teacherEmail', '==', teacherProfile.email)
+    )
+    const unsub = onSnapshot(q, (snap) => {
+      setAllPlans(snap.docs.map(d => d.data() as PlanDoc))
+    })
+    return () => unsub()
+  }, [teacherProfile?.email])
+
+  const calendarEvents = React.useMemo(() => {
+    const evs: any[] = []
+    allPlans.forEach(p => {
+      const [mm, dd, yyyy] = p.date.split('-')
+      const isoDate = `${yyyy}-${mm}-${dd}`
+      p.events.forEach(e => {
+        evs.push({
+          id: e.id,
+          title: e.title,
+          start: `${isoDate}T${e.time}:00`,
+          extendedProps: { ...e, date: p.date }
+        })
+      })
+      if (p.tasks.length > 0) {
+        const completed = p.tasks.filter(t => t.completed).length
+        evs.push({
+          id: `tasks_${p.date}`,
+          title: `📋 ${completed}/${p.tasks.length} Tasks`,
+          start: isoDate,
+          allDay: true,
+          display: 'list-item',
+          color: completed === p.tasks.length ? '#4caf50' : '#ff9800'
+        })
+      }
+    })
+    return evs
+  }, [allPlans])
+
+  const handleEventDrop = async (info: { event: any; oldEvent: any; revert: () => void }) => {
+    const { event, oldEvent } = info
+    if (event.id.startsWith('tasks_')) {
+      info.revert()
+      return
+    }
+
+    const oldDate = oldEvent.extendedProps.date
+    const newDate = format(event.start, 'MM-dd-yyyy')
+    const eventId = event.id
+
+    if (oldDate === newDate) {
+      // Just time changed
+      const oldDocId = `${teacherProfile?.email}_${oldDate}`
+      const newTime = format(event.start, 'HH:mm')
+      const targetDoc = allPlans.find(p => p.date === oldDate)
+      if (!targetDoc) return
+      const updatedEvents = targetDoc.events.map(e => 
+        e.id === eventId ? { ...e, time: newTime } : e
+      )
+      await updateDoc(doc(db, 'teacher_plans', oldDocId), { events: updatedEvents })
+      return
+    }
+
+    // Date changed: Move between documents
+    const oldDocId = `${teacherProfile?.email}_${oldDate}`
+    const newDocId = `${teacherProfile?.email}_${newDate}`
+    
+    const eventData = oldEvent.extendedProps
+    const eventToMove: Event = { id: eventId, title: event.title, time: format(event.start, 'HH:mm') }
+
+    try {
+      // Remove from old
+      await updateDoc(doc(db, 'teacher_plans', oldDocId), {
+        events: arrayRemove({ id: eventData.id, title: eventData.title, time: eventData.time })
+      })
+
+      // Add to new
+      const newDocSnap = await getDoc(doc(db, 'teacher_plans', newDocId))
+      if (newDocSnap.exists()) {
+        await updateDoc(doc(db, 'teacher_plans', newDocId), {
+          events: arrayUnion(eventToMove),
+          updatedAt: serverTimestamp()
+        })
+      } else {
+        await setDoc(doc(db, 'teacher_plans', newDocId), {
+          date: newDate,
+          teacherEmail: teacherProfile?.email,
+          tasks: [],
+          events: [eventToMove],
+          updatedAt: serverTimestamp()
+        })
+      }
+    } catch (e) {
+      console.error(e)
+      info.revert()
+    }
+  }
 
   // Actions
   const handleAddTask = async () => {
@@ -209,7 +264,9 @@ export default function TeacherPlannerPage() {
         boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(118, 75, 162, 0.4)'
       }}>
         <Stack direction="row" alignItems="center" spacing={2}>
-          <CalendarIcon sx={{ fontSize: 40, color: 'white' }} />
+          <Box sx={{ display: 'flex', color: 'white' }}>
+            <CalendarIcon size={40} />
+          </Box>
           <Box>
             <Typography variant="h4" fontWeight={800} color="white">
               My Planner
@@ -222,42 +279,33 @@ export default function TeacherPlannerPage() {
       </Box>
 
       <Grid container spacing={3} sx={{ height: 'calc(100vh - 280px)' }}>
-        {/* Calendar Column */}
         <Grid item xs={12} md={8} sx={{ height: '100%' }}>
-          <GlassCard sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
-               <Stack direction="row" alignItems="center" spacing={1}>
-                 <CalendarIcon />
-                 <Typography variant="h6" fontWeight={700}>
-                   {format(currentDate, 'MMMM yyyy')}
-                 </Typography>
-               </Stack>
-               <Box>
-                 <IconButton onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft /></IconButton>
-                 <IconButton onClick={() => setCurrentDate(new Date())}><Circle size={14} /></IconButton>
-                 <IconButton onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight /></IconButton>
-               </Box>
-            </Box>
-            
-            {/* Days Header */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', py: 1, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                <Typography key={d} variant="caption" fontWeight={700}>{d}</Typography>
-              ))}
-            </Box>
-
-            {/* Calendar Grid */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flexGrow: 1, overflowY: 'auto' }}>
-              {calendarDays.map((day) => (
-                <DayCell 
-                  key={day.toISOString()} 
-                  date={day} 
-                  isSelected={isSameDay(day, selectedDate)}
-                  hasPlan={false} // TODO: Could fetch monthly summary to show dots
-                  onClick={setSelectedDate}
-                />
-              ))}
-            </Box>
+          <GlassCard sx={{ height: '100%', p: 2, '& .fc': { height: '100%', fontFamily: 'inherit' } }}>
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+              }}
+              height="100%"
+              selectable={true}
+              editable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              weekends={true}
+              initialDate={selectedDate}
+              dateClick={(info) => setSelectedDate(info.date)}
+              events={calendarEvents}
+              eventDrop={handleEventDrop}
+              eventClick={(info) => {
+                setSelectedDate(info.event.start || new Date())
+              }}
+              eventBackgroundColor="#3f51b5"
+              eventBorderColor="#3f51b5"
+              themeSystem="standard"
+            />
           </GlassCard>
         </Grid>
 

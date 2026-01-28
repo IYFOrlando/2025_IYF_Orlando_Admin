@@ -109,6 +109,12 @@ service cloud.firestore {
     match /settings/{document} { allow read: if true; allow write: if isAdmin(); }
     match /email_database/{document} { allow read: if isAuthorized(); allow write: if isAuthorized(); }
 
+    // 9. Teacher Plans
+    match /teacher_plans/{document} {
+      allow read, write: if isTeacher() && request.auth.token.email.lower() == resource.data.teacherEmail.lower();
+      allow create: if isTeacher() && request.auth.token.email.lower() == request.resource.data.teacherEmail.lower();
+    }
+
     // --- Final Catch-all ---
     match /{document=**} {
       allow read, write: if false;
