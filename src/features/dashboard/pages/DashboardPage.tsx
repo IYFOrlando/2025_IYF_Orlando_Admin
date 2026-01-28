@@ -160,7 +160,8 @@ function AdminDashboard() {
 
     // 2. Financial Stats — one invoice per student (the latest); older ones are history and don't count
     const latest = latestInvoicePerStudent(invoices)
-    const totalCollected = invoices.reduce((sum, inv) => sum + (inv.paid ?? 0), 0)
+    // Use only latest invoices for collected amount to avoid double-counting
+    const totalCollected = latest.reduce((sum, inv) => sum + (inv.paid ?? 0), 0)
     const totalPending = latest.reduce((sum, inv) => sum + (inv.balance ?? 0), 0)
     const fullyPaidCount = latest.filter(inv => inv.status === 'paid').length
     const partialPaidCount = latest.filter(inv => inv.status === 'partial').length
