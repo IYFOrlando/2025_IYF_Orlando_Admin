@@ -516,8 +516,8 @@ function AdminDashboard() {
             <CardContent sx={{ height: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Registration Trend</Typography>
               {dailyStats.length > 0 ? (
-                <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                <Box sx={{ width: '100%', height: '90%', minHeight: 300, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                     <AreaChart data={dailyStats}>
                     <defs>
                       <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
@@ -574,8 +574,8 @@ function AdminDashboard() {
             <CardContent sx={{ height: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Payment Status</Typography>
               {financialStats.paymentStatusData.length > 0 ? (
-                <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                <Box sx={{ width: '100%', height: '90%', minHeight: 300, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                     <PieChart>
                     <Pie
                       data={financialStats.paymentStatusData}
@@ -647,8 +647,8 @@ function AdminDashboard() {
             <CardContent sx={{ minHeight: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Academy Distribution</Typography>
               {academyRows.length > 0 ? (
-                <Box sx={{ width: '100%', height: 300, minHeight: 0, minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                <Box sx={{ width: '100%', height: 300, minHeight: 300, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                     <BarChart data={academyRows} layout="vertical" margin={{ left: 40, right: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.2} />
                       <XAxis type="number" hide />

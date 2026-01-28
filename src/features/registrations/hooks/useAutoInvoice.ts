@@ -8,6 +8,8 @@ import { db } from '../../../lib/firebase'
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import { createAutoInvoice } from '../../../lib/autoInvoice'
 import { logger } from '../../../lib/logger'
+import { isFirebasePermissionError } from '../../../lib/errors'
+import { useTeacherContext } from '../../auth/context/TeacherContext'
 import type { Registration } from '../types'
 
 /**
@@ -17,9 +19,11 @@ import type { Registration } from '../types'
 export function useAutoInvoice(enabled: boolean = true) {
   const [processing, setProcessing] = React.useState(false)
   const processedIds = React.useRef<Set<string>>(new Set())
+  const { isAdmin } = useTeacherContext()
 
   React.useEffect(() => {
-    if (!enabled) return
+    // Only run auto-invoice for admin users to avoid permission errors
+    if (!enabled || !isAdmin) return
 
     // Check for existing registrations without invoices
     const checkExisting = async () => {
@@ -48,7 +52,12 @@ export function useAutoInvoice(enabled: boolean = true) {
               await createAutoInvoice(registration)
               processedIds.current.add(registration.id)
               logger.info(`Auto-created invoice for registration ${registration.id}`)
-            } catch (error) {
+            } catch (error: any) {
+              // Silently handle permission errors - user may not have admin access
+              if (isFirebasePermissionError(error)) {
+                logger.debug(`Permission denied for auto-invoice creation (expected for non-admin users)`)
+                return // Exit early if no permissions
+              }
               logger.error(`Error creating invoice for ${registration.id}`, error)
             }
           } else {
@@ -78,13 +87,23 @@ export function useAutoInvoice(enabled: boolean = true) {
               await createAutoInvoice(registration)
               processedIds.current.add(registration.id)
               logger.info(`Auto-created invoice for new registration ${registration.id}`)
-            } catch (error) {
+            } catch (error: any) {
+              // Silently handle permission errors - user may not have admin access
+              if (isFirebasePermissionError(error)) {
+                logger.debug(`Permission denied for auto-invoice creation (expected for non-admin users)`)
+                return // Exit early if no permissions
+              }
               logger.error(`Error creating invoice for new registration ${registration.id}`, error)
             }
           }
         })
       },
       (error) => {
+        // Silently handle permission errors
+        if (isFirebasePermissionError(error)) {
+          logger.debug('Permission denied for registrations listener (expected for non-admin users)')
+          return
+        }
         logger.error('Error listening to registrations', error)
       }
     )
@@ -95,7 +114,7 @@ export function useAutoInvoice(enabled: boolean = true) {
     return () => {
       unsubscribe()
     }
-  }, [enabled])
+  }, [enabled, isAdmin])
 
   return { processing }
 }
