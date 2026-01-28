@@ -614,8 +614,8 @@ function AdminDashboard() {
             <GlassCard>
               <CardContent sx={{ height: 400 }}>
                 <Typography variant="h6" fontWeight={700} gutterBottom>Korean Levels</Typography>
-                <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                <Box sx={{ width: '100%', height: '90%', minHeight: 300, minWidth: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                     <PieChart>
                     <Pie
                       data={koreanLevelRows}

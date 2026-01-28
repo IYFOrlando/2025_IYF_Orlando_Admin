@@ -44,7 +44,17 @@ export function useAutoInvoice(enabled: boolean = true) {
             invoicesRef,
             where('studentId', '==', registration.id)
           )
-          const invoiceSnapshot = await getDocs(invoiceQuery)
+          let invoiceSnapshot
+          try {
+            invoiceSnapshot = await getDocs(invoiceQuery)
+          } catch (error: any) {
+            // If permission denied on first check, exit early - user is not admin
+            if (isFirebasePermissionError(error)) {
+              logger.debug('Permission denied for invoice check (expected for non-admin users)')
+              return
+            }
+            throw error
+          }
           
           // If no invoice exists, create one
           if (invoiceSnapshot.empty) {
@@ -64,7 +74,12 @@ export function useAutoInvoice(enabled: boolean = true) {
             processedIds.current.add(registration.id)
           }
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Silently handle permission errors
+        if (isFirebasePermissionError(error)) {
+          logger.debug('Permission denied for checking existing registrations (expected for non-admin users)')
+          return
+        }
         logger.error('Error checking existing registrations', error)
       } finally {
         setProcessing(false)
