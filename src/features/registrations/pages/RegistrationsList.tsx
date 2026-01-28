@@ -16,8 +16,10 @@ import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useRegistrationsExpectedTotals } from '../hooks/useRegistrationExpectedTotal'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
+import { latestInvoicePerStudent } from '../../payments/utils'
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import type { Registration } from '../types'
+import type { Invoice } from '../../payments/types'
 import { usd } from '../../../lib/query'
 import { Alert as SAlert, confirmDelete, notifyError, notifySuccess } from '../../../lib/alerts'
 import { computeAge } from '../../../lib/validations'
@@ -34,22 +36,47 @@ import AdminRegistrationForm from '../components/AdminRegistrationForm'
 type BillingAgg = { total:number; paid:number; balance:number; status:'unpaid'|'partial'|'paid'|'exonerated' }
 const isValidDate = (d: unknown): d is Date => d instanceof Date && !isNaN(d.getTime())
 
+/**
+ * CRITICAL: Use only the LATEST invoice per student to avoid double-counting.
+ * Older invoices remain in DB as history but should not affect current status.
+ * This ensures consistency with Dashboard calculations and prevents showing incorrect "Unpaid" status
+ * when payments have been recorded.
+ */
 function useInvoiceAggByStudent() {
   const [map, setMap] = React.useState<Map<string, BillingAgg>>(new Map())
   React.useEffect(() => {
     const unsub = onSnapshot(collection(db, COLLECTIONS_CONFIG.academyInvoices), (snap) => {
+      // Get all invoices
+      const allInvoices: Invoice[] = snap.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as Invoice)
+      }))
+      
+      // Use only the latest invoice per student (same logic as Dashboard)
+      const latest = latestInvoicePerStudent(allInvoices)
+      
+      // Build aggregation map using only latest invoices
       const agg = new Map<string, BillingAgg>()
-      for (const d of snap.docs) {
-        const inv = d.data() as { studentId?: string | number, total?: number, paid?: number, status?: string }
+      for (const inv of latest) {
         const id = String(inv.studentId || '')
         if (!id) continue
-        const cur = agg.get(id) || { total:0, paid:0, balance:0, status:'unpaid' as const }
-        cur.total += Number(inv.total || 0)
-        cur.paid  += Number(inv.paid || 0)
-        cur.balance = Math.max(cur.total - cur.paid, 0)
-        if (inv.status === 'exonerated') cur.status = 'exonerated'
-        else cur.status = cur.paid <= 0 ? 'unpaid' : (cur.balance > 0 ? 'partial' : 'paid')
-        agg.set(id, cur)
+        
+        const total = Number(inv.total || 0)
+        const paid = Number(inv.paid || 0)
+        const balance = Math.max(total - paid, 0)
+        
+        let status: 'unpaid' | 'partial' | 'paid' | 'exonerated' = 'unpaid'
+        if (inv.status === 'exonerated') {
+          status = 'exonerated'
+        } else if (paid <= 0) {
+          status = 'unpaid'
+        } else if (balance > 0) {
+          status = 'partial'
+        } else {
+          status = 'paid'
+        }
+        
+        agg.set(id, { total, paid, balance, status })
       }
       setMap(agg)
     })
