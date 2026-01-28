@@ -61,8 +61,13 @@ export default function TeacherPlannerPage() {
   const userEmail = teacherProfile?.email || (currentUser?.email ? currentUser.email.toLowerCase().trim() : null)
   
   React.useEffect(() => {
-    if (userEmail) console.log('Planner User Email:', userEmail)
-  }, [userEmail])
+    console.log('Planner Auth Debug:', {
+      currentUserEmail: currentUser?.email,
+      teacherProfileEmail: teacherProfile?.email,
+      resolvedUserEmail: userEmail,
+      docId
+    })
+  }, [userEmail, docId, currentUser, teacherProfile])
 
   const docId = React.useMemo(() => {
     if (!userEmail) return null
