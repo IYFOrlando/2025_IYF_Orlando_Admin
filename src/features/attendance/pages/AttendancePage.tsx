@@ -59,7 +59,31 @@ export default function AttendancePage() {
   const canEdit = isSuperAdmin || isTeacher
 
   // Filters
-  const [date, setDate] = React.useState<string>(new Date().toISOString().slice(0, 10))
+  // Determine initial date (nearest past Saturday or today if Saturday)
+  const getInitialSaturday = () => {
+    const d = new Date()
+    const day = d.getDay()
+    if (day !== 6) {
+       // 0=Sun (1 ago), 1=Mon (2 ago), ... 5=Fri (6 ago)
+       const diff = (day + 1) % 7
+       d.setDate(d.getDate() - diff)
+    }
+    return d.toISOString().slice(0, 10)
+  }
+
+  const [date, setDate] = React.useState<string>(getInitialSaturday())
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (!val) return
+    const d = new Date(val)
+    // Use getUTCDay because input type="date" value is YYYY-MM-DD (UTC midnight)
+    if (d.getUTCDay() !== 6) {
+        notifyError('Only Saturdays allowed', 'Please select a Saturday.')
+        return
+    }
+    setDate(val)
+  }
   // Removed period state
   const [academy, setAcademy] = React.useState<string>('')
   const [level, setLevel] = React.useState<string>('')
@@ -426,9 +450,10 @@ export default function AttendancePage() {
                     type="date" 
                     InputLabelProps={{ shrink:true }} 
                     value={date} 
-                    onChange={e=>setDate(e.target.value)} 
+                    onChange={handleDateChange} 
                     fullWidth 
                     size="small"
+                    helperText="Saturdays only"
                   />
                 </Grid>
                 {/* Period Dropped */}
