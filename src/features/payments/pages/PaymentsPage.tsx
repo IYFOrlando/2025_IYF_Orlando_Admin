@@ -743,9 +743,8 @@ const PaymentsPage = React.memo(() => {
                  onChange={(_, v) => setStudent(v)}
                  renderInput={params => <TextField {...params} label="Select Student" variant="outlined" />}
                  renderOption={(props, option) => {
-                   const { key: _key, ...restProps } = props
                    return (
-                     <li key={option.id} {...restProps}>
+                     <li {...props} key={option.id}>
                        <Stack direction="row" alignItems="center" spacing={1}>
                          <PersonIcon color="action" />
                          <Box>
