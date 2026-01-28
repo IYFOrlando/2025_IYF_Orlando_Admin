@@ -59,6 +59,10 @@ export default function TeacherPlannerPage() {
   const [newEventTitle, setNewEventTitle] = React.useState('')
 
   const userEmail = teacherProfile?.email || (currentUser?.email ? currentUser.email.toLowerCase().trim() : null)
+  
+  React.useEffect(() => {
+    if (userEmail) console.log('Planner User Email:', userEmail)
+  }, [userEmail])
 
   const docId = React.useMemo(() => {
     if (!userEmail) return null
