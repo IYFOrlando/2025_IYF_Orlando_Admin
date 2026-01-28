@@ -177,76 +177,78 @@ export default function RegistrationDrawer({
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Payment Status — Total/Balance derived from academies × prices so they always match */}
-          <>
-              <Typography variant="overline" color="text.secondary" fontWeight={700}>
-                <DollarSign size={14} style={{ display: 'inline', marginRight: 4 }} />
-                Payment Status
-              </Typography>
-              <Box sx={{ mt: 1, p: 2, borderRadius: 2, background: '#f5f5f5' }}>
-                {expectedLoading ? (
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <CircularProgress size={20} />
-                    <Typography variant="body2" color="text.secondary">Loading expected total from academies…</Typography>
-                  </Stack>
-                ) : (
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Total</Typography>
-                      <Typography variant="h6" fontWeight={700}>{usd(totalCents)}</Typography>
+          {/* Payment Status — Admin Only */}
+          {isAdmin && (
+            <>
+                <Typography variant="overline" color="text.secondary" fontWeight={700}>
+                  <DollarSign size={14} style={{ display: 'inline', marginRight: 4 }} />
+                  Payment Status
+                </Typography>
+                <Box sx={{ mt: 1, p: 2, borderRadius: 2, background: '#f5f5f5' }}>
+                  {expectedLoading ? (
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CircularProgress size={20} />
+                      <Typography variant="body2" color="text.secondary">Loading expected total from academies…</Typography>
+                    </Stack>
+                  ) : (
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">Total</Typography>
+                        <Typography variant="h6" fontWeight={700}>{usd(totalCents)}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">Paid</Typography>
+                        <Typography variant="h6" fontWeight={700} color="success.main">
+                          {usd(paidCents)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">Balance</Typography>
+                        <Typography variant="h6" fontWeight={700} color="error.main">
+                          {usd(balanceCents)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">Status</Typography>
+                        <Chip 
+                          label={status.toUpperCase()} 
+                          size="small"
+                          color={status === 'paid' ? 'success' : status === 'partial' ? 'warning' : 'error'}
+                          sx={{ mt: 0.5 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                         {status === 'paid' ? (
+                           <Button
+                             variant="outlined"
+                             fullWidth
+                             startIcon={<ReceiptIcon size={18} />}
+                             onClick={() => {
+                                 navigate(`/payments?studentId=${registration.id}`)
+                                 onClose()
+                             }}
+                             sx={{ mt: 1 }}
+                           >
+                             View Payment / Receipt
+                           </Button>
+                         ) : (
+                           <Button 
+                             variant="contained" 
+                             color="success" 
+                             fullWidth 
+                             startIcon={<DollarSign size={18} />}
+                             onClick={() => setPayOpen(true)}
+                             sx={{ mt: 1 }}
+                           >
+                             Make a Payment
+                           </Button>
+                         )}
+                      </Grid>
                     </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Paid</Typography>
-                      <Typography variant="h6" fontWeight={700} color="success.main">
-                        {usd(paidCents)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Balance</Typography>
-                      <Typography variant="h6" fontWeight={700} color="error.main">
-                        {usd(balanceCents)}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">Status</Typography>
-                      <Chip 
-                        label={status.toUpperCase()} 
-                        size="small"
-                        color={status === 'paid' ? 'success' : status === 'partial' ? 'warning' : 'error'}
-                        sx={{ mt: 0.5 }}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                       {status === 'paid' ? (
-                         <Button
-                           variant="outlined"
-                           fullWidth
-                           startIcon={<ReceiptIcon size={18} />}
-                           onClick={() => {
-                              navigate(`/payments?studentId=${registration.id}`)
-                              onClose()
-                           }}
-                           sx={{ mt: 1 }}
-                         >
-                           View Payment / Receipt
-                         </Button>
-                       ) : (
-                         <Button 
-                           variant="contained" 
-                           color="success" 
-                           fullWidth 
-                           startIcon={<DollarSign size={18} />}
-                           onClick={() => setPayOpen(true)}
-                           sx={{ mt: 1 }}
-                         >
-                           Make a Payment
-                         </Button>
-                       )}
-                    </Grid>
-                  </Grid>
-                )}
-              </Box>
-          </>
+                  )}
+                </Box>
+            </>
+          )}
 
           <Divider sx={{ my: 2 }} />
 

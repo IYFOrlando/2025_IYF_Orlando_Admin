@@ -378,46 +378,48 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
           </Stack>
         </Box>
 
-        {/* Payment Status Filter */}
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mr: 1 }}>
-              Payment Status:
-            </Typography>
-            {(['all', 'paid', 'partial', 'unpaid'] as const).map((status) => {
-              const isActive = statusFilter === status
-              const counts = {
-                all: rows.length,
-                paid: rows.filter(r => rowStatus(r.id) === 'paid').length,
-                partial: rows.filter(r => rowStatus(r.id) === 'partial').length,
-                unpaid: rows.filter(r => rowStatus(r.id) === 'unpaid').length,
-              }
-              const colors = {
-                all: '#2196F3',
-                paid: '#4CAF50',
-                partial: '#FF9800',
-                unpaid: '#F44336'
-              }
-              return (
-                <Chip
-                  key={status}
-                  label={`${status.charAt(0).toUpperCase() + status.slice(1)} (${counts[status]})`}
-                  onClick={() => setStatusFilter(status)}
-                  sx={{
-                    bgcolor: isActive ? colors[status] : 'transparent',
-                    color: isActive ? 'white' : colors[status],
-                    borderColor: colors[status],
-                    border: '1px solid',
-                    fontWeight: isActive ? 700 : 500,
-                    '&:hover': {
-                      bgcolor: isActive ? colors[status] : `${colors[status]}20`
-                    }
-                  }}
-                />
-              )
-            })}
-          </Stack>
-        </Box>
+        {/* Payment Status Filter - Admin Only */}
+        {effectiveIsAdmin && (
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mr: 1 }}>
+                Payment Status:
+              </Typography>
+              {(['all', 'paid', 'partial', 'unpaid'] as const).map((status) => {
+                const isActive = statusFilter === status
+                const counts = {
+                  all: rows.length,
+                  paid: rows.filter(r => rowStatus(r.id) === 'paid').length,
+                  partial: rows.filter(r => rowStatus(r.id) === 'partial').length,
+                  unpaid: rows.filter(r => rowStatus(r.id) === 'unpaid').length,
+                }
+                const colors = {
+                  all: '#2196F3',
+                  paid: '#4CAF50',
+                  partial: '#FF9800',
+                  unpaid: '#F44336'
+                }
+                return (
+                  <Chip
+                    key={status}
+                    label={`${status.charAt(0).toUpperCase() + status.slice(1)} (${counts[status]})`}
+                    onClick={() => setStatusFilter(status)}
+                    sx={{
+                      bgcolor: isActive ? colors[status] : 'transparent',
+                      color: isActive ? 'white' : colors[status],
+                      borderColor: colors[status],
+                      border: '1px solid',
+                      fontWeight: isActive ? 700 : 500,
+                      '&:hover': {
+                        bgcolor: isActive ? colors[status] : `${colors[status]}20`
+                      }
+                    }}
+                  />
+                )
+              })}
+            </Stack>
+          </Box>
+        )}
 
         {/* Content */}
         <Box sx={{ flex: 1, width: '100%', overflow: 'hidden' }}>
