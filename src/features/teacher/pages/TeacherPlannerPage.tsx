@@ -60,6 +60,11 @@ export default function TeacherPlannerPage() {
 
   const userEmail = teacherProfile?.email || (currentUser?.email ? currentUser.email.toLowerCase().trim() : null)
   
+  const docId = React.useMemo(() => {
+    if (!userEmail) return null
+    return `${userEmail}_${format(selectedDate, 'MM-dd-yyyy')}`
+  }, [userEmail, selectedDate])
+
   React.useEffect(() => {
     console.log('Planner Auth Debug:', {
       currentUserEmail: currentUser?.email,
@@ -68,11 +73,6 @@ export default function TeacherPlannerPage() {
       docId
     })
   }, [userEmail, docId, currentUser, teacherProfile])
-
-  const docId = React.useMemo(() => {
-    if (!userEmail) return null
-    return `${userEmail}_${format(selectedDate, 'MM-dd-yyyy')}`
-  }, [userEmail, selectedDate])
 
   // Real-time listener for selected date
   React.useEffect(() => {
