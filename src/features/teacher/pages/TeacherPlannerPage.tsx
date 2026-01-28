@@ -5,7 +5,7 @@ import {
 } from '@mui/material'
 import { 
   Calendar as CalendarIcon, 
-  CheckCircle, Plus, Trash2, Clock 
+  CheckCircle, Plus, Trash2, Clock, Edit2 
 } from 'lucide-react'
 import { format } from 'date-fns'
 import FullCalendar from '@fullcalendar/react'
@@ -54,9 +54,14 @@ export default function TeacherPlannerPage() {
   const [loading, setLoading] = React.useState(false) // Initialized to false to prevent infinite loading if no profile
 
   // Inputs
-  const [newTask, setNewTask] = React.useState('')
-  const [newEventTime, setNewEventTime] = React.useState('09:00')
   const [newEventTitle, setNewEventTitle] = React.useState('')
+
+  // Editing State
+  const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null)
+  const [editingTaskText, setEditingTaskText] = React.useState('')
+  const [editingEventId, setEditingEventId] = React.useState<string | null>(null)
+  const [editingEventTitle, setEditingEventTitle] = React.useState('')
+  const [editingEventTime, setEditingEventTime] = React.useState('')
 
   const userEmail = teacherProfile?.email || (currentUser?.email ? currentUser.email.toLowerCase().trim() : null)
   
@@ -238,6 +243,32 @@ export default function TeacherPlannerPage() {
     await updateDoc(doc(db, 'teacher_plans', docId), { tasks: arrayRemove(task) })
   }
 
+  const handleUpdateTask = async () => {
+    if (!plan || !docId || !editingTaskId) return
+    const newTasks = plan.tasks.map(t => 
+      t.id === editingTaskId ? { ...t, text: editingTaskText.trim() } : t
+    )
+    try {
+      await updateDoc(doc(db, 'teacher_plans', docId), { tasks: newTasks })
+      setEditingTaskId(null)
+    } catch (e) {
+      notifyError('Failed to update task', e instanceof Error ? e.message : 'Unknown error')
+    }
+  }
+
+  const handleUpdateEvent = async () => {
+    if (!plan || !docId || !editingEventId) return
+    const newEvents = plan.events.map(e => 
+      e.id === editingEventId ? { ...e, title: editingEventTitle.trim(), time: editingEventTime } : e
+    )
+    try {
+      await updateDoc(doc(db, 'teacher_plans', docId), { events: newEvents })
+      setEditingEventId(null)
+    } catch (e) {
+      notifyError('Failed to update event', e instanceof Error ? e.message : 'Unknown error')
+    }
+  }
+
   const handleAddEvent = async () => {
     if (!newEventTitle.trim() || !docId || !userEmail) return
     
@@ -368,13 +399,40 @@ export default function TeacherPlannerPage() {
                        <Clock size={20} /> Schedule
                      </Typography>
                      <Stack spacing={2}>
-                        {(plan?.events || [])
+                         {(plan?.events || [])
                           .sort((a,b) => a.time.localeCompare(b.time))
                           .map(event => (
                           <GlassCard key={event.id} sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                             <Chip label={event.time} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
-                             <Typography sx={{ flex: 1, fontWeight: 500 }}>{event.title}</Typography>
-                             <IconButton size="small" color="error" onClick={() => handleDeleteEvent(event)}><Trash2 size={16} /></IconButton>
+                             {editingEventId === event.id ? (
+                               <Stack direction="row" spacing={1} sx={{ flex: 1 }}>
+                                 <TextField 
+                                   type="time" size="small" sx={{ width: 120 }}
+                                   value={editingEventTime} 
+                                   onChange={e => setEditingEventTime(e.target.value)} 
+                                 />
+                                 <TextField 
+                                   size="small" fullWidth autoFocus
+                                   value={editingEventTitle} 
+                                   onChange={e => setEditingEventTitle(e.target.value)}
+                                   onKeyDown={e => {
+                                     if (e.key === 'Enter') handleUpdateEvent()
+                                     if (e.key === 'Escape') setEditingEventId(null)
+                                   }}
+                                 />
+                                 <IconButton size="small" color="primary" onClick={handleUpdateEvent}><CheckCircle size={18} /></IconButton>
+                               </Stack>
+                             ) : (
+                               <>
+                                 <Chip label={event.time} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
+                                 <Typography sx={{ flex: 1, fontWeight: 500 }}>{event.title}</Typography>
+                                 <IconButton size="small" onClick={() => {
+                                   setEditingEventId(event.id)
+                                   setEditingEventTitle(event.title)
+                                   setEditingEventTime(event.time)
+                                 }}><Edit2 size={16} opacity={0.5} /></IconButton>
+                                 <IconButton size="small" color="error" onClick={() => handleDeleteEvent(event)}><Trash2 size={16} /></IconButton>
+                               </>
+                             )}
                           </GlassCard>
                         ))}
                         {(!plan?.events || plan.events.length === 0) && (
@@ -407,13 +465,39 @@ export default function TeacherPlannerPage() {
                         {(plan?.tasks || []).map(task => (
                           <Box key={task.id} sx={{ display: 'flex', alignItems: 'center', p: 1, borderRadius: 1, bgcolor: task.completed ? 'action.selected' : 'transparent' }}>
                              <Checkbox 
-                               checked={task.completed} 
-                               onChange={() => handleToggleTask(task)}
-                               color="success"
+                                checked={task.completed} 
+                                onChange={() => handleToggleTask(task)}
+                                color="success"
                              />
-                             <Typography sx={{ flex: 1, textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? 'text.secondary' : 'text.primary' }}>
-                               {task.text}
-                             </Typography>
+                             {editingTaskId === task.id ? (
+                               <TextField 
+                                 size="small" fullWidth autoFocus
+                                 value={editingTaskText}
+                                 onChange={e => setEditingTaskText(e.target.value)}
+                                 onBlur={handleUpdateTask}
+                                 onKeyDown={e => {
+                                   if (e.key === 'Enter') handleUpdateTask()
+                                   if (e.key === 'Escape') setEditingTaskId(null)
+                                 }}
+                                 sx={{ mr: 1 }}
+                               />
+                             ) : (
+                               <Typography 
+                                 onClick={() => {
+                                   setEditingTaskId(task.id)
+                                   setEditingTaskText(task.text)
+                                 }}
+                                 sx={{ 
+                                   flex: 1, 
+                                   textDecoration: task.completed ? 'line-through' : 'none', 
+                                   color: task.completed ? 'text.secondary' : 'text.primary',
+                                   cursor: 'pointer',
+                                   '&:hover': { bgcolor: 'action.hover' }
+                                 }}
+                               >
+                                 {task.text}
+                               </Typography>
+                             )}
                              <IconButton size="small" onClick={() => handleDeleteTask(task)}><Trash2 size={16} opacity={0.5} /></IconButton>
                           </Box>
                         ))}
