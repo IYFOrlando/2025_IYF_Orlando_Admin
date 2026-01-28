@@ -54,6 +54,8 @@ export default function TeacherPlannerPage() {
   const [loading, setLoading] = React.useState(false) // Initialized to false to prevent infinite loading if no profile
 
   // Inputs
+  const [newTask, setNewTask] = React.useState('')
+  const [newEventTime, setNewEventTime] = React.useState('09:00')
   const [newEventTitle, setNewEventTitle] = React.useState('')
 
   // Editing State
