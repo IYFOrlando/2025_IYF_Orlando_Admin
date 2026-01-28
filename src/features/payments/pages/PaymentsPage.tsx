@@ -745,7 +745,7 @@ const PaymentsPage = React.memo(() => {
                  renderOption={(props, option) => {
                    const { key: _key, ...restProps } = props
                    return (
-                     <li key={option.id || option.studentName} {...restProps}>
+                     <li key={option.id} {...restProps}>
                        <Stack direction="row" alignItems="center" spacing={1}>
                          <PersonIcon color="action" />
                          <Box>

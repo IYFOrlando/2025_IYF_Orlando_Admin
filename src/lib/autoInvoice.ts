@@ -139,7 +139,7 @@ function createInvoiceLines(
   // This is how the frontend stores multiple academies
   if ((registration as any).selectedAcademies && Array.isArray((registration as any).selectedAcademies)) {
     const selectedAcademies = (registration as any).selectedAcademies
-    selectedAcademies.forEach((academyData: any, index: number) => {
+    selectedAcademies.forEach((academyData: any) => {
       if (academyData.academy && academyData.academy !== 'N/A') {
         // This will throw error if academy not found in Firestore
         const price = getAcademyPrice(

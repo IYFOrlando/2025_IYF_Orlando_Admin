@@ -56,6 +56,7 @@ function NavItem({ to, label, icon, onNavClick }: NavItemProps) {
   const active = location.pathname === to
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const isLgUp = useMediaQuery(theme.breakpoints.up('lg'))
   
   return (
     <Tooltip title={label} placement="right" arrow disableHoverListener={isLgUp}>
