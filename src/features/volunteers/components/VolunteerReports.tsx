@@ -238,7 +238,7 @@ export default function VolunteerReports({ volunteers, loading }: VolunteerRepor
         </Grid>
 
         {/* Chart */}
-        <Box sx={{ height: 400, mb: 3 }}>
+        <Box sx={{ height: 400, mb: 3, minHeight: 0, minWidth: 0 }}>
           {tshirtSizeChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={tshirtSizeChartData}>

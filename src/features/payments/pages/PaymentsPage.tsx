@@ -885,47 +885,51 @@ const PaymentsPage = React.memo(() => {
                      <Grid item xs={12} lg={6}>
                         <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, height: 250 }}>
                           <Typography variant="subtitle2" gutterBottom>Revenue Status</Typography>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={[
-                              { name: 'Paid', value: (latestInvoices.reduce((s,i) => s + (i.paid ?? 0), 0))/100 },
-                              { name: 'Due', value: (latestInvoices.reduce((s,i) => s + (i.balance ?? 0), 0))/100 }
-                            ]}>
-                              <XAxis dataKey="name" />
-                              <YAxis />
-                              <RTooltip formatter={(v:any) => `$${v}`} />
-                              <Bar dataKey="value" fill="#2196F3" radius={[4, 4, 0, 0]}>
-                                {
-                                  [{ name: 'Paid', value: 0 }, { name: 'Due', value: 0 }].map((_entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#4CAF50' : '#FF9800'} />
-                                  ))
-                                }
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
+                          <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={[
+                                { name: 'Paid', value: (latestInvoices.reduce((s,i) => s + (i.paid ?? 0), 0))/100 },
+                                { name: 'Due', value: (latestInvoices.reduce((s,i) => s + (i.balance ?? 0), 0))/100 }
+                              ]}>
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <RTooltip formatter={(v:any) => `$${v}`} />
+                                <Bar dataKey="value" fill="#2196F3" radius={[4, 4, 0, 0]}>
+                                  {
+                                    [{ name: 'Paid', value: 0 }, { name: 'Due', value: 0 }].map((_entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={index === 0 ? '#4CAF50' : '#FF9800'} />
+                                    ))
+                                  }
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </Box>
                         </Box>
                      </Grid>
                      <Grid item xs={12} lg={6}>
                         <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, height: 250 }}>
                           <Typography variant="subtitle2" gutterBottom>Payment Methods</Typography>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={Object.entries(allPayments?.reduce((acc:any, p) => {
-                                  const m = p.method || 'Unknown'
-                                  acc[m] = (acc[m] || 0) + p.amount
-                                  return acc
-                                }, {}) || {}).map(([name, value]) => ({ name, value: (value as number)/100 }))}
-                                cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5}
-                                dataKey="value"
-                              >
-                                {['#0088FE', '#00C49F', '#FFBB28', '#FF8042'].map((color, index) => (
-                                  <Cell key={`cell-${index}`} fill={color} />
-                                ))}
-                              </Pie>
-                              <RTooltip formatter={(v:any) => `$${v}`} />
-                              <Legend />
-                            </PieChart>
-                          </ResponsiveContainer>
+                          <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={Object.entries(allPayments?.reduce((acc:any, p) => {
+                                    const m = p.method || 'Unknown'
+                                    acc[m] = (acc[m] || 0) + p.amount
+                                    return acc
+                                  }, {}) || {}).map(([name, value]) => ({ name, value: (value as number)/100 }))}
+                                  cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={5}
+                                  dataKey="value"
+                                >
+                                  {['#0088FE', '#00C49F', '#FFBB28', '#FF8042'].map((color, index) => (
+                                    <Cell key={`cell-${index}`} fill={color} />
+                                  ))}
+                                </Pie>
+                                <RTooltip formatter={(v:any) => `$${v}`} />
+                                <Legend />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </Box>
                         </Box>
                      </Grid>
                    </Grid>

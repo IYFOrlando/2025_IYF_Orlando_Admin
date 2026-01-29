@@ -1747,15 +1747,17 @@ export default function ReportsPage() {
                     <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <PaymentIcon /> Payments by Academy
                     </Typography>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={paymentChartData.academies}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <RechartsTooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                        <Bar dataKey="value" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={paymentChartData.academies}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <RechartsTooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                          <Bar dataKey="value" fill="#8884d8" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
                   </Paper>
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -1763,25 +1765,27 @@ export default function ReportsPage() {
                     <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <AssessmentIcon /> Payment Status Distribution
                     </Typography>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                        <Pie
-                          data={paymentChartData.status}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {paymentChartData.status.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                          </Pie>
-                        <RechartsTooltip formatter={(value) => [`${value} payments`, 'Count']} />
-                        </PieChart>
-                      </ResponsiveContainer>
+                    <Box sx={{ width: '100%', height: '90%', minHeight: 0, minWidth: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                          <Pie
+                            data={paymentChartData.status}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {paymentChartData.status.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                            </Pie>
+                          <RechartsTooltip formatter={(value) => [`${value} payments`, 'Count']} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                    </Box>
                   </Paper>
                   </Grid>
                 </Grid>
@@ -1991,7 +1995,7 @@ export default function ReportsPage() {
                   <RestaurantIcon color="primary" />
                   Lunch Distribution
                 </Typography>
-              <Box sx={{ height: 300 }}>
+              <Box sx={{ height: 300, minHeight: 0, minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
