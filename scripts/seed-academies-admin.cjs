@@ -53,7 +53,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Unleash your creativity in a welcoming environment as you explore diverse art techniques and drawing styles. Through crafting original artwork, you will enhance critical thinking, master project completion, and bring your artistic visions to life.",
     price: 100,
     schedule: "9:30 AM - 11:30 AM",
-    teacher: { name: "Aung w pyo", email: "aypc2757@gmail.com" },
+    teacher: { name: "Aung w pyo", email: "aypc2757@gmail.com", phone: "" },
     hasLevels: false,
     levels: [],
     order: 1,
@@ -71,7 +71,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Improve your English communication skills through speaking, listening, reading, and writing exercises. Our experienced instructors provide personalized feedback to help you achieve your language goals.",
     price: 50,
     schedule: "10:00 AM - 11:30 AM",
-    teacher: { name: "Sefora", email: "" }, // Email pendiente
+    teacher: { name: "Sefora", email: "", phone: "" },
     hasLevels: false,
     levels: [],
     order: 2,
@@ -89,7 +89,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Fun and educational place where children can learn and play together. Each session is packed with exciting activities, educational games, and creative projects.",
     price: 50,
     schedule: "10:00 AM - 12:15 PM",
-    teacher: { name: "Susan", email: "" }, // Email pendiente
+    teacher: { name: "Susan", email: "", phone: "" },
     hasLevels: false,
     levels: [],
     order: 3,
@@ -109,8 +109,8 @@ const ACADEMIES_2026_SPRING = [
     schedule: null,
     hasLevels: true,
     levels: [
-      { name: "Korean Alphabet", schedule: "9:00 AM - 10:15 AM", teacher: { name: "Lim", email: "" }, order: 1 }, // Email pendiente
-      { name: "Korean Beginner", schedule: "10:20 AM - 11:35 AM", teacher: { name: "Lim", email: "" }, order: 2 } // Email pendiente
+      { name: "Korean Alphabet", schedule: "9:00 AM - 10:15 AM", teacher: { name: "Lim", email: "", phone: "" }, order: 1 },
+      { name: "Korean Beginner", schedule: "10:20 AM - 11:35 AM", teacher: { name: "Lim", email: "", phone: "" }, order: 2 }
     ],
     order: 4,
     enabled: true,
@@ -127,7 +127,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Learn natural Korean from real scenes and everyday conversations. Practice speaking with native instructors and improve your fluency.",
     price: 50,
     schedule: "10:00 AM - 11:30 AM",
-    teacher: { name: "Tevin", email: "" }, // Email pendiente
+    teacher: { name: "Tevin", email: "", phone: "" },
     hasLevels: false,
     levels: [],
     order: 5,
@@ -145,7 +145,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Learn to cook delicious Korean dishes while exploring Korean culture and culinary traditions.",
     price: 50,
     schedule: "TBD",
-    teacher: { name: "Eung Lee", email: "eungstory87@gmail.com" },
+    teacher: { name: "Eung Lee", email: "eungstory87@gmail.com", phone: "" },
     hasLevels: false,
     levels: [],
     order: 6,
@@ -163,7 +163,7 @@ const ACADEMIES_2026_SPRING = [
     description: "The Piano Academy offers personalized piano lessons for beginners, covering fundamental music theories and techniques.",
     price: 100,
     schedule: "10:00 AM - 11:30 AM",
-    teacher: { name: "Hannah Choi", email: "hannah@iyfusa.org" },
+    teacher: { name: "Hannah Choi", email: "hannah@iyfusa.org", phone: "" },
     hasLevels: false,
     levels: [],
     order: 7,
@@ -181,7 +181,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Learn how to play the fastest growing sport in America!",
     price: 50,
     schedule: "7:15 AM - 9:15 AM",
-    teacher: { name: "Jennie Godfrey", email: "ngolf@proton.me" },
+    teacher: { name: "Jennie Godfrey", email: "ngolf@proton.me", phone: "" },
     hasLevels: false,
     levels: [],
     order: 8,
@@ -199,7 +199,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Dive into the exciting world of soccer! Students will learn essential soccer skills like ball control, accurate passing, and powerful shooting.",
     price: 50,
     schedule: "9:00 AM - 10:30 AM",
-    teacher: { name: "Jod Louis", email: "ing.jod@gmail.com" },
+    teacher: { name: "Jod Louis", email: "ing.jod@gmail.com", phone: "" },
     hasLevels: false,
     levels: [],
     order: 9,
@@ -217,7 +217,7 @@ const ACADEMIES_2026_SPRING = [
     description: "Master the art of Taekwondo while building discipline, focus, and physical strength.",
     price: 100,
     schedule: "9:20 AM - 10:20 AM & 10:30 AM - 11:30 AM",
-    teacher: { name: "Megan", email: "" }, // Email pendiente
+    teacher: { name: "Megan", email: "", phone: "" },
     hasLevels: false,
     levels: [],
     order: 10,
