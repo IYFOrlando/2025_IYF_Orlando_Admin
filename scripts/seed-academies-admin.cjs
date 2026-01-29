@@ -9,24 +9,37 @@
  */
 
 const admin = require('firebase-admin');
+const path = require('path');
+const fs = require('fs');
 
 // Initialize Firebase Admin
-// Try to use default credentials or service account
 let app;
 try {
-  // Try to initialize with default credentials (if GOOGLE_APPLICATION_CREDENTIALS is set)
-  app = admin.apps.length > 0 
-    ? admin.app() 
-    : admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
-        projectId: 'iyf-orlando-academy'
-      });
+  const serviceAccountPath = path.join(__dirname, 'service-account.json');
+  
+  if (fs.existsSync(serviceAccountPath)) {
+    console.log('🔑 Using local service account key...');
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: 'iyf-orlando-academy'
+    });
+  } else {
+    // Fallback to default credentials
+    console.log('🌐 Local key not found, trying application default credentials...');
+    app = admin.apps.length > 0 
+      ? admin.app() 
+      : admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          projectId: 'iyf-orlando-academy'
+        });
+  }
 } catch (error) {
   console.error('❌ Error initializing Firebase Admin:', error.message);
   console.log('\n💡 Options to fix this:');
-  console.log('   1. Set GOOGLE_APPLICATION_CREDENTIALS environment variable');
-  console.log('   2. Run: gcloud auth application-default login');
-  console.log('   3. Or provide a service account key file');
+  console.log('   1. Recommended: Provide a service account key file at: scripts/service-account.json');
+  console.log('   2. Or set GOOGLE_APPLICATION_CREDENTIALS environment variable');
+  console.log('   3. Or run: gcloud auth application-default login');
   process.exit(1);
 }
 
@@ -93,7 +106,8 @@ const ACADEMIES_2026_SPRING = [
     hasLevels: true,
     levels: [
       { name: "Korean Alphabet", schedule: "9:00 AM - 10:15 AM", order: 1 },
-      { name: "Korean Beginner", schedule: "10:20 AM - 11:35 AM", order: 2 }
+      { name: "Korean Beginner", schedule: "10:20 AM - 11:35 AM", order: 2 },
+      { name: "Korean Conversation", schedule: "10:00 AM - 11:30 AM", order: 3 }
     ],
     order: 4,
     enabled: true,
@@ -113,7 +127,7 @@ const ACADEMIES_2026_SPRING = [
     hasLevels: false,
     levels: [],
     order: 5,
-    enabled: true,
+    enabled: false, // Disabled as standalone
     image: "https://firebasestorage.googleapis.com/v0/b/iyf-orlando-academy.appspot.com/o/2026%2F2026%20IYF%20Orlando%20Academy%2FPoster%2F2026_Spring_Semester_Korean_Conversation_Academy.png?alt=media&token=c374b5e3-0d4d-44c5-accf-c0d662063c9e",
     tag: "Language",
     catchPhrase: "Speak Korean with confidence!",
