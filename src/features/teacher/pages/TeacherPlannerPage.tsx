@@ -12,35 +12,12 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import { 
-  collection, doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, 
-  serverTimestamp, query, where, getDoc 
-} from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { useAuth } from '../../../context/AuthContext'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
-
-// --- Types ---
-interface Task {
-  id: string
-  text: string
-  completed: boolean
-}
-
-interface Event {
-  id: string
-  time: string
-  title: string
-}
-
-interface PlanDoc {
-  date: string
-  teacherEmail: string
-  tasks: Task[]
-  events: Event[]
-}
+import { useTeacherPlan, Task, TeacherEvent } from '../hooks/useTeacherPlan'
 
 // DayCell removed in favor of FullCalendar
 
@@ -49,9 +26,11 @@ export default function TeacherPlannerPage() {
   const { currentUser } = useAuth()
   const [selectedDate, setSelectedDate] = React.useState(new Date())
   
-  // Plan Data
-  const [plan, setPlan] = React.useState<PlanDoc | null>(null)
-  const [loading, setLoading] = React.useState(false) // Initialized to false to prevent infinite loading if no profile
+  const { 
+    plan, allPlans, loading, userEmail, docId,
+    addTask, toggleTask, updateTask, deleteTask,
+    addEvent, updateEvent, deleteEvent
+  } = useTeacherPlan(selectedDate)
 
   // Inputs
   const [newTask, setNewTask] = React.useState('')
@@ -65,13 +44,6 @@ export default function TeacherPlannerPage() {
   const [editingEventTitle, setEditingEventTitle] = React.useState('')
   const [editingEventTime, setEditingEventTime] = React.useState('')
 
-  const userEmail = teacherProfile?.email || (currentUser?.email ? currentUser.email.toLowerCase().trim() : null)
-  
-  const docId = React.useMemo(() => {
-    if (!userEmail) return null
-    return `${userEmail}_${format(selectedDate, 'MM-dd-yyyy')}`
-  }, [userEmail, selectedDate])
-
   React.useEffect(() => {
     console.log('Planner Auth Debug:', {
       currentUserEmail: currentUser?.email,
@@ -80,40 +52,6 @@ export default function TeacherPlannerPage() {
       docId
     })
   }, [userEmail, docId, currentUser, teacherProfile])
-
-  // Real-time listener for selected date
-  React.useEffect(() => {
-    if (!docId) return
-    setLoading(true)
-    const unsub = onSnapshot(doc(db, 'teacher_plans', docId), (docSnap) => {
-      if (docSnap.exists()) {
-        setPlan(docSnap.data() as PlanDoc)
-      } else {
-        setPlan(null) // No plan yet for this day
-      }
-      setLoading(false)
-    }, (err) => {
-      console.error('Planner select listener error:', err)
-      setLoading(false)
-    })
-    return () => unsub()
-  }, [docId])
-
-  // Details for selected date  // Calendar View: Fetch all plans for this user
-  const [allPlans, setAllPlans] = React.useState<PlanDoc[]>([])
-  React.useEffect(() => {
-    if (!userEmail) return
-    const q = query(
-      collection(db, 'teacher_plans'),
-      where('teacherEmail', '==', userEmail)
-    )
-    const unsub = onSnapshot(q, (snap) => {
-      setAllPlans(snap.docs.map(d => d.data() as PlanDoc))
-    }, (err) => {
-      console.error('Planner list listener error:', err)
-    })
-    return () => unsub()
-  }, [userEmail])
 
   const calendarEvents = React.useMemo(() => {
     const evs: any[] = []
@@ -206,104 +144,40 @@ export default function TeacherPlannerPage() {
 
   // Actions
   const handleAddTask = async () => {
-    if (!newTask.trim() || !docId || !userEmail) return
-    
-    const task: Task = { id: crypto.randomUUID(), text: newTask.trim(), completed: false }
-    
-    try {
-      if (!plan) {
-         // Create Doc
-         await setDoc(doc(db, 'teacher_plans', docId), {
-            date: format(selectedDate, 'MM-dd-yyyy'),
-            teacherEmail: userEmail,
-            tasks: [task],
-            events: [],
-            updatedAt: serverTimestamp()
-         })
-      } else {
-         await updateDoc(doc(db, 'teacher_plans', docId), {
-            tasks: arrayUnion(task),
-            updatedAt: serverTimestamp()
-         })
-      }
-      setNewTask('')
-    } catch (e) { 
-      notifyError('Failed to add task', e instanceof Error ? e.message : 'Unknown error') 
-    }
+    if (!newTask.trim()) return
+    await addTask(newTask)
+    setNewTask('')
   }
 
   const handleToggleTask = async (task: Task) => {
-    if (!plan || !docId) return
-    // Firestore array remove/union doesn't work well for updates, needed to replace whole array or use weird logic
-    // Best way: Read modify write, or just replace array. Since we have real-time listener, `plan` is fresh.
-    const newTasks = plan.tasks.map(t => t.id === task.id ? { ...t, completed: !t.completed } : t)
-    await updateDoc(doc(db, 'teacher_plans', docId), { tasks: newTasks })
+    await toggleTask(task)
   }
 
   const handleDeleteTask = async (task: Task) => {
-    if (!docId) return
-    await updateDoc(doc(db, 'teacher_plans', docId), { tasks: arrayRemove(task) })
+    await deleteTask(task)
   }
 
   const handleUpdateTask = async () => {
-    if (!plan || !docId || !editingTaskId) return
-    const newTasks = plan.tasks.map(t => 
-      t.id === editingTaskId ? { ...t, text: editingTaskText.trim() } : t
-    )
-    try {
-      await updateDoc(doc(db, 'teacher_plans', docId), { tasks: newTasks })
-      setEditingTaskId(null)
-    } catch (e) {
-      notifyError('Failed to update task', e instanceof Error ? e.message : 'Unknown error')
-    }
+    if (!editingTaskId) return
+    await updateTask(editingTaskId, editingTaskText)
+    setEditingTaskId(null)
   }
 
   const handleUpdateEvent = async () => {
-    if (!plan || !docId || !editingEventId) return
-    const newEvents = plan.events.map(e => 
-      e.id === editingEventId ? { ...e, title: editingEventTitle.trim(), time: editingEventTime } : e
-    )
-    try {
-      await updateDoc(doc(db, 'teacher_plans', docId), { events: newEvents })
-      setEditingEventId(null)
-    } catch (e) {
-      notifyError('Failed to update event', e instanceof Error ? e.message : 'Unknown error')
-    }
+    if (!editingEventId) return
+    await updateEvent(editingEventId, editingEventTitle, editingEventTime)
+    setEditingEventId(null)
   }
 
   const handleAddEvent = async () => {
-    if (!newEventTitle.trim() || !docId || !userEmail) return
-    
-    const event: Event = { id: crypto.randomUUID(), time: newEventTime, title: newEventTitle.trim() }
-    
-    try {
-      if (!plan) {
-         await setDoc(doc(db, 'teacher_plans', docId), {
-            date: format(selectedDate, 'MM-dd-yyyy'),
-            teacherEmail: userEmail,
-            tasks: [],
-            events: [event],
-            updatedAt: serverTimestamp()
-         })
-      } else {
-         // Sort events by time? Hard with arrayUnion. Just append and sort on render.
-         // Actually better to read-modify-write if we want order, but simple append is fine for now.
-         await updateDoc(doc(db, 'teacher_plans', docId), {
-            events: arrayUnion(event),
-            updatedAt: serverTimestamp()
-         })
-      }
-      setNewEventTitle('')
-      notifySuccess('Event added successfully')
-    } catch (e) { 
-      notifyError('Failed to add event', e instanceof Error ? e.message : 'Unknown error') 
-    }
+    if (!newEventTitle.trim()) return
+    await addEvent(newEventTitle, newEventTime)
+    setNewEventTitle('')
   }
 
-  const handleDeleteEvent = async (event: Event) => {
-      if (!docId) return
-      await updateDoc(doc(db, 'teacher_plans', docId), { events: arrayRemove(event) })
-      notifySuccess('Event deleted')
+  const handleDeleteEvent = async (event: TeacherEvent) => {
+    await deleteEvent(event)
+    notifySuccess('Event deleted')
   }
 
   return (

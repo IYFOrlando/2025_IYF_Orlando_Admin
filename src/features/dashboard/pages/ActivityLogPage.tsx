@@ -19,14 +19,13 @@ import { AccessDenied } from '../../../components/AccessDenied'
 
 export default function ActivityLogPage() {
   const { isAdmin } = useTeacherContext()
+  const { logs, loading } = useActivityLog(isAdmin)
+  const [filterText, setFilterText] = useState('')
+  const [actionFilter, setActionFilter] = useState('All')
   
   if (!isAdmin) {
     return <AccessDenied />
   }
-
-  const { logs, loading } = useActivityLog(isAdmin)
-  const [filterText, setFilterText] = useState('')
-  const [actionFilter, setActionFilter] = useState('All')
 
   const columns: GridColDef[] = [
     { 
