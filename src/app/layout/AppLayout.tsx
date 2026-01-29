@@ -3,14 +3,14 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar, Toolbar, Typography, Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
   IconButton, Stack, useMediaQuery, useTheme, InputBase, Avatar,
-  Divider, Menu, MenuItem, Dialog, Tooltip, CircularProgress
+  Dialog, Tooltip, CircularProgress
 } from '@mui/material'
 import { 
   Menu as MenuIcon, 
   LayoutDashboard, Users, CreditCard, 
   ClipboardCheck, TrendingUp, GraduationCap, 
   HeartHandshake, Mail, FileText, AlertTriangle,
-  Search, Settings, ChevronRight, LogOut, User, Command,
+  Search, ChevronRight, Command,
   UserPlus,
   History
 } from 'lucide-react'
@@ -22,8 +22,6 @@ import TeacherLayout from '../../features/teacher/components/TeacherLayout'
 import TeacherNotificationsPanel from '../../features/dashboard/components/TeacherNotificationsPanel'
 
 const DRAWER_WIDTH = 280
-
-
 
 type Item = { to: string; label: string; icon: React.ReactNode; adminOnly?: boolean }
 
@@ -111,8 +109,6 @@ function NavItem({ to, label, icon, onNavClick }: NavItemProps) {
   )
 }
 
-
-
 interface AppLayoutProps {
   isAdmin?: boolean
   hasGmailAccess?: boolean
@@ -128,7 +124,6 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
   // Interaction States
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [anchorElSettings, setAnchorElSettings] = React.useState<null | HTMLElement>(null)
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -298,17 +293,6 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
             {/* Real-time Notifications */}
             <TeacherNotificationsPanel isAdmin={isAdmin} />
 
-            {/* Settings */}
-            <IconButton 
-              onClick={(e) => setAnchorElSettings(e.currentTarget)}
-              sx={{ 
-                border: '1px solid', borderColor: 'divider', borderRadius: '12px', p: 1.2,
-                display: { xs: 'none', sm: 'inline-flex' }
-              }}
-            >
-              <Settings size={18} />
-            </IconButton>
-
             {/* Auth User */}
             <Box sx={{ ml: 1 }}>
               <AuthMenu isAdmin={isAdmin} hasGmailAccess={hasGmailAccess} />
@@ -321,27 +305,6 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
 
 
 
-      {/* 2. Settings Menu */}
-      <Menu
-        anchorEl={anchorElSettings}
-        open={Boolean(anchorElSettings)}
-        onClose={() => setAnchorElSettings(null)}
-        PaperProps={{ sx: { minWidth: 200, mt: 1.5, borderRadius: 3 } }}
-      >
-         <MenuItem onClick={() => setAnchorElSettings(null)}>
-           <ListItemIcon><User size={18} /></ListItemIcon> 
-           Account
-         </MenuItem>
-         <MenuItem onClick={() => setAnchorElSettings(null)}>
-           <ListItemIcon><Settings size={18} /></ListItemIcon> 
-           Preferences
-         </MenuItem>
-         <Divider />
-         <MenuItem onClick={() => setAnchorElSettings(null)} sx={{ color: 'error.main' }}>
-           <ListItemIcon><LogOut size={18} color="inherit" /></ListItemIcon> 
-           Log Out
-         </MenuItem>
-      </Menu>
 
       {/* 3. Global Search Dialog */}
       <Dialog 
@@ -356,7 +319,7 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
           <InputBase 
             autoFocus
             fullWidth
-            placeholder="Search pages or students..." 
+            placeholder="Search pages..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleSearch}
