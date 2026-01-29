@@ -53,6 +53,11 @@ export function useTeacherNotifications(listenForNotifications: boolean = true) 
         setUnreadCount(docs.filter(n => !n.isRead).length)
         setLoading(false)
       }, (error) => {
+        // Silently handle permission errors (expected for non-admin users)
+        if (error.code === 'permission-denied') {
+          setLoading(false)
+          return
+        }
         console.error("Firestore Listen Error (Notifications):", error)
         setLoading(false)
       })

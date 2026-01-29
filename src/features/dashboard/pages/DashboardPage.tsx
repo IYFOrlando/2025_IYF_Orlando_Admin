@@ -516,7 +516,7 @@ function AdminDashboard() {
             <CardContent sx={{ height: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Registration Trend</Typography>
               {dailyStats.length > 0 ? (
-                <Box sx={{ width: '100%', height: 320, minWidth: 0 }}>
+                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={dailyStats}>
                     <defs>
@@ -574,7 +574,7 @@ function AdminDashboard() {
             <CardContent sx={{ height: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Payment Status</Typography>
               {financialStats.paymentStatusData.length > 0 ? (
-                <Box sx={{ width: '100%', height: 320, minWidth: 0 }}>
+                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                     <Pie
@@ -614,7 +614,7 @@ function AdminDashboard() {
             <GlassCard>
               <CardContent sx={{ height: 400 }}>
                 <Typography variant="h6" fontWeight={700} gutterBottom>Korean Levels</Typography>
-                <Box sx={{ width: '100%', height: 320, minWidth: 0 }}>
+                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                     <Pie
@@ -647,7 +647,7 @@ function AdminDashboard() {
             <CardContent sx={{ minHeight: 400 }}>
               <Typography variant="h6" fontWeight={700} gutterBottom>Academy Distribution</Typography>
               {academyRows.length > 0 ? (
-                <Box sx={{ width: '100%', height: 320, minWidth: 0 }}>
+                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={academyRows} layout="vertical" margin={{ left: 40, right: 20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.2} />
