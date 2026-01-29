@@ -42,18 +42,21 @@ export default function ActivityLogPage() {
   ]
 
   const filteredLogs = logs.filter(log => {
+    const searchLower = filterText.toLowerCase()
     const matchesText = 
-      log.teacherName.toLowerCase().includes(filterText.toLowerCase()) ||
-      (log.details || '').toLowerCase().includes(filterText.toLowerCase()) ||
-      log.academy.toLowerCase().includes(filterText.toLowerCase())
+      (log.teacherName || '').toLowerCase().includes(searchLower) ||
+      (log.details || '').toLowerCase().includes(searchLower) ||
+      (log.academy || '').toLowerCase().includes(searchLower) ||
+      (log.action || '').toLowerCase().includes(searchLower)
     
-    const matchesAction = actionFilter === 'All' || log.action.includes(actionFilter)
+    // Exact match for action filter if not 'All'
+    const matchesAction = actionFilter === 'All' || log.action === actionFilter
     
     return matchesText && matchesAction
   })
 
-  // Derive unique actions for the filter dropdown
-  const actionTypes = ['All', ...new Set(logs.map(l => l.action.split(' ')[0]))]
+  // Derive unique actions for the filter dropdown - use full strings
+  const actionTypes = ['All', ...new Set(logs.map(l => l.action).filter(Boolean))]
 
   return (
     <Box>
