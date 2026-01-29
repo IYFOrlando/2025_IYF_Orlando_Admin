@@ -17,7 +17,11 @@ import { useAuth } from '../../../context/AuthContext'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
-import { useTeacherPlan, Task, TeacherEvent } from '../hooks/useTeacherPlan'
+import { useTeacherPlan, type Task, type TeacherEvent } from '../hooks/useTeacherPlan'
+import { 
+  doc, updateDoc, getDoc, setDoc, 
+  arrayRemove, arrayUnion, serverTimestamp 
+} from 'firebase/firestore'
 
 // DayCell removed in favor of FullCalendar
 
@@ -110,7 +114,11 @@ export default function TeacherPlannerPage() {
     const newDocId = `${teacherProfile?.email}_${newDate}`
     
     const eventData = oldEvent.extendedProps
-    const eventToMove: Event = { id: eventId, title: event.title, time: format(event.start, 'HH:mm') }
+    const eventToMove: TeacherEvent = { 
+      id: eventId, 
+      title: event.title, 
+      time: format(event.start, 'HH:mm') 
+    }
 
     try {
       // Remove from old

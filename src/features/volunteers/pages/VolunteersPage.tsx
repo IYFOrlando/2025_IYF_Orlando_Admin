@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  CardContent, Box, Alert, Button, Typography, Tabs, Tab
+  CardContent, Box, Alert, Button, Typography, Tabs, Tab, Stack, Card
 } from '@mui/material'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 
@@ -14,6 +14,7 @@ import type { VolunteerApplication } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import { logger } from '../../../lib/logger'
 import FirebaseErrorBoundary from '../../../app/components/FirebaseErrorBoundary'
+import { GlassCard } from '../../../components/GlassCard'
 
 interface TabPanelProps {
   children?: React.ReactNode

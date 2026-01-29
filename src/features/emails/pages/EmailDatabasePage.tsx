@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Grid, Stack, Button, Chip,
+  Grid, Stack, Button, Chip,
   TextField, Autocomplete, Typography, Box, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Tabs, Tab, FormControl, InputLabel, Select, MenuItem,
@@ -28,6 +28,7 @@ import BlockIcon from '@mui/icons-material/Block'
 import { useEmailDatabase } from '../hooks/useEmailDatabase'
 import type { EmailRecord, EmailSource } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
+import { GlassCard } from '../../../components/GlassCard'
 import Swal from 'sweetalert2'
 
 const EmailDatabasePage = React.memo(() => {
