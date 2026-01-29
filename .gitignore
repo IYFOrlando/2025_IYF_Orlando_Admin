@@ -6,3 +6,8 @@ yarn.lock
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Firebase Service Account Keys (NEVER commit these!)
+**/service-account.json
+**/serviceAccountKey.json
+**/*-firebase-adminsdk-*.json
