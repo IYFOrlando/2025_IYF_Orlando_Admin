@@ -715,141 +715,112 @@ const EmailDatabasePage = React.memo(() => {
   ]
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Email Database
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Manage email addresses collected from all system tables for invitation campaigns
-      </Typography>
+    <Box sx={{ pb: 4 }}>
+      {/* Header with Gradient */}
+      <Box sx={{ 
+        mb: 4,
+        background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)', // Teal/Cyan gradient
+        borderRadius: 4,
+        p: { xs: 3, md: 4 },
+        color: 'white',
+        boxShadow: '0 10px 25px -5px rgba(20, 184, 166, 0.3), 0 8px 10px -6px rgba(8, 145, 178, 0.3)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Decorative background element */}
+        <Box sx={{
+          position: 'absolute',
+          top: -20,
+          right: -20,
+          width: 150,
+          height: 150,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.1)',
+          filter: 'blur(30px)'
+        }} />
+        
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={3}>
+          <Box sx={{ 
+            display: 'flex', 
+            p: 2, 
+            borderRadius: 3, 
+            bgcolor: 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.3)'
+          }}>
+            <EmailIcon sx={{ fontSize: 32 }} />
+          </Box>
+          <Box>
+            <Typography variant="h3" fontWeight={800} sx={{ fontSize: { xs: '1.75rem', md: '2.5rem' }, color: 'white' }}>
+              Email Database
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
+              Manage master mailing lists and invitation campaigns
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
 
       {/* Statistics Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <EmailIcon color="primary" sx={{ fontSize: 40 }} />
-                <Box>
-                  <Typography variant="h4">{totalUniqueEmails}</Typography>
-                  <Typography color="text.secondary">Total Emails</Typography>
-                </Box>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {[
+          { label: 'Total Emails', value: totalUniqueEmails, icon: <EmailIcon />, color: '#0ea5e9' },
+          { label: 'Students', value: filteredEmails.length, icon: <PersonIcon />, color: '#10b981' },
+          { label: 'Staff', value: filteredStaffEmails.length, icon: <GroupIcon />, color: '#6366f1' },
+          { label: 'Volunteers', value: filteredVolunteerEmails.length, icon: <VolunteerActivismIcon />, color: '#f59e0b' },
+          { label: 'Eventbrite', value: filteredEventbriteEmails.length, icon: <EventIcon />, color: '#ec4899' },
+        ].map((stat, i) => (
+          <Grid item xs={12} sm={6} md={2.4} key={i}>
+            <GlassCard sx={{ p: 2.5, height: '100%', display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ 
+                p: 1.5, 
+                borderRadius: 2, 
+                bgcolor: `${stat.color}15`, 
+                color: stat.color,
+                display: 'flex'
+              }}>
+                {stat.icon}
               </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <PersonIcon color="success" sx={{ fontSize: 40 }} />
-                <Box>
-                  <Typography variant="h4">{filteredEmails.length}</Typography>
-                  <Typography color="text.secondary">Students & Others</Typography>
-                </Box>
+              <Box>
+                <Typography variant="h5" fontWeight={800}>{stat.value}</Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {stat.label}
+                </Typography>
               </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <GroupIcon color="info" sx={{ fontSize: 40 }} />
-                <Box>
-                  <Typography variant="h4">{filteredStaffEmails.length}</Typography>
-                  <Typography color="text.secondary">Staff</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <VolunteerActivismIcon color="warning" sx={{ fontSize: 40 }} />
-                <Box>
-                  <Typography variant="h4">{filteredVolunteerEmails.length}</Typography>
-                  <Typography color="text.secondary">Volunteers</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <EventIcon color="secondary" sx={{ fontSize: 40 }} />
-                <Box>
-                  <Typography variant="h4">{filteredEventbriteEmails.length}</Typography>
-                  <Typography color="text.secondary">Eventbrite</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+            </GlassCard>
+          </Grid>
+        ))}
       </Grid>
 
       {/* Main Content */}
-      <Card>
-        <CardHeader
-          title="Email Management"
-          action={
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="contained"
-                startIcon={<RefreshIcon />}
-                onClick={handleAutoImportAll}
-                color="success"
-              >
-                Auto Import All
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<UploadIcon />}
-                onClick={() => setImportDialogOpen(true)}
-              >
-                Import
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={handleExportEmails}
-              >
-                Export
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<BlockIcon />}
-                onClick={() => setBouncedDialogOpen(true)}
-              >
-                Mark as Bounced
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setAddDialogOpen(true)}
-              >
-                Add Email
-              </Button>
-            </Stack>
-          }
-        />
-        <Tabs value={mainTabValue} onChange={(_, newValue) => setMainTabValue(newValue)} sx={{ px: 2 }}>
-          <Tab label="Students & Others" />
-          <Tab label="Staff" />
-          <Tab label="Volunteers" />
-          <Tab label="Eventbrite" />
-        </Tabs>
-        <CardContent>
+      <GlassCard sx={{ p: 0, overflow: 'hidden' }}>
+        <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" fontWeight={700}>Email Management</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+            <Button variant="contained" startIcon={<RefreshIcon />} onClick={handleAutoImportAll} color="success">Auto Import</Button>
+            <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => setImportDialogOpen(true)}>Import</Button>
+            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportEmails}>Export</Button>
+            <Button variant="outlined" color="error" startIcon={<BlockIcon />} onClick={() => setBouncedDialogOpen(true)}>Bounced</Button>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>Add Email</Button>
+          </Stack>
+        </Box>
+
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={mainTabValue} onChange={(_, newValue) => setMainTabValue(newValue)} sx={{ px: 2 }}>
+            <Tab label="Students & Others" sx={{ minHeight: 64, fontWeight: 600 }} />
+            <Tab label="Staff" sx={{ minHeight: 64, fontWeight: 600 }} />
+            <Tab label="Volunteers" sx={{ minHeight: 64, fontWeight: 600 }} />
+            <Tab label="Eventbrite" sx={{ minHeight: 64, fontWeight: 600 }} />
+          </Tabs>
+        </Box>
+
+        <Box sx={{ p: 3 }}>
           {/* Filters */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
+                size="small"
                 placeholder="Search emails..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -859,12 +830,9 @@ const EmailDatabasePage = React.memo(() => {
               />
             </Grid>
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Source</InputLabel>
-                <Select
-                  value={selectedSource}
-                  onChange={(e) => setSelectedSource(e.target.value as EmailSource | 'all')}
-                >
+                <Select value={selectedSource} onChange={(e) => setSelectedSource(e.target.value as EmailSource | 'all')} label="Source">
                   <MenuItem value="all">All Sources</MenuItem>
                   {availableSources.map(source => (
                     <MenuItem key={source} value={source}>{source}</MenuItem>
@@ -873,12 +841,9 @@ const EmailDatabasePage = React.memo(() => {
               </FormControl>
             </Grid>
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Tag</InputLabel>
-                <Select
-                  value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
-                >
+                <Select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)} label="Tag">
                   <MenuItem value="all">All Tags</MenuItem>
                   {availableTags.map(tag => (
                     <MenuItem key={tag} value={tag}>{tag}</MenuItem>
@@ -888,12 +853,7 @@ const EmailDatabasePage = React.memo(() => {
             </Grid>
             <Grid item xs={12} md={2}>
               <FormControlLabel
-                control={
-                  <Switch
-                    checked={showOnlyActive}
-                    onChange={(e) => setShowOnlyActive(e.target.checked)}
-                  />
-                }
+                control={<Switch checked={showOnlyActive} onChange={(e) => setShowOnlyActive(e.target.checked)} />}
                 label="Active Only"
               />
             </Grid>
@@ -915,7 +875,7 @@ const EmailDatabasePage = React.memo(() => {
           </Grid>
 
           {/* Data Grid */}
-          <Box sx={{ height: 600, width: '100%' }}>
+          <Box sx={{ height: 600, width: '100%', '& .MuiDataGrid-root': { border: 'none' } }}>
             <DataGrid
               rows={
                 mainTabValue === 0 ? filteredEmails : 
@@ -933,8 +893,8 @@ const EmailDatabasePage = React.memo(() => {
               getRowId={(row) => row.id}
             />
           </Box>
-        </CardContent>
-      </Card>
+        </Box>
+      </GlassCard>
 
       {/* Add Email Dialog */}
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>

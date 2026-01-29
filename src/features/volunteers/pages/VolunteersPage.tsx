@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Box, Alert, Button, Typography, Tabs, Tab
+  CardContent, Box, Alert, Button, Typography, Tabs, Tab
 } from '@mui/material'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 
@@ -132,77 +132,100 @@ function VolunteersPageContent() {
   }
 
   return (
-    <Box>
-      <Card>
-        <CardHeader
-          title={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <VolunteerActivismIcon sx={{ fontSize: 32, color: 'primary.main' }} />
-              <Typography variant="h4" component="h1">
-                Volunteer Management
-              </Typography>
-            </Box>
-          }
-          subheader="Manage volunteer applications, schedules, and check-in/check-out"
-        />
-        <CardContent>
+    <Box sx={{ pb: 4 }}>
+      {/* Header with Gradient */}
+      <Box sx={{ 
+        mb: 4,
+        background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)', // Blue gradient
+        borderRadius: 4,
+        p: { xs: 3, md: 4 },
+        color: 'white',
+        boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.3), 0 8px 10px -6px rgba(30, 64, 175, 0.3)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Decorative background element */}
+        <Box sx={{
+          position: 'absolute',
+          top: -20,
+          right: -20,
+          width: 150,
+          height: 150,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.1)',
+          filter: 'blur(30px)'
+        }} />
+        
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={3}>
+          <Box sx={{ 
+            display: 'flex', 
+            p: 2, 
+            borderRadius: 3, 
+            bgcolor: 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.3)'
+          }}>
+            <VolunteerActivismIcon sx={{ fontSize: 32 }} />
+          </Box>
+          <Box>
+            <Typography variant="h3" fontWeight={800} sx={{ fontSize: { xs: '1.75rem', md: '2.5rem' }, color: 'white' }}>
+              Volunteer Hub
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
+              Manage applications, schedules, and operations
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      <GlassCard sx={{ p: 0, overflow: 'hidden' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'rgba(0,0,0,0.01)' }}>
           <Tabs
             value={tabValue}
             onChange={(_event, newValue) => setTabValue(newValue)}
             aria-label="volunteer management tabs"
-            sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ 
+              px: { xs: 1, md: 3 },
+              '& .MuiTab-root': { py: 2, fontWeight: 600, minHeight: 64 }
+            }}
           >
-            <Tab 
-              label="Volunteer Applications" 
-              id="volunteer-tab-0"
-              aria-controls="volunteer-tabpanel-0"
-            />
-            <Tab 
-              label="Pre-Event Volunteer Schedule" 
-              id="volunteer-tab-1"
-              aria-controls="volunteer-tabpanel-1"
-            />
-            <Tab 
-              label="Check-in/Check-out" 
-              id="volunteer-tab-2"
-              aria-controls="volunteer-tabpanel-2"
-            />
-            <Tab 
-              label="Reports" 
-              id="volunteer-tab-3"
-              aria-controls="volunteer-tabpanel-3"
-            />
+            <Tab label="Applications" id="volunteer-tab-0" aria-controls="volunteer-tabpanel-0" />
+            <Tab label="Pre-Event Schedule" id="volunteer-tab-1" aria-controls="volunteer-tabpanel-1" />
+            <Tab label="Check-in/Check-out" id="volunteer-tab-2" aria-controls="volunteer-tabpanel-2" />
+            <Tab label="Analytics" id="volunteer-tab-3" aria-controls="volunteer-tabpanel-3" />
           </Tabs>
+        </Box>
 
-          <TabPanel value={tabValue} index={0}>
-            <SimpleVolunteerTable
-              volunteers={applications}
-              loading={loading}
-              error={error}
-              onEdit={handleEditVolunteerClick}
-              onDelete={handleDeleteVolunteer}
-              onView={handleViewVolunteer}
-              onCreateNew={() => setCreateDialogOpen(true)}
-              onRefresh={handleRefresh}
-            />
-          </TabPanel>
+        <TabPanel value={tabValue} index={0}>
+          <SimpleVolunteerTable
+            volunteers={applications}
+            loading={loading}
+            error={error}
+            onEdit={handleEditVolunteerClick}
+            onDelete={handleDeleteVolunteer}
+            onView={handleViewVolunteer}
+            onCreateNew={() => setCreateDialogOpen(true)}
+            onRefresh={handleRefresh}
+          />
+        </TabPanel>
 
-          <TabPanel value={tabValue} index={1}>
-            <PreEventVolunteerSchedule />
-          </TabPanel>
+        <TabPanel value={tabValue} index={1}>
+          <PreEventVolunteerSchedule />
+        </TabPanel>
 
-          <TabPanel value={tabValue} index={2}>
-            <VolunteerCheckInOut />
-          </TabPanel>
+        <TabPanel value={tabValue} index={2}>
+          <VolunteerCheckInOut />
+        </TabPanel>
 
-          <TabPanel value={tabValue} index={3}>
-            <VolunteerReports 
-              volunteers={applications}
-              loading={loading}
-            />
-          </TabPanel>
-        </CardContent>
-      </Card>
+        <TabPanel value={tabValue} index={3}>
+          <VolunteerReports 
+            volunteers={applications}
+            loading={loading}
+          />
+        </TabPanel>
+      </GlassCard>
 
       {/* Create Volunteer Dialog */}
       <VolunteerForm
