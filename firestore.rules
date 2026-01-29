@@ -14,8 +14,7 @@ service cloud.firestore {
                 'joddev.com@gmail.com',
                 'michellemoralespradis@gmail.com',
                 'admin@iyforlando.org',
-                'director@iyforlando.org',
-                'ing.jod@gmail.com'
+                'director@iyforlando.org'
              ];
     }
     
