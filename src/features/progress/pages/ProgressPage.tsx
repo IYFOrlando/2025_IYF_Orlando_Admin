@@ -119,14 +119,18 @@ export default function ProgressPage() {
         mb: 4,
         background: 'linear-gradient(135deg, #009688 0%, #006064 100%)', // Teal/Cyan gradient
         borderRadius: 3,
-        p: 3,
+        p: { xs: 2.5, sm: 3 },
         color: 'white',
         boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(0, 150, 136, 0.4)'
       }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <InsightsIcon sx={{ fontSize: 40, color: 'white' }} />
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          alignItems={{ xs: 'flex-start', sm: 'center' }} 
+          spacing={2}
+        >
+          <InsightsIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: 'white' }} />
           <Box>
-            <Typography variant="h4" fontWeight={800} color="white">
+            <Typography variant="h4" fontWeight={800} color="white" sx={{ fontSize: { xs: '1.75rem', sm: '2.125rem' } }}>
               Student Progress
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
@@ -140,7 +144,11 @@ export default function ProgressPage() {
         <CardContent>
           {!canEdit && <Alert severity="info" sx={{ mb:2, borderRadius: 2 }}>You can view progress. Only admins or teachers can add/edit records.</Alert>}
 
-          <Stack direction="row" spacing={1} sx={{ mb:2 }}>
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            spacing={1.5} 
+            sx={{ mb: 2 }}
+          >
             <Button 
               startIcon={<AddIcon />} 
               variant="contained" 
@@ -148,15 +156,19 @@ export default function ProgressPage() {
               disabled={!canEdit}
               sx={{ 
                 borderRadius: 2, 
+                px: 3,
+                py: 1.2,
                 background: 'linear-gradient(45deg, #009688 30%, #00BCD4 90%)',
                 boxShadow: '0 3px 5px 2px rgba(0, 188, 212, .3)'
               }}
             >
               New Record
             </Button>
-            <Tooltip title={isSuperAdmin ? 'Delete selected' : 'Super Admin only'}>
-              <span><Button color="error" startIcon={<DeleteIcon />} onClick={handleDelete} disabled={!isSuperAdmin || !selection.length} sx={{ borderRadius: 2 }}>Delete</Button></span>
-            </Tooltip>
+            {isSuperAdmin && selection.length > 0 && (
+              <Button color="error" variant="outlined" startIcon={<DeleteIcon />} onClick={handleDelete} sx={{ borderRadius: 2 }}>
+                Delete ({selection.length})
+              </Button>
+            )}
           </Stack>
 
           {error && <Alert severity="error" sx={{ mb:1, borderRadius: 2 }}>{error}</Alert>}
@@ -360,7 +372,7 @@ function ProgressDialog({
           <Stack spacing={2} sx={{ mt:1 }}>
             <TextField label="Date" type="date" InputLabelProps={{shrink:true}} value={date} onChange={e=>setDate(e.target.value)} />
             
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="stretch">
               <TextField 
                 label="Registration ID" 
                 value={registrationId} 
@@ -368,12 +380,14 @@ function ProgressDialog({
                 fullWidth 
                 helperText="Enter ID or Search"
               />
-              <Tooltip title="Search by Name">
-                <IconButton onClick={()=>setSearchOpen(true)} color="primary" sx={{ border: '1px solid rgba(0,0,0,0.1)' }}>
-                  <SearchIcon />
-                </IconButton>
-              </Tooltip>
-              <Button onClick={handleManualLoad} variant="outlined" sx={{ minWidth: 80 }}>Load</Button>
+              <Stack direction="row" spacing={1}>
+                <Tooltip title="Search by Name">
+                  <IconButton onClick={()=>setSearchOpen(true)} color="primary" sx={{ border: '1px solid rgba(0,0,0,0.1)', flex: 1 }}>
+                    <SearchIcon />
+                  </IconButton>
+                </Tooltip>
+                <Button onClick={handleManualLoad} variant="outlined" sx={{ minWidth: 80, flex: 2 }}>Load</Button>
+              </Stack>
             </Stack>
 
             <TextField label="Student Name" value={studentName} onChange={e=>setStudentName(e.target.value)} />

@@ -405,12 +405,16 @@ export default function AttendancePage() {
         mb: 4,
         background: 'linear-gradient(135deg, #3F51B5 0%, #1976D2 100%)',
         borderRadius: 3,
-        p: 3,
+        p: { xs: 2.5, sm: 3 },
         color: 'white',
         boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(63, 81, 181, 0.4)'
       }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <ChecklistIcon sx={{ fontSize: 40, color: 'white' }} />
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          alignItems={{ xs: 'flex-start', sm: 'center' }} 
+          spacing={2}
+        >
+          <ChecklistIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: 'white' }} />
           <Box>
             <Typography variant="h4" fontWeight={800} color="white">
               Attendance Tracker
@@ -499,27 +503,37 @@ export default function AttendancePage() {
           </GlassCard>
 
           {/* Actions */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-            <Tooltip title="Load/refresh roster for this date & class">
-              <span><Button startIcon={<AddIcon />} variant="outlined" onClick={loadClassForDate} disabled={!academy} sx={{ borderRadius: 2 }}>Load Class</Button></span>
-            </Tooltip>
-            {canEdit && (
-              <>
-                <Tooltip title="Mark everyone present">
-                  <span><Button startIcon={<DoneAllIcon />} color="success" onClick={()=>markAll(true)} disabled={!rows.length}>All Present</Button></span>
-                </Tooltip>
-                <Tooltip title="Mark everyone absent">
-                  <span><Button startIcon={<CloseIcon />} color="warning" onClick={()=>markAll(false)} disabled={!rows.length}>All Absent</Button></span>
-                </Tooltip>
-                {isSuperAdmin && (
-                  <Tooltip title="Delete selected rows for this date">
-                    <span><Button color="error" startIcon={<DeleteIcon />} onClick={handleDelete} disabled={!selection.length}>Delete</Button></span>
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            spacing={1.5} 
+            alignItems={{ xs: 'stretch', sm: 'center' }} 
+            sx={{ mb: 3, flexWrap: 'wrap' }}
+          >
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Tooltip title="Load/refresh roster for this date & class">
+                <Button startIcon={<AddIcon />} variant="outlined" onClick={loadClassForDate} disabled={!academy} sx={{ borderRadius: 2, flex: { xs: 1, sm: 'none' } }}>Load Class</Button>
+              </Tooltip>
+              {canEdit && (
+                <>
+                  <Tooltip title="Mark everyone present">
+                    <Button startIcon={<DoneAllIcon />} color="success" onClick={()=>markAll(true)} disabled={!rows.length} sx={{ minWidth: { xs: '45%', sm: 'auto' } }}>All Present</Button>
                   </Tooltip>
-                )}
-              </>
+                  <Tooltip title="Mark everyone absent">
+                    <Button startIcon={<CloseIcon />} color="warning" onClick={()=>markAll(false)} disabled={!rows.length} sx={{ minWidth: { xs: '45%', sm: 'auto' } }}>All Absent</Button>
+                  </Tooltip>
+                </>
+              )}
+            </Box>
+
+            {isSuperAdmin && canEdit && selection.length > 0 && (
+              <Tooltip title="Delete selected rows for this date">
+                <Button color="error" startIcon={<DeleteIcon />} onClick={handleDelete} sx={{ borderRadius: 2 }}>Delete ({selection.length})</Button>
+              </Tooltip>
             )}
-            <Box sx={{ flexGrow: 1 }} />
-            <Stack direction="row" spacing={1} alignItems="center">
+
+            <Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }} />
+            
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'space-between' }}>
               <Chip 
                 label={`${rows.length} students`} 
                 color="primary" 
@@ -534,7 +548,8 @@ export default function AttendancePage() {
                 sx={{ 
                   borderRadius: 2, 
                   background: 'linear-gradient(45deg, #3F51B5 30%, #2196F3 90%)',
-                  boxShadow: '0 3px 5px 2px rgba(33, 150, 243, .3)'
+                  boxShadow: '0 3px 5px 2px rgba(33, 150, 243, .3)',
+                  flex: { xs: 1, sm: 'none' }
                 }}
               >
                 Save Attendance

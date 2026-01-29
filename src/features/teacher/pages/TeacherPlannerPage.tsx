@@ -229,7 +229,7 @@ export default function TeacherPlannerPage() {
               Planner Hub
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
-              Organize your academic journey for 2025
+              Organize your academic journey for {new Date().getFullYear()}
             </Typography>
           </Box>
         </Stack>
@@ -417,8 +417,8 @@ export default function TeacherPlannerPage() {
                            bgcolor: 'rgba(79, 70, 229, 0.02)'
                          }}>
                            <Stack direction="row" spacing={1}>
-                              <TextField 
-                                type="time" size="small" sx={{ width: 110 }}
+                                <TextField 
+                                  type="time" size="small" sx={{ width: 130 }}
                                 value={newEventTime} onChange={e => setNewEventTime(e.target.value)} 
                               />
                               <TextField 

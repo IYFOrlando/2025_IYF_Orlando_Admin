@@ -21,6 +21,7 @@
     "build:pages": "npm install && npm run build",
     "seed:academies": "node scripts/seed-academies-2026.js",
     "seed:academies:admin": "node scripts/seed-academies-admin.cjs",
+    "sync:academies": "node scripts/seed-academies-2026.js",
     "import:spring-registrations": "node scripts/import-spring-academy-registrations.cjs"
   },
   "dependencies": {

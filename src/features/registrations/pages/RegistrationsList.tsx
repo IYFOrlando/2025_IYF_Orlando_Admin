@@ -348,9 +348,19 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" sx={{ height: 'calc(100vh - 120px)', pb: 2 }}>
       <GlassCard>
         {/* Header */}
-        <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ 
+          p: { xs: 2, sm: 3 }, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'stretch', sm: 'center' }, 
+          gap: 2,
+          borderBottom: '1px solid', 
+          borderColor: 'divider' 
+        }}>
           <Box>
             <Typography variant="h5" fontWeight={800} sx={{ 
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
               background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' 
             }}>
               Registrations
@@ -359,64 +369,83 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
               {effectiveIsAdmin ? 'Manage student capabilities' : isTeacher ? 'Teacher mode (Read-Only)' : 'View only mode'}
             </Typography>
           </Box>
-            <Stack direction="row" spacing={1}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
              {effectiveIsAdmin && (
-               <Button variant="contained" startIcon={<Plus size={16} />} onClick={handleCreate} sx={{ borderRadius: 2, background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)' }}>
+               <Button 
+                variant="contained" 
+                startIcon={<Plus size={16} />} 
+                onClick={handleCreate} 
+                sx={{ 
+                  borderRadius: 2, 
+                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                  py: { xs: 1, sm: 0.5 }
+                }}
+               >
                  New Registration
                </Button>
              )}
-            {(effectiveIsAdmin || hasGmailAccess) && (
-              <Button variant="outlined" startIcon={<Download size={16} />} onClick={handleExportExcel} sx={{ borderRadius: 2 }}>
-                Export
-              </Button>
-            )}
-            {effectiveIsAdmin && selection.length > 0 && (
-              <Button variant="contained" color="error" startIcon={<Trash2 size={16} />} onClick={handleBulkDelete} sx={{ borderRadius: 2 }}>
-                Delete ({selection.length})
-              </Button>
-            )}
+            <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
+              {(effectiveIsAdmin || hasGmailAccess) && (
+                <Button variant="outlined" startIcon={<Download size={16} />} onClick={handleExportExcel} sx={{ borderRadius: 2, flex: 1 }}>
+                  Export
+                </Button>
+              )}
+              {effectiveIsAdmin && selection.length > 0 && (
+                <Button variant="contained" color="error" startIcon={<Trash2 size={16} />} onClick={handleBulkDelete} sx={{ borderRadius: 2, flex: 1 }}>
+                  Delete ({selection.length})
+                </Button>
+              )}
+            </Stack>
           </Stack>
         </Box>
 
         {/* Payment Status Filter - Admin Only */}
         {effectiveIsAdmin && (
-          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mr: 1 }}>
-                Payment Status:
+          <Box sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack 
+              direction={{ xs: 'column', sm: 'row' }} 
+              spacing={1} 
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+            >
+              <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ mr: 1, mb: { xs: 0.5, sm: 0 } }}>
+                PAYMENT STATUS:
               </Typography>
-              {(['all', 'paid', 'partial', 'unpaid'] as const).map((status) => {
-                const isActive = statusFilter === status
-                const counts = {
-                  all: rows.length,
-                  paid: rows.filter(r => rowStatus(r.id) === 'paid').length,
-                  partial: rows.filter(r => rowStatus(r.id) === 'partial').length,
-                  unpaid: rows.filter(r => rowStatus(r.id) === 'unpaid').length,
-                }
-                const colors = {
-                  all: '#2196F3',
-                  paid: '#4CAF50',
-                  partial: '#FF9800',
-                  unpaid: '#F44336'
-                }
-                return (
-                  <Chip
-                    key={status}
-                    label={`${status.charAt(0).toUpperCase() + status.slice(1)} (${counts[status]})`}
-                    onClick={() => setStatusFilter(status)}
-                    sx={{
-                      bgcolor: isActive ? colors[status] : 'transparent',
-                      color: isActive ? 'white' : colors[status],
-                      borderColor: colors[status],
-                      border: '1px solid',
-                      fontWeight: isActive ? 700 : 500,
-                      '&:hover': {
-                        bgcolor: isActive ? colors[status] : `${colors[status]}20`
-                      }
-                    }}
-                  />
-                )
-              })}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {(['all', 'paid', 'partial', 'unpaid'] as const).map((status) => {
+                  const isActive = statusFilter === status
+                  const counts = {
+                    all: rows.length,
+                    paid: rows.filter(r => rowStatus(r.id) === 'paid').length,
+                    partial: rows.filter(r => rowStatus(r.id) === 'partial').length,
+                    unpaid: rows.filter(r => rowStatus(r.id) === 'unpaid').length,
+                  }
+                  const colors = {
+                    all: '#2196F3',
+                    paid: '#4CAF50',
+                    partial: '#FF9800',
+                    unpaid: '#F44336'
+                  }
+                  return (
+                    <Chip
+                      key={status}
+                      label={`${status.charAt(0).toUpperCase() + status.slice(1)} (${counts[status]})`}
+                      onClick={() => setStatusFilter(status)}
+                      size="small"
+                      sx={{
+                        bgcolor: isActive ? colors[status] : 'transparent',
+                        color: isActive ? 'white' : colors[status],
+                        borderColor: colors[status],
+                        border: '1px solid',
+                        fontWeight: isActive ? 700 : 500,
+                        px: 0.5,
+                        '&:hover': {
+                          bgcolor: isActive ? colors[status] : `${colors[status]}20`
+                        }
+                      }}
+                    />
+                  )
+                })}
+              </Box>
             </Stack>
           </Box>
         )}
