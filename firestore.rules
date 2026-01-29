@@ -11,10 +11,7 @@ service cloud.firestore {
              request.auth.token.email.lower() in [
                 'orlando@iyfusa.org',
                 'jodlouis.dev@gmail.com',
-                'joddev.com@gmail.com',
-                'michellemoralespradis@gmail.com',
-                'admin@iyforlando.org',
-                'director@iyforlando.org'
+                'michellemoralespradis@gmail.com'
              ];
     }
     
