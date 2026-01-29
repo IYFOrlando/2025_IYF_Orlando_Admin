@@ -77,17 +77,18 @@ export default function TeachersManagementPage() {
 
     academies.forEach(aca => {
       // Check Main Teacher
-      if (aca.teacher?.email) {
-        const email = aca.teacher.email.toLowerCase().trim()
-        if (!map.has(email)) {
-          map.set(email, { 
-            email, 
+      if (aca.teacher?.name) {
+        // Use email as ID if available, otherwise use name as temporary ID
+        const id = aca.teacher.email ? aca.teacher.email.toLowerCase().trim() : `temp_${aca.teacher.name.toLowerCase().replace(/\s+/g, '_')}`
+        if (!map.has(id)) {
+          map.set(id, { 
+            email: aca.teacher.email || '', 
             name: aca.teacher.name, 
             phone: aca.teacher.phone,
             assignments: [] 
           })
         }
-        map.get(email)!.assignments.push({
+        map.get(id)!.assignments.push({
           academyId: aca.id,
           academyName: aca.name || aca.id,
           levelName: null
@@ -97,17 +98,18 @@ export default function TeachersManagementPage() {
       // Check Levels
       if (aca.levels) {
         aca.levels.forEach(lvl => {
-          if (lvl.teacher?.email) {
-            const email = lvl.teacher.email.toLowerCase().trim()
-            if (!map.has(email)) {
-              map.set(email, { 
-                email, 
+          if (lvl.teacher?.name) {
+            // Use email as ID if available, otherwise use name as temporary ID
+            const id = lvl.teacher.email ? lvl.teacher.email.toLowerCase().trim() : `temp_${lvl.teacher.name.toLowerCase().replace(/\s+/g, '_')}`
+            if (!map.has(id)) {
+              map.set(id, { 
+                email: lvl.teacher.email || '', 
                 name: lvl.teacher.name, 
                 phone: lvl.teacher.phone,
                 assignments: [] 
               })
             }
-            map.get(email)!.assignments.push({
+            map.get(id)!.assignments.push({
               academyId: aca.id,
               academyName: aca.name || aca.id,
               levelName: lvl.name
@@ -144,25 +146,53 @@ export default function TeachersManagementPage() {
   const handleSaveTeacher = async () => {
     if (!editingTeacher) return 
     
+    // Validate email if provided
+    if (formData.email && !formData.email.includes('@')) {
+      Swal.fire('Error', 'Please enter a valid email address', 'error')
+      return
+    }
+    
     try {
       setLoading(true)
       const batch = writeBatch(db)
       let updateCount = 0
 
+      // Helper function to check if a teacher matches the one being edited
+      const matchesTeacher = (teacher: any) => {
+        if (editingTeacher.email) {
+          // If editing teacher has email, match by email
+          return teacher?.email?.toLowerCase().trim() === editingTeacher.email.toLowerCase().trim()
+        } else {
+          // If editing teacher has no email, match by name
+          return teacher?.name === editingTeacher.name && !teacher?.email
+        }
+      }
+
       academies.forEach(aca => {
         let acaModified = false
         const acaUpdate: Partial<AcademyDoc> = {}
 
-        if (aca.teacher?.email?.toLowerCase().trim() === editingTeacher.email) {
-            acaUpdate.teacher = { ...aca.teacher, name: formData.name, phone: formData.phone }
+        if (aca.teacher && matchesTeacher(aca.teacher)) {
+            acaUpdate.teacher = { 
+              name: formData.name, 
+              email: formData.email.trim(), 
+              phone: formData.phone 
+            }
             acaModified = true
         }
 
         if (aca.levels) {
             const newLevels = aca.levels.map(lvl => {
-                if (lvl.teacher?.email?.toLowerCase().trim() === editingTeacher.email) {
+                if (lvl.teacher && matchesTeacher(lvl.teacher)) {
                     acaModified = true
-                    return { ...lvl, teacher: { ...lvl.teacher, name: formData.name, phone: formData.phone } }
+                    return { 
+                      ...lvl, 
+                      teacher: { 
+                        name: formData.name, 
+                        email: formData.email.trim(), 
+                        phone: formData.phone 
+                      } 
+                    }
                 }
                 return lvl
             })
@@ -178,29 +208,31 @@ export default function TeachersManagementPage() {
       if (updateCount > 0) {
           await batch.commit()
           
-          // SYNC
-          const teacherAssignments: { academyId: string, academyName: string, levelName: string | null }[] = []
-          academies.forEach(aca => {
-            if (aca.teacher?.email?.toLowerCase().trim() === editingTeacher.email) {
-              teacherAssignments.push({ academyId: aca.id, academyName: aca.name || aca.id, levelName: null });
-            }
-            aca.levels?.forEach(lvl => {
-              if (lvl.teacher?.email?.toLowerCase().trim() === editingTeacher.email) {
-                teacherAssignments.push({ academyId: aca.id, academyName: aca.name || aca.id, levelName: lvl.name });
+          // SYNC to teacher index only if email is provided
+          if (formData.email.trim()) {
+            const teacherAssignments: { academyId: string, academyName: string, levelName: string | null }[] = []
+            academies.forEach(aca => {
+              if (aca.teacher?.name === formData.name) {
+                teacherAssignments.push({ academyId: aca.id, academyName: aca.name || aca.id, levelName: null });
               }
+              aca.levels?.forEach(lvl => {
+                if (lvl.teacher?.name === formData.name) {
+                  teacherAssignments.push({ academyId: aca.id, academyName: aca.name || aca.id, levelName: lvl.name });
+                }
+              });
             });
-          });
 
-          await setDoc(doc(db, TEACHER_INDEX_COLLECTION, editingTeacher.email), {
-            email: editingTeacher.email,
-            name: formData.name,
-            assignments: teacherAssignments,
-            authorizedAcademies: [...new Set(teacherAssignments.map(a => a.academyName))],
-            authorizedAcademyIds: [...new Set(teacherAssignments.map(a => a.academyId))],
-            updatedAt: serverTimestamp()
-          })
+            await setDoc(doc(db, TEACHER_INDEX_COLLECTION, formData.email.toLowerCase().trim()), {
+              email: formData.email.toLowerCase().trim(),
+              name: formData.name,
+              assignments: teacherAssignments,
+              authorizedAcademies: [...new Set(teacherAssignments.map(a => a.academyName))],
+              authorizedAcademyIds: [...new Set(teacherAssignments.map(a => a.academyId))],
+              updatedAt: serverTimestamp()
+            })
+          }
 
-          Swal.fire('Updated', `Updated info across ${updateCount} docs, index synced.`, 'success')
+          Swal.fire('Updated', `Updated info across ${updateCount} docs${formData.email ? ', index synced' : ''}.`, 'success')
       } else {
           Swal.fire('Info', 'No assignments found to update', 'info')
       }
@@ -292,16 +324,25 @@ export default function TeachersManagementPage() {
      try {
        setLoading(true);
        const batch = writeBatch(db);
-       teachers.forEach(t => {
-         batch.set(doc(db, TEACHER_INDEX_COLLECTION, t.email), {
+       const teachersWithEmail = teachers.filter(t => t.email && t.email.trim());
+       
+       teachersWithEmail.forEach(t => {
+         batch.set(doc(db, TEACHER_INDEX_COLLECTION, t.email.toLowerCase().trim()), {
             ...t,
+            email: t.email.toLowerCase().trim(),
             authorizedAcademies: [...new Set(t.assignments.map(a => a.academyName))],
             authorizedAcademyIds: [...new Set(t.assignments.map(a => a.academyId))],
             updatedAt: serverTimestamp()
          });
        });
-       await batch.commit();
-       Swal.fire('Synced', 'All teachers synced to index', 'success');
+       
+       if (teachersWithEmail.length > 0) {
+         await batch.commit();
+         const skipped = teachers.length - teachersWithEmail.length;
+         Swal.fire('Synced', `${teachersWithEmail.length} teachers synced to index${skipped > 0 ? `. ${skipped} teachers skipped (no email)` : ''}`, 'success');
+       } else {
+         Swal.fire('Info', 'No teachers with email to sync', 'info');
+       }
      } catch (err) {
        console.error(err);
        Swal.fire('Error', 'Sync failed', 'error');
@@ -354,7 +395,9 @@ export default function TeachersManagementPage() {
                                 </Box>
                                 <Box>
                                     <Typography variant="subtitle2" fontWeight={700}>{teacher.name}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{teacher.email}</Typography>
+                                    <Typography variant="caption" color={teacher.email ? "text.secondary" : "error.main"}>
+                                      {teacher.email || "(No email - Click edit to add)"}
+                                    </Typography>
                                     {teacher.phone && <Typography variant="caption" display="block">{teacher.phone}</Typography>}
                                 </Box>
                             </Stack>
@@ -380,11 +423,33 @@ export default function TeachersManagementPage() {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Edit Teacher</DialogTitle>
           <DialogContent>
-              <TextField label="Name" fullWidth margin="normal" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              <TextField label="Phone" fullWidth margin="normal" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <TextField 
+                label="Name" 
+                fullWidth 
+                margin="normal" 
+                value={formData.name} 
+                onChange={e => setFormData({...formData, name: e.target.value})} 
+                required
+              />
+              <TextField 
+                label="Email" 
+                fullWidth 
+                margin="normal" 
+                type="email"
+                value={formData.email} 
+                onChange={e => setFormData({...formData, email: e.target.value})} 
+                helperText={!formData.email ? "Email is required for teacher login access" : ""}
+              />
+              <TextField 
+                label="Phone" 
+                fullWidth 
+                margin="normal" 
+                value={formData.phone} 
+                onChange={e => setFormData({...formData, phone: e.target.value})} 
+              />
           </DialogContent>
           <DialogActions>
               <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
