@@ -58,13 +58,11 @@ export function useTeacherNotifications(listenForNotifications: boolean = true) 
           setLoading(false)
           return
         }
-        console.error("Firestore Listen Error (Notifications):", error)
         setLoading(false)
       })
 
       return () => unsubscribe()
     } catch (err) {
-      console.error("Error setting up Notifications listener:", err)
       setLoading(false)
     }
   }, [listenForNotifications])
@@ -88,7 +86,7 @@ export function useTeacherNotifications(listenForNotifications: boolean = true) 
         })
       }
     } catch (error) {
-      console.error('Error adding notification:', error)
+      // Silently fail - notification logging is non-critical
     }
   }
 
@@ -98,7 +96,7 @@ export function useTeacherNotifications(listenForNotifications: boolean = true) 
         isRead: true
       })
     } catch (error) {
-      console.error('Error marking notification as read:', error)
+      // Silently fail
     }
   }
 
@@ -107,7 +105,7 @@ export function useTeacherNotifications(listenForNotifications: boolean = true) 
       const unread = notifications.filter(n => !n.isRead)
       await Promise.all(unread.map(n => markAsRead(n.id)))
     } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+      // Silently fail
     }
   }
 

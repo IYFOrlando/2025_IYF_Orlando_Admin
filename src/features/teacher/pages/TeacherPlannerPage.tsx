@@ -13,7 +13,6 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { db } from '../../../lib/firebase'
-import { useAuth } from '../../../context/AuthContext'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
@@ -27,11 +26,10 @@ import {
 
 export default function TeacherPlannerPage() {
   const { teacherProfile } = useTeacherContext()
-  const { currentUser } = useAuth()
   const [selectedDate, setSelectedDate] = React.useState(new Date())
   
   const { 
-    plan, allPlans, loading, userEmail, docId,
+    plan, allPlans, loading,
     addTask, toggleTask, updateTask, deleteTask,
     addEvent, updateEvent, deleteEvent
   } = useTeacherPlan(selectedDate)
@@ -47,16 +45,6 @@ export default function TeacherPlannerPage() {
   const [editingEventId, setEditingEventId] = React.useState<string | null>(null)
   const [editingEventTitle, setEditingEventTitle] = React.useState('')
   const [editingEventTime, setEditingEventTime] = React.useState('')
-
-  React.useEffect(() => {
-    console.log('Planner Auth Debug:', {
-      currentUserEmail: currentUser?.email,
-      teacherProfileEmail: teacherProfile?.email,
-      resolvedUserEmail: userEmail,
-      docId
-    })
-  }, [userEmail, docId, currentUser, teacherProfile])
-
   const calendarEvents = React.useMemo(() => {
     const evs: any[] = []
     allPlans.forEach(p => {
@@ -144,7 +132,6 @@ export default function TeacherPlannerPage() {
       }
       notifySuccess('Event moved')
     } catch (e) {
-      console.error(e)
       notifyError('Failed to move event', e instanceof Error ? e.message : 'Unknown error')
       info.revert()
     }

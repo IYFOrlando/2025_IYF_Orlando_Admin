@@ -46,13 +46,15 @@ export function useActivityLog(isAdmin: boolean) {
         setLogs(docs)
         setLoading(false)
       }, (error) => {
-        console.error("Firestore Listen Error (ActivityLog):", error)
+        if (error.code === 'permission-denied') {
+          setLoading(false)
+          return
+        }
         setLoading(false)
       })
 
       return () => unsubscribe()
     } catch (err) {
-      console.error("Error setting up ActivityLog listener:", err)
       setLoading(false)
     }
   }, [isAdmin])
@@ -64,7 +66,7 @@ export function useActivityLog(isAdmin: boolean) {
         createdAt: serverTimestamp()
       })
     } catch (error) {
-      console.error('Error logging activity:', error)
+      // Silently fail - activity logging is non-critical
     }
   }
 

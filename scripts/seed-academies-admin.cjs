@@ -18,7 +18,7 @@ try {
   const serviceAccountPath = path.join(__dirname, 'service-account.json');
   
   if (fs.existsSync(serviceAccountPath)) {
-    console.log('🔑 Using local service account key...');
+    console.log(`🔑 Using local service account key at: ${serviceAccountPath}`);
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
     app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
@@ -26,7 +26,8 @@ try {
     });
   } else {
     // Fallback to default credentials
-    console.log('🌐 Local key not found, trying application default credentials...');
+    console.log(`⚠️  Local key NOT found at: ${serviceAccountPath}`);
+    console.log('🌐 Trying application default credentials...');
     app = admin.apps.length > 0 
       ? admin.app() 
       : admin.initializeApp({
@@ -264,10 +265,24 @@ async function seedAcademies() {
       }
     }
     
+    // Cleanup: Remove academies from Firestore that are not in local data
+    console.log('\n🧹 Checking for extraneous academies to delete...');
+    const localDocIds = ACADEMIES_2026_SPRING.map(a => a.name.toLowerCase().replace(/\s+/g, '_'));
+    
+    let deleted = 0;
+    for (const docSnap of existingSnapshot.docs) {
+      if (!localDocIds.includes(docSnap.id)) {
+        console.log(`   🗑️  Deleting: ${docSnap.id} (Not in local config)`);
+        await docSnap.ref.delete();
+        deleted++;
+      }
+    }
+    
     console.log('\n✅ Seeding completed!');
     console.log(`   Created: ${created} academies`);
     console.log(`   Updated: ${updated} academies`);
-    console.log(`   Total: ${ACADEMIES_2026_SPRING.length} academies`);
+    console.log(`   Deleted: ${deleted} extraneous academies`);
+    console.log(`   Total: ${ACADEMIES_2026_SPRING.length} academies local config`);
     
     // Verify the data
     console.log('\n🔍 Verifying data...');

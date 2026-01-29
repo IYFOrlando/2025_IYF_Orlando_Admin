@@ -55,13 +55,8 @@ export function useTeacherPlan(targetDate: Date = new Date()) {
         setPlan(null)
       }
       setLoading(false)
-    }, (err) => {
+    }, () => {
       // Silently handle permission errors (expected for users without access)
-      if (err.code === 'permission-denied') {
-        setLoading(false)
-        return
-      }
-      console.error('useTeacherPlan listener error:', err)
       setLoading(false)
     })
     return () => unsub()
@@ -76,12 +71,8 @@ export function useTeacherPlan(targetDate: Date = new Date()) {
     )
     const unsub = onSnapshot(q, (snap) => {
       setAllPlans(snap.docs.map(d => d.data() as PlanDoc))
-    }, (err) => {
-      // Silently handle permission errors (expected for users without access)
-      if (err.code === 'permission-denied') {
-        return
-      }
-      console.error('useTeacherPlan list listener error:', err)
+    }, () => {
+      // Silently handle errors
     })
     return () => unsub()
   }, [userEmail])
