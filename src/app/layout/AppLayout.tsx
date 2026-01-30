@@ -29,12 +29,13 @@ type Item = { to: string; label: string; icon: React.ReactNode; adminOnly?: bool
 
 const overviewItems: Item[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-  { to: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
+  { to: '/analytics', label: 'Analytics', icon: <TrendingUp size={20} /> },
 ]
 
 const academicItems: Item[] = [
   { to: '/classes', label: 'Classes', icon: <School size={20} /> },
   { to: '/academies-management', label: 'Academy Settings', icon: <Settings size={20} />, adminOnly: true },
+  { to: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
   { to: '/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
 ]
 

@@ -176,24 +176,17 @@ export default function AcademiesManagementPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h4" fontWeight={800} gutterBottom>
-            Academy Settings
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage classes, schedules, and teachers
-          </Typography>
-        </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4" fontWeight={700}>Academy Settings</Typography>
         <Button 
           variant="contained" 
           startIcon={<Plus size={18} />}
           onClick={handleCreateClick}
-          sx={{ borderRadius: 2, px: 3, py: 1 }}
+          sx={{ borderRadius: 3, textTransform: 'none' }}
         >
           New Academy
         </Button>
-      </Stack>
+      </Box>
 
       <Grid container spacing={3}>
         {academies.map((academy) => (
@@ -218,17 +211,18 @@ export default function AcademiesManagementPage() {
                 sx={{ borderRadius: 4, overflow: 'hidden' }}
               >
                 {/* Cover Image */}
-                <Box sx={{ position: 'relative', height: 160, width: '100%', bgcolor: 'action.hover' }}>
+                <Box sx={{ position: 'relative', height: 200, width: '100%', bgcolor: '#000', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
                   {academy.image ? (
                     <CardMedia
                       component="img"
-                      height="160"
+                      height="200"
                       image={academy.image}
                       alt={academy.name}
-                      sx={{ objectFit: 'cover' }}
+                      sx={{ objectFit: 'contain' }}
                     />
                   ) : (
                     <Box sx={{ 
+                      width: '100%',
                       height: '100%', 
                       display: 'flex', 
                       alignItems: 'center', 

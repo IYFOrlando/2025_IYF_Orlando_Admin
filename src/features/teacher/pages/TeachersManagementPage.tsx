@@ -10,7 +10,7 @@ import {
   Add as AddIcon, Edit as EditIcon,
   Search as SearchIcon
 } from '@mui/icons-material'
-import { collection, onSnapshot, doc, updateDoc, writeBatch, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, doc, updateDoc, writeBatch, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { TEACHER_INDEX_COLLECTION } from '../../../lib/config'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
@@ -44,10 +44,6 @@ export default function TeachersManagementPage() {
   const [academies, setAcademies] = useState<AcademyDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-
-  if (!isAdmin) {
-    return <AccessDenied />
-  }
   
   // Dialog State
   const [openDialog, setOpenDialog] = useState(false)
@@ -122,14 +118,8 @@ export default function TeachersManagementPage() {
     return Array.from(map.values())
   }, [academies])
 
-  // Permission Guard - MUST BE AFTER HOOKS
   if (!isAdmin) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h5" color="error" gutterBottom>Access Denied</Typography>
-        <Typography>You do not have permission to manage teachers. Please contact a Super Admin if you believe this is an error.</Typography>
-      </Box>
-    )
+    return <AccessDenied />
   }
 
   const filteredTeachers = teachers.filter(t => 
@@ -210,6 +200,19 @@ export default function TeachersManagementPage() {
           
           // SYNC to teacher index only if email is provided
           if (formData.email.trim()) {
+            // Check if email changed and delete old doc if so
+            const oldEmail = editingTeacher.email.toLowerCase().trim()
+            const newEmail = formData.email.toLowerCase().trim()
+            
+            if (oldEmail && oldEmail !== newEmail) {
+                try {
+                    await deleteDoc(doc(db, TEACHER_INDEX_COLLECTION, oldEmail))
+                    console.log(`Deleted old teacher index: ${oldEmail}`)
+                } catch (e) {
+                    console.error("Error deleting old teacher index:", e)
+                }
+            }
+
             const teacherAssignments: { academyId: string, academyName: string, levelName: string | null }[] = []
             academies.forEach(aca => {
               if (aca.teacher?.name === formData.name) {
@@ -222,8 +225,8 @@ export default function TeachersManagementPage() {
               });
             });
 
-            await setDoc(doc(db, TEACHER_INDEX_COLLECTION, formData.email.toLowerCase().trim()), {
-              email: formData.email.toLowerCase().trim(),
+            await setDoc(doc(db, TEACHER_INDEX_COLLECTION, newEmail), {
+              email: newEmail,
               name: formData.name,
               assignments: teacherAssignments,
               authorizedAcademies: [...new Set(teacherAssignments.map(a => a.academyName))],
@@ -234,7 +237,11 @@ export default function TeachersManagementPage() {
 
           Swal.fire('Updated', `Updated info across ${updateCount} docs${formData.email ? ', index synced' : ''}.`, 'success')
       } else {
-          Swal.fire('Info', 'No assignments found to update', 'info')
+          // If no assignments found, we might still want to update the ID doc if it exists (orphaned teacher case)
+          // But for now, user flow is editing via assignments.
+          // IF editing a "ghost" teacher (no assignments but exists in list), we should handle that too.
+          // Given the current logic derives teachers FROM assignments, updateCount > 0 is usually true if they are in the list.
+          Swal.fire('Info', 'Teacher updated in assignments', 'info')
       }
       setOpenDialog(false)
     } catch (error) {

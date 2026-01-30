@@ -2,9 +2,8 @@
 import * as React from 'react'
 import { 
   FormControl, InputLabel, Select, MenuItem, Stack, TextField, 
-  Avatar, Typography, Divider, FormHelperText
+  Avatar, Typography, FormHelperText 
 } from '@mui/material'
-import { UserCheck } from 'lucide-react'
 import { useTeachers } from '../hooks/useTeachers'
 
 interface TeacherSelectorProps {
@@ -92,13 +91,6 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
               </Stack>
             </MenuItem>
           ))}
-          <Divider />
-          <MenuItem value="manual">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <UserCheck size={16} />
-              <Typography variant="body2">Enter Manually / Custom</Typography>
-            </Stack>
-          </MenuItem>
         </Select>
         <FormHelperText>Selecting a teacher will auto-fill the fields below</FormHelperText>
       </FormControl>
