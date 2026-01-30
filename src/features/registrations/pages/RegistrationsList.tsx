@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  Box, Card, IconButton, Chip, Stack, Button, Typography, useTheme
+  Box, Card, IconButton, Chip, Stack, Button, Typography, useTheme, useMediaQuery
 } from '@mui/material'
 import { PageHeader } from '../../../components/PageHeader'
 import {
@@ -135,6 +135,10 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
   const { data: payments } = usePayments()
   const byStudent = useInvoiceAggByStudent()
   
+  // Mobile check
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  
   const rows = React.useMemo(() => {
     const raw = data ?? []
     if (isTeacher && teacherProfile?.academies) {
@@ -250,6 +254,7 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
       { field: 'firstName', headerName: 'First Name', minWidth: 120, flex: 1 },
       { field: 'lastName', headerName: 'Last Name', minWidth: 120, flex: 1 },
       { field: 'email', headerName: 'Email', minWidth: 200, flex: 1.2 },
+      { field: 'cellNumber', headerName: 'Phone', width: 130 },
       { field: 'gender', headerName: 'Gender', width: 90 },
       { field: 'age', headerName: 'Age', width: 70, valueGetter: (p) => computeAge(p.row.birthday) },
       // Address only for admins
@@ -447,6 +452,18 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
             onRowSelectionModelChange={(m) => effectiveIsAdmin && setSelection(m as string[])}
             rowSelectionModel={selection}
             disableRowSelectionOnClick
+            columnVisibilityModel={{
+               // Teacher specific hides (Requested by user)
+               createdAt: effectiveIsAdmin,
+               zipCode: effectiveIsAdmin,
+               state: effectiveIsAdmin,
+               // Mobile optimization
+               id: !isMobile,
+               email: !isMobile,
+               gender: !isMobile,
+               age: !isMobile,
+               city: !isMobile,
+            }}
             slots={{ toolbar: GridToolbar }}
             slotProps={{
               toolbar: {

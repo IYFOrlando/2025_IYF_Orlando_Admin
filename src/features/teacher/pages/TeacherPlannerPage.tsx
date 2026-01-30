@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { 
   Box, Grid, Typography, IconButton, 
-  Stack, Checkbox, TextField, Divider, Chip, CircularProgress 
+  Stack, Checkbox, TextField, Divider, Chip, CircularProgress, useTheme, useMediaQuery 
 } from '@mui/material'
 import { 
   Calendar as CalendarIcon, 
@@ -12,6 +12,7 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
+import listPlugin from '@fullcalendar/list'
 import { db } from '../../../lib/firebase'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
@@ -26,6 +27,11 @@ import {
 
 export default function TeacherPlannerPage() {
   const { teacherProfile } = useTeacherContext()
+  
+  // Mobile check
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
   const [selectedDate, setSelectedDate] = React.useState(new Date())
   
   const { 
@@ -264,14 +270,14 @@ export default function TeacherPlannerPage() {
             }
           }}>
             <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+              initialView={isMobile ? "listWeek" : "dayGridMonth"}
               headerToolbar={{
-                left: 'prev,next today',
+                left: isMobile ? 'prev,next' : 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek'
+                right: isMobile ? 'listWeek,dayGridMonth' : 'dayGridMonth,timeGridWeek'
               }}
-              height="100%"
+              height={isMobile ? 'auto' : '100%'}
               selectable={true}
               editable={true}
               selectMirror={true}

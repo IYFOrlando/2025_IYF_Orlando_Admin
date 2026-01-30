@@ -3,7 +3,7 @@ import * as React from 'react'
 import {
   CardContent, Stack, Button, Tooltip, Box, Alert,
   TextField, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Typography, Autocomplete, 
-  CircularProgress
+  CircularProgress, useTheme, useMediaQuery
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -35,6 +35,10 @@ const ADMIN_EMAILS = ['jodlouis.dev@gmail.com']
 
 export default function ProgressPage() {
   const { isTeacher, teacherProfile, isAdmin: contextIsAdmin } = useTeacherContext()
+  
+  // Mobile check
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   // Admin detection (for UI enable/disable)
   const [userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
@@ -185,6 +189,12 @@ export default function ProgressPage() {
               onRowDoubleClick={(p)=> canEdit && setEditing(p.row as Prog)}
               getRowId={(r)=>r.id}
               slots={{ toolbar: GridToolbar }}
+              columnVisibilityModel={{
+                academy: !isMobile,
+                level: !isMobile,
+                note: !isMobile,
+                date: !isMobile
+              }}
               sx={{
                 border: 'none',
                 '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(224, 224, 224, 0.4)' },

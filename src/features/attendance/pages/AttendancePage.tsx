@@ -1,7 +1,7 @@
 import * as React from 'react'
 import {
   CardContent, Stack, Button, Tooltip, Box, Alert,
-  TextField, MenuItem, Chip, Switch, Autocomplete, Grid, Typography
+  TextField, MenuItem, Chip, Switch, Autocomplete, Grid, Typography, useTheme, useMediaQuery
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -61,6 +61,10 @@ interface AttendanceDoc {
 export default function AttendancePage() {
   const { data: regs } = useRegistrations()
   const { getInstructorByAcademy } = useInstructors()
+  
+  // Mobile check
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   
   // Teacher Context
   const { isTeacher, teacherProfile, isAdmin: contextIsAdmin } = useTeacherContext()
@@ -553,6 +557,10 @@ export default function AttendancePage() {
               rowSelectionModel={selection}
               getRowId={(r) => r.id}
               slots={{ toolbar: GridToolbar }}
+              columnVisibilityModel={{
+                percent: !isMobile,
+                reason: !isMobile
+              }}
               sx={{
                 border: 'none',
                 '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(224, 224, 224, 0.4)' },
