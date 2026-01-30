@@ -158,7 +158,7 @@ export default function AcademiesManagementPage() {
     })
   }
 
-  const handleLevelChange = (index: number, field: keyof AcademyLevel, value: string | number) => {
+  const handleLevelChange = (index: number, field: keyof AcademyLevel, value: string | number | AcademyLevel['teacher']) => {
     const updatedLevels = [...(formData.levels || [])]
     updatedLevels[index] = { ...updatedLevels[index], [field]: value }
     setFormData({ ...formData, levels: updatedLevels })
@@ -516,33 +516,46 @@ export default function AcademiesManagementPage() {
 
                 <Stack spacing={2}>
                   {formData.levels?.map((level, index) => (
-                    <Stack key={index} direction="row" spacing={2} alignItems="center">
-                      <TextField
-                        size="small"
-                        placeholder="Level Name"
-                        value={level.name}
-                        onChange={(e) => handleLevelChange(index, 'name', e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        size="small"
-                        placeholder="Schedule"
-                        value={level.schedule}
-                        onChange={(e) => handleLevelChange(index, 'schedule', e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        size="small"
-                        type="number"
-                        placeholder="Ord"
-                        value={level.order}
-                        onChange={(e) => handleLevelChange(index, 'order', Number(e.target.value))}
-                        sx={{ width: 80 }}
-                      />
-                      <IconButton size="small" color="error" onClick={() => handleRemoveLevel(index)}>
-                        <X size={16} />
-                      </IconButton>
-                    </Stack>
+                    <Box key={index} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                      <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                        <TextField
+                          size="small"
+                          label="Level Name"
+                          placeholder="Level Name"
+                          value={level.name}
+                          onChange={(e) => handleLevelChange(index, 'name', e.target.value)}
+                          sx={{ flex: 1 }}
+                        />
+                        <TextField
+                          size="small"
+                          label="Schedule"
+                          placeholder="Schedule"
+                          value={level.schedule}
+                          onChange={(e) => handleLevelChange(index, 'schedule', e.target.value)}
+                          sx={{ flex: 1 }}
+                        />
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="Order"
+                          value={level.order}
+                          onChange={(e) => handleLevelChange(index, 'order', Number(e.target.value))}
+                          sx={{ width: 80 }}
+                        />
+                        <IconButton size="small" color="error" onClick={() => handleRemoveLevel(index)}>
+                          <X size={16} />
+                        </IconButton>
+                      </Stack>
+                      
+                      {/* Level Teacher */}
+                       <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                          Level Teacher (Optional)
+                        </Typography>
+                       <TeacherSelector 
+                          selectedTeacher={level.teacher} 
+                          onTeacherChange={(newTeacher) => handleLevelChange(index, 'teacher', newTeacher)} 
+                        />
+                    </Box>
                   ))}
                 </Stack>
               </Box>

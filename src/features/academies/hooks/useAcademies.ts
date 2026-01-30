@@ -16,6 +16,12 @@ export type AcademyLevel = {
   name: string
   schedule: string
   order: number
+  teacher?: {
+    name: string
+    email: string
+    phone: string
+    credentials?: string
+  }
 }
 
 export type Academy = {
