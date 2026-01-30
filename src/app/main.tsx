@@ -30,6 +30,7 @@ import InvoiceDebugPage from '../pages/InvoiceDebugPage'
 import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
 import TeacherPlannerPage from '../features/teacher/pages/TeacherPlannerPage'
 import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
+import AnalyticsPage from '../features/analytics/pages/AnalyticsPage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
 import '../index.css'
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'analytics', element: <AnalyticsPage /> },
 
       { path: 'registrations', element: <RegistrationsList /> },
       { path: 'payments', element: <PaymentsPage /> },

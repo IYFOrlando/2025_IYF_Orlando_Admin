@@ -27,6 +27,8 @@ import { GlassCard } from '../../../components/GlassCard'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useInstructors } from '../../payments/hooks/useInstructors'
 import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotifications'
+import { PageHeader } from '../../../components/PageHeader'
+import { PageHeaderColors } from '../../../components/pageHeaderColors'
 
 const KOREAN = 'Korean Language'
 const KOREAN_LEVELS = ['Alphabet', 'Beginner', 'Intermediate', 'K-Movie Conversation'] as const
@@ -400,31 +402,12 @@ export default function AttendancePage() {
 
   return (
     <Box>
-      {/* Header with Gradient */}
-      <Box sx={{ 
-        mb: 4,
-        background: 'linear-gradient(135deg, #3F51B5 0%, #1976D2 100%)',
-        borderRadius: 3,
-        p: { xs: 2.5, sm: 3 },
-        color: 'white',
-        boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(63, 81, 181, 0.4)'
-      }}>
-        <Stack 
-          direction={{ xs: 'column', sm: 'row' }} 
-          alignItems={{ xs: 'flex-start', sm: 'center' }} 
-          spacing={2}
-        >
-          <ChecklistIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: 'white' }} />
-          <Box>
-            <Typography variant="h4" fontWeight={800} color="white">
-              Attendance Tracker
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
-              {isSuperAdmin ? 'Admin mode (full edit)' : isTeacher ? 'Teacher mode (scoped)' : 'Viewer mode (read-only)'}
-            </Typography>
-          </Box>
-        </Stack>
-      </Box>
+      <PageHeader
+        icon={<ChecklistIcon sx={{ fontSize: 40 }} />}
+        title="Attendance Tracker"
+        subtitle={isSuperAdmin ? 'Admin mode (full edit)' : isTeacher ? 'Teacher mode (scoped)' : 'Viewer mode (read-only)'}
+        {...PageHeaderColors.attendance}
+      />
 
       <GlassCard>
         <CardContent>
