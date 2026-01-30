@@ -229,6 +229,24 @@ const ACADEMIES_2026_SPRING = [
     age: "6 yrs to adult",
     equipment: "Uniform",
     linkName: "taekwondo"
+  },
+  {
+    name: "Korean Cooking",
+    description: "Learn to prepare delicious and authentic Korean dishes while exploring the rich culinary traditions of Korea.",
+    price: 50,
+    schedule: "TBD",
+    teacher: { name: "Eung Lee", email: "eungstory87@gmail.com", phone: "" },
+    hasLevels: false,
+    levels: [],
+    order: 11,
+    enabled: true,
+    image: "https://firebasestorage.googleapis.com/v0/b/iyf-orlando-academy.appspot.com/o/2026%2F2026%20IYF%20Orlando%20Academy%2FPoster%2F2026_Spring_Semester_Korean_Cooking_Academy.png?alt=media&token=placeholder",
+    tag: "Cooking",
+    catchPhrase: "Cook like a Korean!",
+    goal: ["Learn Korean recipes", "Understand Korean food culture"],
+    age: "All ages",
+    equipment: "Apron",
+    linkName: "korean-cooking"
   }
 ];
 

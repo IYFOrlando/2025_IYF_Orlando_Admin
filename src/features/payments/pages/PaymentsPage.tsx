@@ -46,7 +46,7 @@ import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts'
@@ -111,8 +111,8 @@ function tuitionFullyPaidForSelected(reg: Registration, invs: Invoice[]) {
       if (ac && ac !== 'n/a') needs.push(`${ac}|${(a?.level || '').toString().trim().toLowerCase()}`)
     })
   } else {
-    const a1 = norm(reg.firstPeriod?.academy)
-    const a2 = norm(reg.secondPeriod?.academy)
+  const a1 = norm(reg.firstPeriod?.academy)
+  const a2 = norm(reg.secondPeriod?.academy)
     if (a1 && a1 !== 'n/a') needs.push(`${a1}|${(reg.firstPeriod?.level || '').toString().trim().toLowerCase()}`)
     if (a2 && a2 !== 'n/a') needs.push(`${a2}|${(reg.secondPeriod?.level || '').toString().trim().toLowerCase()}`)
   }
@@ -411,12 +411,12 @@ const PaymentsPage = React.memo(() => {
         const unit = priceFor(a1, r.firstPeriod?.level, 1, pricing)
         const instructor = getInstructorByAcademy(a1, r.firstPeriod?.level || null)
         L.push({
-          academy: a1,
-          period: 1,
-          level: isKoreanLanguage(a1) ? mapKoreanLevel(r.firstPeriod?.level) : null,
-          unitPrice: unit,
-          qty: 1,
-          amount: unit,
+        academy: a1,
+        period: 1,
+        level: isKoreanLanguage(a1) ? mapKoreanLevel(r.firstPeriod?.level) : null,
+        unitPrice: unit, 
+        qty: 1, 
+        amount: unit,
           instructor: instructor ? { firstName: instructor.name.split(' ')[0] || '', lastName: instructor.name.split(' ').slice(1).join(' ') || '', email: instructor.email || '', phone: instructor.phone || '', credentials: instructor.credentials || (isKoreanLanguage(a1) ? 'volunteer teacher' : '') } : undefined,
           instructionDates: { startDate: '', endDate: '', totalHours: 14, schedule: 'Saturdays, 1 hour' },
         })
@@ -425,12 +425,12 @@ const PaymentsPage = React.memo(() => {
         const unit = priceFor(a2, r.secondPeriod?.level, 2, pricing)
         const instructor = getInstructorByAcademy(a2, r.secondPeriod?.level || null)
         L.push({
-          academy: a2,
-          period: 2,
-          level: isKoreanLanguage(a2) ? mapKoreanLevel(r.secondPeriod?.level) : null,
-          unitPrice: unit,
-          qty: 1,
-          amount: unit,
+        academy: a2,
+        period: 2,
+        level: isKoreanLanguage(a2) ? mapKoreanLevel(r.secondPeriod?.level) : null,
+        unitPrice: unit, 
+        qty: 1, 
+        amount: unit,
           instructor: instructor ? { firstName: instructor.name.split(' ')[0] || '', lastName: instructor.name.split(' ').slice(1).join(' ') || '', email: instructor.email || '', phone: instructor.phone || '', credentials: instructor.credentials || (isKoreanLanguage(a2) ? 'volunteer teacher' : '') } : undefined,
           instructionDates: { startDate: '2025-08-16', endDate: '2025-11-22', totalHours: 14, schedule: 'Saturdays, 1 hour' },
         })
@@ -459,7 +459,7 @@ const PaymentsPage = React.memo(() => {
       ? (subtotal * appliedDiscount.discount) / 100 
       : Math.min(appliedDiscount.discount, subtotal)
   }, [appliedDiscount, subtotal])
-  
+
   const lunchAmount = (lunchSemester ? Number(pricing.lunch?.semester||0) : 0) + 
                       (lunchSingleQty * Number(pricing.lunch?.single||0))
   const total = Math.max(0, subtotal - discountAmount) + lunchAmount
@@ -470,7 +470,7 @@ const PaymentsPage = React.memo(() => {
 
   // Actions
   const createInvoice = async (mode: 'normal'|'lunchOnly' = 'normal') => {
-    if (!student) return
+      if (!student) return
     if (studentInvoices.length > 0) {
       return notifyError('Este alumno ya tiene factura. Usa la factura existente en la lista o edítala desde Registrations.')
     }
@@ -521,7 +521,7 @@ const PaymentsPage = React.memo(() => {
         const pay = Math.min(rem, Math.min(share, bal))
         if (pay <= 0) return
 
-        await addDoc(collection(db, PAY), { 
+      await addDoc(collection(db, PAY), {
           invoiceId: inv.id, studentId: student.id, amount: pay, method, createdAt: serverTimestamp() 
         })
         const newPaid = inv.paid + pay
@@ -529,30 +529,30 @@ const PaymentsPage = React.memo(() => {
         await updateDoc(doc(db, INV, inv.id), {
           paid: newPaid, balance: newBal, 
           status: newBal === 0 ? 'paid' : 'partial',
-          updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp() 
         })
         rem -= pay
       }))
       notifySuccess('Payment Distributed')
-    } else {
+        } else {
       const inv = studentInvoices.find(i => i.id === selectedInvoiceId)!
       const balCents = inv.total - inv.paid
       if (amtCents > balCents) return notifyError('Payment exceeds balance')
       
-      await addDoc(collection(db, PAY), {
+        await addDoc(collection(db, PAY), {
         invoiceId: inv.id, studentId: student.id, amount: amtCents, method, createdAt: serverTimestamp()
       })
       const newPaid = inv.paid + amtCents
         const newBal = inv.total - newPaid
-        await updateDoc(doc(db, INV, inv.id), {
+        await updateDoc(doc(db, INV, inv.id), { 
           paid: newPaid, balance: newBal, 
           status: newBal === 0 ? 'paid' : 'partial',
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp() 
         })
       notifySuccess('Payment Recorded')
     }
-    setPayAmount(0)
-    setMethod('none')
+      setPayAmount(0)
+      setMethod('none')
   }
   
   const deleteInvoice = async (inv: Invoice) => {
@@ -570,10 +570,10 @@ const PaymentsPage = React.memo(() => {
     if (!res.isConfirmed) return
 
     try {
-      await runTransaction(db, async (tx) => {
-        const invRef = doc(db, INV, p.invoiceId)
-        const payRef = doc(db, PAY, p.id)
-        const invSnap = await tx.get(invRef)
+    await runTransaction(db, async (tx) => {
+      const invRef = doc(db, INV, p.invoiceId)
+      const payRef = doc(db, PAY, p.id)
+      const invSnap = await tx.get(invRef)
         
         if (invSnap.exists()) {
           const inv = invSnap.data() as Invoice
@@ -620,7 +620,7 @@ const PaymentsPage = React.memo(() => {
     // Header
     doc.setFillColor(BLUE[0], BLUE[1], BLUE[2])
     doc.rect(0, 0, w, 140, 'F')
-    doc.setTextColor(255, 255, 255)
+        doc.setTextColor(255, 255, 255)
     doc.setFontSize(36); doc.setFont('helvetica', 'bold')
     doc.text('INVOICE', 40, 60)
     
@@ -736,10 +736,10 @@ const PaymentsPage = React.memo(() => {
           <Stack spacing={2} component={motion.div} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
             {/* Student Selector */}
             <GlassCard sx={{ p: 2 }}>
-               <Autocomplete
-                 options={options}
+                  <Autocomplete
+                    options={options}
                  getOptionLabel={o => o.label}
-                 value={student}
+                    value={student}
                  onChange={(_, v) => setStudent(v)}
                  renderInput={params => <TextField {...params} label="Select Student" variant="outlined" />}
                  renderOption={(props, option) => {
@@ -786,20 +786,20 @@ const PaymentsPage = React.memo(() => {
               </Stack>
               
               <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={6}>
+                          <Grid item xs={6}>
                   <FormControlLabel control={<Checkbox checked={lunchSemester} onChange={e => setLunchSemester(e.target.checked)} />} label={`Lunch Sem (${usd(Number(pricing.lunch?.semester||0))})`} />
-                </Grid>
-                <Grid item xs={6}>
+                          </Grid>
+                          <Grid item xs={6}>
                   <TextField label="Lunch Single Qty" type="number" size="small" value={lunchSingleQty} onChange={e => setLunchSingleQty(Number(e.target.value))} fullWidth />
-                </Grid>
-                <Grid item xs={12}>
+                          </Grid>
+                          <Grid item xs={12}>
                   <TextField 
                     label="Discount Code" size="small" fullWidth 
                     value={discountCode} onChange={e => handleDiscountCodeChange(e.target.value)} 
                     InputProps={{ endAdornment: appliedDiscount && <CheckCircleIcon color="success" /> }}
                   />
-                </Grid>
-              </Grid>
+                          </Grid>
+                          </Grid>
 
               <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
                 <Stack direction="row" justifyContent="space-between"><Typography>Subtotal</Typography><Typography>{usd(subtotal)}</Typography></Stack>
@@ -812,11 +812,11 @@ const PaymentsPage = React.memo(() => {
               <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
                 <Button variant="contained" fullWidth onClick={() => createInvoice('normal')} disabled={!student || (!lines.length && !lunchAmount)}>Create Invoice</Button>
                 <Button variant="outlined" onClick={() => createInvoice('lunchOnly')} disabled={!student}>Lunch Only</Button>
-              </Stack>
+                                  </Stack>
             </GlassCard>
 
             {/* Invoices List */}
-            {student && (
+                  {student && (
               <Stack spacing={1}>
                 <Typography variant="h6" sx={{ px: 1 }}>Invoices History</Typography>
                 <AnimatePresence>
@@ -831,8 +831,8 @@ const PaymentsPage = React.memo(() => {
                       <Stack alignItems="flex-end">
                          <Typography variant="h6">{usd(inv.total)}</Typography>
                          <Typography variant="caption" color={inv.balance > 0 ? 'error.main' : 'success.main'}>{inv.balance > 0 ? `${usd(inv.balance)} due` : 'Paid'}</Typography>
-                      </Stack>
-                    </Stack>
+                        </Stack>
+                                  </Stack>
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }}><PictureAsPdfIcon /></IconButton>
@@ -843,9 +843,9 @@ const PaymentsPage = React.memo(() => {
                 ))}
                 </AnimatePresence>
               </Stack>
-            )}
-          </Stack>
-        </Grid>
+                  )}
+                </Stack>
+              </Grid>
 
         {/* RIGHT: Payment Actions */}
         <Grid item xs={12} md={5} sx={{ height: '100%', overflowY: 'auto' }}>
@@ -867,7 +867,7 @@ const PaymentsPage = React.memo(() => {
                            <Typography variant="caption" sx={{ opacity: 0.8 }}>Total Revenue</Typography>
                            <Typography variant="h5" fontWeight={700}>
                              {usd(allInvoices?.reduce((s,i) => s + (i.paid ?? 0), 0) || 0)}
-                           </Typography>
+                              </Typography>
                         </Paper>
                       </Grid>
                       <Grid item xs={6}>
@@ -875,13 +875,13 @@ const PaymentsPage = React.memo(() => {
                            <Typography variant="caption" sx={{ opacity: 0.8 }}>Outstanding</Typography>
                            <Typography variant="h5" fontWeight={700}>
                              {usd(latestInvoices.reduce((s,i) => s + (i.balance ?? 0), 0))}
-                           </Typography>
+                              </Typography>
                         </Paper>
-                      </Grid>
-                   </Grid>
+                          </Grid>
+                          </Grid>
 
                    {/* Charts Section */}
-                   <Grid container spacing={2}>
+                      <Grid container spacing={2}>
                      <Grid item xs={12} lg={6}>
                         <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, height: 250 }}>
                           <Typography variant="subtitle2" gutterBottom>Revenue Status</Typography>
@@ -905,7 +905,7 @@ const PaymentsPage = React.memo(() => {
                             </ResponsiveContainer>
                           </Box>
                         </Box>
-                     </Grid>
+                        </Grid>
                      <Grid item xs={12} lg={6}>
                         <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, height: 250 }}>
                           <Typography variant="subtitle2" gutterBottom>Payment Methods</Typography>
@@ -931,8 +931,8 @@ const PaymentsPage = React.memo(() => {
                             </ResponsiveContainer>
                           </Box>
                         </Box>
-                     </Grid>
-                   </Grid>
+                        </Grid>
+                      </Grid>
 
                    {/* Recent Transactions */}
                    <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2 }}>
@@ -946,7 +946,7 @@ const PaymentsPage = React.memo(() => {
                                 <Box>
                                    <Typography variant="subtitle2" fontWeight={600}>
                                       {allInvoices?.find(i => i.id === p.invoiceId)?.studentName || 'Student'}
-                                   </Typography>
+                    </Typography>
                                    <Typography variant="caption" color="text.secondary">
                                       {p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'} • {p.method?.toUpperCase()}
                                    </Typography>
@@ -954,12 +954,12 @@ const PaymentsPage = React.memo(() => {
                                 <Typography fontWeight={700} color="success.main">
                                    +{usd(p.amount)}
                                 </Typography>
-                             </Stack>
+                      </Stack>
                            ))}
-                        </Stack>
+                      </Stack>
                       )}
                    </Box>
-                </Stack>
+                    </Stack>
               )}
 
               {activeTab === 2 && (
@@ -968,7 +968,7 @@ const PaymentsPage = React.memo(() => {
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>Balance Due</Typography>
                       <Typography variant="h3" fontWeight={700}>
                          {usd(studentInvoices.reduce((s, i) => s + i.balance, 0))}
-                      </Typography>
+                        </Typography>
                    </Paper>
 
                    <TextField 
@@ -978,23 +978,23 @@ const PaymentsPage = React.memo(() => {
                    />
                    
                    <Stack direction="row" spacing={1}>
-                      <Chip 
+                          <Chip 
                         icon={<AttachMoneyIcon />} 
                         label="Cash" 
                         clickable 
                         color={method === 'cash' ? 'success' : 'default'} 
                         onClick={() => setMethod('cash')} 
-                      />
-                      <Chip 
+                          />
+                          <Chip 
                         icon={<LocalOfferIcon />} 
                         label="Zelle" 
                         clickable 
                         color={method === 'zelle' ? 'info' : 'default'} 
                         onClick={() => setMethod('zelle')} 
-                      />
-                   </Stack>
+                          />
+                        </Stack>
 
-                   <FormControlLabel 
+                        <FormControlLabel
                      control={<Checkbox checked={applyToAllInvoices} onChange={e => setApplyToAllInvoices(e.target.checked)} />} 
                      label="Apply to all invoices (Oldest first)" 
                    />
@@ -1026,26 +1026,26 @@ const PaymentsPage = React.memo(() => {
                 </List>
               )}
            </GlassCard>
-        </Grid>
+                      </Grid>
 
-      </Grid>
-      
+                    </Grid>
+                    
       {/* Dialogs */}
       <Dialog open={openPricing} onClose={() => setOpenPricing(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <span>Admin Pricing</span>
             <Stack direction="row" spacing={1}>
-              <Button 
-                size="small" 
+                        <Button 
+                          size="small"
                 variant="outlined" 
                 onClick={refreshPricing}
                 startIcon={<span>🔄</span>}
               >
                 Refresh
-              </Button>
-              <Button 
-                size="small" 
+                        </Button>
+                        <Button 
+                          size="small"
                 variant="contained" 
                 color="warning"
                 onClick={autoFixPricing}
@@ -1053,7 +1053,7 @@ const PaymentsPage = React.memo(() => {
                 sx={{ minWidth: 120 }}
               >
                 Auto-Fix
-              </Button>
+                        </Button>
             </Stack>
           </Stack>
         </DialogTitle>
@@ -1062,15 +1062,15 @@ const PaymentsPage = React.memo(() => {
              <Alert severity="warning" sx={{ mb: 2 }}>
                <Typography variant="body2">
                  Si ves precios como $0.40 en lugar de $40.00, usa el botón "Auto-Fix" arriba o abajo para corregirlos automáticamente.
-               </Typography>
-             </Alert>
+                </Typography>
+                  </Alert>
              <Box sx={{ borderBottom: 1, borderColor: 'divider', pb: 2 }}>
                <Typography variant="subtitle2" gutterBottom>Lunch settings (USD)</Typography>
-               <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2}>
                  <TextField label="Lunch Semester ($)" fullWidth size="small" value={editLunchSem} onChange={e => setEditLunchSem(Number(e.target.value))} type="number" inputProps={{ step: '0.01' }} />
                  <TextField label="Lunch Single ($)" fullWidth size="small" value={editLunchSingle} onChange={e => setEditLunchSingle(Number(e.target.value))} type="number" inputProps={{ step: '0.01' }} />
-               </Stack>
-             </Box>
+            </Stack>
+            </Box>
              
              <Typography variant="subtitle2">Academy Prices (USD)</Typography>
              <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
@@ -1080,14 +1080,14 @@ const PaymentsPage = React.memo(() => {
                  .map(name => (
                    <Stack key={name} direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                       <Typography variant="body2" sx={{ flex: 1 }}>{name}</Typography>
-                      <TextField 
+            <TextField 
                         size="small" type="number" sx={{ width: 100 }} 
                         value={editMap[norm(name)] || 0}
                         onChange={e => setEditMap(prev => ({ ...prev, [norm(name)]: Number(e.target.value) }))}
                         inputProps={{ step: '0.01' }}
                         InputProps={{ startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography> }}
                       />
-                   </Stack>
+          </Stack>
                  ))
                }
              </Box>
@@ -1101,7 +1101,7 @@ const PaymentsPage = React.memo(() => {
                      setNewAcademy(''); setNewPrice(0)
                    }
                 }}><AddIcon /></IconButton>
-             </Stack>
+            </Stack>
            </Stack>
         </DialogContent>
         <DialogActions>
@@ -1118,7 +1118,7 @@ const PaymentsPage = React.memo(() => {
            <Button variant="contained" onClick={savePricingNow}>Save Changes</Button>
         </DialogActions>
       </Dialog>
-      
+
       {editingLine && (
         <InvoiceDialog
           open={invoiceDialogOpen}
@@ -1149,8 +1149,8 @@ const PaymentsPage = React.memo(() => {
              <SettingsIcon />
            </IconButton>
          </Tooltip>
-      </Box>
-      
+          </Box>
+
       {/* Also add a button in the top right for easier access */}
       <Box sx={{ position: 'fixed', top: 80, right: 20, zIndex: 1000 }}>
          <Button
@@ -1162,9 +1162,9 @@ const PaymentsPage = React.memo(() => {
          >
            Pricing Settings
          </Button>
-      </Box>
+          </Box>
 
-    </Box>
+                    </Box>
   )
 })
 

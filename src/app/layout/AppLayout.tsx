@@ -12,7 +12,8 @@ import {
   HeartHandshake, Mail, FileText, AlertTriangle,
   Search, ChevronRight, Command,
   UserPlus,
-  History
+  History,
+  Settings
 } from 'lucide-react'
 
 import AuthMenu from './AuthMenu'
@@ -35,6 +36,7 @@ const mainItems: Item[] = [
   { to: '/volunteers', label: 'Volunteers', icon: <HeartHandshake size={20} /> },
   { to: '/teachers', label: 'Teachers', icon: <UserPlus size={20} />, adminOnly: true },
   { to: '/emails', label: 'Email Database', icon: <Mail size={20} /> },
+  { to: '/academies-management', label: 'Academy Settings', icon: <Settings size={20} />, adminOnly: true },
 ]
 
 const reportItems: Item[] = [

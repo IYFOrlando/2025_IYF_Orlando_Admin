@@ -20,6 +20,7 @@ import InvalidAcademiesReportPage from '../features/reports/pages/InvalidAcademi
 import AttendancePage from '../features/attendance/pages/AttendancePage'
 import ProgressPage from '../features/progress/pages/ProgressPage'
 import AcademiesPage from '../features/academies/pages/AcademiesPage'
+import AcademiesManagementPage from '../features/academies/pages/AcademiesManagementPage'
 import VolunteersPage from '../features/volunteers/pages/VolunteersPage'
 import CheckInPage from '../features/volunteers/pages/CheckInPage'
 import PublicVolunteerSchedulePage from '../features/volunteers/pages/PublicVolunteerSchedulePage'
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
       { path: 'attendance', element: <AttendancePage /> },
       { path: 'progress', element: <ProgressPage /> },
       { path: 'classes', element: <AcademiesPage /> },
+      { path: 'academies-management', element: <AcademiesManagementPage /> },
       { path: 'volunteers', element: <VolunteersPage /> },
       { path: 'emails', element: <EmailDatabasePage /> },
       { path: 'planner', element: <TeacherPlannerPage /> },
