@@ -222,6 +222,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       const teacherKey = selectedLevel ? `${selectedAcademy}_${selectedLevel}` : selectedAcademy
       
       try {
+        // 1. Save to teachers collection (Legacy/Admin internal)
         const teacherRef = doc(db, 'teachers', teacherKey)
         await setDoc(teacherRef, {
           name: teacherName.trim(),
@@ -233,6 +234,32 @@ const AcademiesPage = React.memo(function AcademiesPage() {
           updatedAt: new Date()
         })
         
+        // 2. Sync to academies collection (For Website Public View)
+        // Find the academy document ID
+        const targetAcademy = academies.find(a => normalizeAcademy(a.name) === normalizeAcademy(selectedAcademy))
+        
+        if (targetAcademy) {
+           const collectionName = COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring'
+           const academyDocRef = doc(db, collectionName, targetAcademy.id)
+           
+           // If it's a main academy instructor (no level), update the main fields
+           if (!selectedLevel) {
+             await setDoc(academyDocRef, {
+               instructor: teacherName.trim(),
+               instructorBio: teacherCredentials.trim(),
+               // Also save structured teacher object for new admin panel
+               teacher: {
+                 name: teacherName.trim(),
+                 email: teacherEmail.trim(),
+                 phone: teacherPhone.trim(),
+                 credentials: teacherCredentials.trim()
+               }
+             }, { merge: true })
+           }
+           // Note: Level-specific instructors are not currently displayed on the main academy detail page
+           // but we preserve the logic for future use if needed.
+        }
+
         setTeacherDialogOpen(false)
         setTeacherName('')
         setTeacherEmail('')
@@ -241,10 +268,11 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         setSelectedAcademy('')
         setSelectedLevel('')
       } catch (error) {
+        console.error("Error saving teacher:", error)
         alert('Error saving teacher information. Please try again.')
       }
     }
-  }, [selectedAcademy, selectedLevel, teacherName, teacherEmail, teacherPhone, teacherCredentials])
+  }, [selectedAcademy, selectedLevel, teacherName, teacherEmail, teacherPhone, teacherCredentials, academies])
 
   const openTeacherDialog = React.useCallback((academyName: string, level?: string) => {
     setSelectedAcademy(academyName)

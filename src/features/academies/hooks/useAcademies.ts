@@ -48,6 +48,9 @@ export type Academy = {
   desc2?: string
   desc3?: string
   linkName?: string
+  // Legacy frontend compatibility
+  instructor?: string
+  instructorBio?: string
 }
 
 export type AcademyInput = Omit<Academy, 'id'>
@@ -121,6 +124,9 @@ export function useAcademies() {
       
       await setDoc(docRef, {
         ...academyData,
+        // Sync legacy fields
+        instructor: academyData.teacher?.name || '',
+        instructorBio: academyData.teacher?.credentials || '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
@@ -136,10 +142,18 @@ export function useAcademies() {
   const updateAcademy = useCallback(async (id: string, academyData: Partial<AcademyInput>) => {
     try {
       const docRef = doc(db, collectionName, id)
-      await setDoc(docRef, {
+      
+      const updateData: any = {
         ...academyData,
         updatedAt: serverTimestamp()
-      }, { merge: true })
+      }
+      
+      if (academyData.teacher) {
+        updateData.instructor = academyData.teacher.name || ''
+        updateData.instructorBio = academyData.teacher.credentials || ''
+      }
+
+      await setDoc(docRef, updateData, { merge: true })
     } catch (err) {
       console.error('Error updating academy:', err)
       throw new Error('Failed to update academy')

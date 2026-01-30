@@ -282,6 +282,9 @@ async function seedAcademies() {
       
       const academyData = {
         ...academy,
+        // Legacy frontend compatibility
+        instructor: academy.teacher?.name || '',
+        instructorBio: academy.teacher?.credentials || '',
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       };
       
