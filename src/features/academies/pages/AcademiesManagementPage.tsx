@@ -8,6 +8,7 @@ import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Plus, Edit, Trash, Save, X, School } from 'lucide-react'
 import { useAcademies } from '../hooks/useAcademies'
+import { TeacherSelector } from '../../teacher/components/TeacherSelector'
 import type { Academy, AcademyInput, AcademyLevel } from '../hooks/useAcademies'
 
 // Initial state for form
@@ -408,49 +409,11 @@ export default function AcademiesManagementPage() {
             <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 2 }}>
               Teacher Information
             </Typography>
-            <Stack spacing={2}>
-              <TextField
-                label="Teacher Name"
-                fullWidth
-                value={formData.teacher?.name || ''}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), name: e.target.value }
-                })}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Teacher Email"
-                  type="email"
-                  fullWidth
-                  value={formData.teacher?.email || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), email: e.target.value }
-                  })}
-                />
-                <TextField
-                  label="Teacher Phone"
-                  fullWidth
-                  value={formData.teacher?.phone || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), phone: e.target.value }
-                  })}
-                />
-              </Stack>
-              <TextField
-                label="Teacher Credentials"
-                fullWidth
-                multiline
-                rows={2}
-                value={formData.teacher?.credentials || ''}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), credentials: e.target.value }
-                })}
-              />
-            </Stack>
+            
+            <TeacherSelector 
+              selectedTeacher={formData.teacher} 
+              onTeacherChange={(newTeacher) => setFormData({ ...formData, teacher: newTeacher })} 
+            />
 
             {/* Status Toggles */}
             <Stack direction="row" spacing={3} alignItems="center">
