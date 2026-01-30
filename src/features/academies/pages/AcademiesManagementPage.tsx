@@ -8,6 +8,7 @@ import {
   Avatar, Divider
 } from '@mui/material'
 import { Plus, Trash, Save, X, School, Clock, DollarSign } from 'lucide-react'
+import { PageHeader } from '../../../components/PageHeader'
 import { useAcademies } from '../hooks/useAcademies'
 import { TeacherSelector } from '../../teacher/components/TeacherSelector'
 import { useTeachers } from '../../teacher/hooks/useTeachers'
@@ -176,8 +177,14 @@ export default function AcademiesManagementPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4" fontWeight={700}>Academy Settings</Typography>
+      <PageHeader
+        title="Academy Settings"
+        subtitle="Configure academy details, pricing, and schedules"
+        icon={<School size={40} />}
+        color="#0ea5e9" // Light Blue
+      />
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
         <Button 
           variant="contained" 
           startIcon={<Plus size={18} />}

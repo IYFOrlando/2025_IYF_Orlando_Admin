@@ -2,6 +2,7 @@ import * as React from 'react'
 import {
   Box, Card, IconButton, Chip, Stack, Button, Typography, useTheme
 } from '@mui/material'
+import { PageHeader } from '../../../components/PageHeader'
 import {
   DataGrid, GridToolbar, type GridColDef,
   gridClasses
@@ -26,7 +27,7 @@ import { computeAge } from '../../../lib/validations'
 import * as XLSX from 'xlsx'
 import { motion } from 'framer-motion'
 import { 
-  Download, Trash2, Edit2, Plus 
+  Download, Trash2, Edit2, Plus, Users 
 } from 'lucide-react'
 import RegistrationDrawer from '../components/RegistrationDrawer'
 
@@ -346,30 +347,16 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
 
   return (
     <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" sx={{ height: 'calc(100vh - 120px)', pb: 2 }}>
-      <GlassCard>
-        {/* Header */}
-        <Box sx={{ 
-          p: { xs: 2, sm: 3 }, 
-          display: 'flex', 
-          flexDirection: { xs: 'column', sm: 'row' },
-          justifyContent: 'space-between', 
-          alignItems: { xs: 'stretch', sm: 'center' }, 
-          gap: 2,
-          borderBottom: '1px solid', 
-          borderColor: 'divider' 
-        }}>
-          <Box>
-            <Typography variant="h5" fontWeight={800} sx={{ 
-              fontSize: { xs: '1.25rem', sm: '1.5rem' },
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' 
-            }}>
-              Registrations
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {effectiveIsAdmin ? 'Manage student capabilities' : isTeacher ? 'Teacher mode (Read-Only)' : 'View only mode'}
-            </Typography>
-          </Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      
+      <PageHeader 
+        title="Registrations" 
+        subtitle={effectiveIsAdmin ? 'Manage student capabilities' : isTeacher ? 'Teacher mode (Read-Only)' : 'View only mode'}
+        icon={<Users size={32} />} 
+        color="#2196F3" 
+      />
+
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
              {effectiveIsAdmin && (
                <Button 
                 variant="contained" 
@@ -396,8 +383,10 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
                 </Button>
               )}
             </Stack>
-          </Stack>
-        </Box>
+        </Stack>
+      </Box>
+
+      <GlassCard>
 
         {/* Payment Status Filter - Admin Only */}
         {effectiveIsAdmin && (

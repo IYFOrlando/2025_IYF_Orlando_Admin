@@ -13,6 +13,7 @@ import AddIcon from '@mui/icons-material/Add'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadIcon from '@mui/icons-material/Upload'
+import { PageHeader } from '../../../components/PageHeader'
 import EmailIcon from '@mui/icons-material/Email'
 import PersonIcon from '@mui/icons-material/Person'
 import SchoolIcon from '@mui/icons-material/School'
@@ -718,49 +719,13 @@ const EmailDatabasePage = React.memo(() => {
   return (
     <Box sx={{ pb: 4 }}>
       {/* Header with Gradient */}
-      <Box sx={{ 
-        mb: 4,
-        background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)', // Teal/Cyan gradient
-        borderRadius: 4,
-        p: { xs: 3, md: 4 },
-        color: 'white',
-        boxShadow: '0 10px 25px -5px rgba(20, 184, 166, 0.3), 0 8px 10px -6px rgba(8, 145, 178, 0.3)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Decorative background element */}
-        <Box sx={{
-          position: 'absolute',
-          top: -20,
-          right: -20,
-          width: 150,
-          height: 150,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.1)',
-          filter: 'blur(30px)'
-        }} />
-        
-        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={3}>
-          <Box sx={{ 
-            display: 'flex', 
-            p: 2, 
-            borderRadius: 3, 
-            bgcolor: 'rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.3)'
-          }}>
-            <EmailIcon sx={{ fontSize: 32 }} />
-          </Box>
-          <Box>
-            <Typography variant="h3" fontWeight={800} sx={{ fontSize: { xs: '1.75rem', md: '2.5rem' }, color: 'white' }}>
-              Email Database
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
-              Manage master mailing lists and invitation campaigns
-            </Typography>
-          </Box>
-        </Stack>
-      </Box>
+      <PageHeader
+        title="Email Database"
+        subtitle="Manage master mailing lists and invitation campaigns"
+        icon={<EmailIcon fontSize="inherit" />}
+        color="#14b8a6" // Teal
+        gradientEnd="#0891b2"
+      />
 
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

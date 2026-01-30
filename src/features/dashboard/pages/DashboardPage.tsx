@@ -2,6 +2,8 @@ import * as React from 'react'
 import {
   Grid, Card, CardContent, Typography, Box, Button, useTheme, Chip, Stack
 } from '@mui/material'
+import DashboardIcon from '@mui/icons-material/Dashboard'
+import { PageHeader } from '../../../components/PageHeader'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { latestInvoicePerStudent } from '../../payments/utils'
@@ -235,26 +237,21 @@ function AdminDashboard() {
       sx={{ pb: 8 }}
     >
       {/* Header */}
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" fontWeight={800} sx={{ 
-            background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Dashboard
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Live overview of Academy
-          </Typography>
-        </Box>
+      <PageHeader 
+        title="Dashboard" 
+        subtitle="Live overview of Academy" 
+        icon={<DashboardIcon fontSize="inherit" />} 
+        color="#2196F3"
+      />
+      
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>
         <Button 
           variant="contained" 
           startIcon={<Download size={18} />}
           onClick={exportPDF}
           sx={{ borderRadius: 3, px: 3, background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)' }}
         >
-          Export
+          Export Report
         </Button>
       </Box>
 
