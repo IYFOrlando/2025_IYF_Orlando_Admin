@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { 
   FormControl, InputLabel, Select, MenuItem, Stack, TextField, 
-  Avatar, Typography, FormHelperText 
+  Avatar, Typography, FormHelperText, Box 
 } from '@mui/material'
 import { useTeachers } from '../hooks/useTeachers'
 
@@ -79,7 +79,7 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
           </MenuItem>
           {teachers.map((teacher) => (
             <MenuItem key={teacher.id} value={teacher.id}>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%'}}>
                 <Avatar 
                   src={teacher.photoURL} 
                   alt={teacher.name}
@@ -87,12 +87,21 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
                 >
                   {teacher.name.charAt(0)}
                 </Avatar>
-                <Typography variant="body2">{teacher.name}</Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2">{teacher.name}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    {teacher.email}
+                  </Typography>
+                </Box>
               </Stack>
             </MenuItem>
           ))}
         </Select>
-        <FormHelperText>Selecting a teacher will auto-fill the fields below</FormHelperText>
+        <FormHelperText>
+          {teachers.some((t, i) => teachers.findIndex(t2 => t2.name === t.name) !== i) 
+            ? '⚠️ Some teachers have the same name - check email to choose the right one' 
+            : 'Selecting a teacher will auto-fill the fields below'}
+        </FormHelperText>
       </FormControl>
 
       <Stack spacing={2} sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
