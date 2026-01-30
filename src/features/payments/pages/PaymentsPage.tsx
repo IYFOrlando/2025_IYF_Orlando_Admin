@@ -50,9 +50,6 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts'
-import { DollarSign } from 'lucide-react'
-import { PageHeader } from '../../../components/PageHeader'
-import { PageHeaderColors } from '../../../components/pageHeaderColors'
 
 // Shared Config
 const INV = COLLECTIONS_CONFIG.academyInvoices
@@ -731,16 +728,8 @@ const PaymentsPage = React.memo(() => {
 
   // --- Render ---
   return (
-    <Box>
-      <PageHeader
-        icon={<DollarSign size={40} />}
-        title="Payments"
-        subtitle={`Manage invoices and payments for ${regs.length} students`}
-        {...PageHeaderColors.payments}
-      />
-      
-      <Box sx={{ p: 1, overflow: 'hidden' }}>
-      <Grid container spacing={2}>
+    <Box sx={{ p: 1, height: '100%', overflow: 'hidden' }}>
+      <Grid container spacing={2} sx={{ height: '100%' }}>
         
         {/* LEFT: Composer & Lists */}
         <Grid item xs={12} md={7} sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
@@ -1175,9 +1164,7 @@ const PaymentsPage = React.memo(() => {
          </Button>
           </Box>
 
-      </Grid>
-    </Box>
-    </Box>
+                    </Box>
   )
 })
 
