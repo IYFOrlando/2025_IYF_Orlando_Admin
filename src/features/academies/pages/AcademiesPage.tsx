@@ -1,8 +1,9 @@
 import * as React from 'react'
 import {
-  Card, CardHeader, CardContent, Stack, Box, Alert, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
+  Card, CardContent, Stack, Box, Alert, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   Typography, Chip, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
+import { PageHeader } from '../../../components/PageHeader'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -660,12 +661,16 @@ const AcademiesPage = React.memo(function AcademiesPage() {
   }, [getKoreanRegistrationsByLevel, getRegistrationsForAcademy, getTeacherForAcademy, openTeacherDialog, generatePDF, studentCols, loading])
 
   return (
-    <Card elevation={0} sx={{ borderRadius:3 }}>
-      <CardHeader 
-        title="Academies" 
-        subheader="View student registrations organized by academy. All records shown without pagination." 
+    <Box>
+       <PageHeader 
+        title="Academy Registrations" 
+        subtitle="View student registrations organized by academy"
+        icon={<SchoolIcon fontSize="inherit" />}
+        color="#1976d2" 
       />
-      <CardContent>
+      
+      <Card elevation={0} sx={{ borderRadius:3 }}>
+        <CardContent>
         {error && <Alert severity="error" sx={{ mb:1 }}>{error}</Alert>}
         {teachersLoading && <Alert severity="info" sx={{ mb:1 }}>Loading teacher information...</Alert>}
         {academiesLoading && <Alert severity="info" sx={{ mb:1 }}>Loading academies...</Alert>}
@@ -739,6 +744,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         </Dialog>
       </CardContent>
     </Card>
+    </Box>
   )
 })
 

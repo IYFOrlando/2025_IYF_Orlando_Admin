@@ -15,6 +15,8 @@ import { db } from '../../../lib/firebase'
 // Teachers now use email-based document IDs in 'teachers' collection
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { AccessDenied } from '../../../components/AccessDenied'
+import SchoolIcon from '@mui/icons-material/School'
+import { PageHeader } from '../../../components/PageHeader'
 import Swal from 'sweetalert2'
 
 // Types locally for now, could be moved
@@ -360,8 +362,14 @@ export default function TeachersManagementPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4" fontWeight={700}>Teacher Management</Typography>
+      <PageHeader
+        icon={<SchoolIcon fontSize="inherit" />}
+        title="Teacher Management"
+        subtitle="Manage teachers, assignments, and sync with academies"
+        color="#7b1fa2" // Purple
+      />
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" onClick={handleFullSync} sx={{ borderRadius: 3, textTransform: 'none' }}>
             Push Index Sync
