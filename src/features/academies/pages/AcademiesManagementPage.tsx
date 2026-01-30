@@ -19,7 +19,22 @@ const INITIAL_FORM_STATE: AcademyInput = {
   levels: [],
   order: 99,
   enabled: true,
-  description: ''
+  description: '',
+  teacher: undefined,
+  // Additional fields
+  active: true,
+  image: '',
+  tag: '',
+  catchPhrase: '',
+  goal: [],
+  age: '',
+  equipment: '',
+  requirements: [],
+  gallery: [],
+  desc1: '',
+  desc2: '',
+  desc3: '',
+  linkName: ''
 }
 
 export default function AcademiesManagementPage() {
@@ -43,7 +58,22 @@ export default function AcademiesManagementPage() {
       levels: academy.levels ? [...academy.levels] : [],
       order: academy.order,
       enabled: academy.enabled,
-      description: academy.description
+      description: academy.description,
+      teacher: academy.teacher ? { ...academy.teacher } : undefined,
+      // Additional fields
+      active: academy.active ?? true,
+      image: academy.image || '',
+      tag: academy.tag || '',
+      catchPhrase: academy.catchPhrase || '',
+      goal: academy.goal ? [...academy.goal] : [],
+      age: academy.age || '',
+      equipment: academy.equipment || '',
+      requirements: academy.requirements ? [...academy.requirements] : [],
+      gallery: academy.gallery ? [...academy.gallery] : [],
+      desc1: academy.desc1 || '',
+      desc2: academy.desc2 || '',
+      desc3: academy.desc3 || '',
+      linkName: academy.linkName || ''
     })
     setDialogOpen(true)
   }
@@ -276,6 +306,25 @@ export default function AcademiesManagementPage() {
               helperText="For academies without levels"
             />
 
+            {/* Tag and Link Name */}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Tag"
+                fullWidth
+                value={formData.tag}
+                onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
+                helperText="Category tag"
+              />
+              <TextField
+                label="Link Name"
+                fullWidth
+                value={formData.linkName}
+                onChange={(e) => setFormData({ ...formData, linkName: e.target.value })}
+                helperText="URL slug (e.g., 'art')"
+              />
+            </Stack>
+
+            {/* Description and Catch Phrase */}
             <TextField
               label="Description"
               fullWidth
@@ -285,6 +334,125 @@ export default function AcademiesManagementPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
 
+            <TextField
+              label="Catch Phrase"
+              fullWidth
+              value={formData.catchPhrase}
+              onChange={(e) => setFormData({ ...formData, catchPhrase: e.target.value })}
+              placeholder="e.g., Unleash your inner artist!"
+            />
+
+            {/* Detailed Descriptions */}
+            <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 1 }}>
+              Detailed Descriptions
+            </Typography>
+            <TextField
+              label="Description 1"
+              fullWidth
+              multiline
+              rows={2}
+              value={formData.desc1}
+              onChange={(e) => setFormData({ ...formData, desc1: e.target.value })}
+            />
+            <TextField
+              label="Description 2"
+              fullWidth
+              multiline
+              rows={2}
+              value={formData.desc2}
+              onChange={(e) => setFormData({ ...formData, desc2: e.target.value })}
+            />
+            <TextField
+              label="Description 3"
+              fullWidth
+              multiline
+              rows={2}
+              value={formData.desc3}
+              onChange={(e) => setFormData({ ...formData, desc3: e.target.value })}
+            />
+
+            {/* Media */}
+            <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 2 }}>
+              Media
+            </Typography>
+            <TextField
+              label="Image URL"
+              fullWidth
+              value={formData.image}
+              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+              placeholder="https://..."
+            />
+
+            {/* Details */}
+            <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 2 }}>
+              Academy Details
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Age Range"
+                fullWidth
+                value={formData.age}
+                onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                placeholder="e.g., 7 yrs to adult"
+              />
+              <TextField
+                label="Equipment"
+                fullWidth
+                value={formData.equipment}
+                onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
+                placeholder="e.g., Sketchbook, pencils"
+              />
+            </Stack>
+
+            {/* Teacher Information */}
+            <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 2 }}>
+              Teacher Information
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label="Teacher Name"
+                fullWidth
+                value={formData.teacher?.name || ''}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), name: e.target.value }
+                })}
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  label="Teacher Email"
+                  type="email"
+                  fullWidth
+                  value={formData.teacher?.email || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), email: e.target.value }
+                  })}
+                />
+                <TextField
+                  label="Teacher Phone"
+                  fullWidth
+                  value={formData.teacher?.phone || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), phone: e.target.value }
+                  })}
+                />
+              </Stack>
+              <TextField
+                label="Teacher Credentials"
+                fullWidth
+                multiline
+                rows={2}
+                value={formData.teacher?.credentials || ''}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  teacher: { ...(formData.teacher || { name: '', email: '', phone: '' }), credentials: e.target.value }
+                })}
+              />
+            </Stack>
+
+            {/* Status Toggles */}
             <Stack direction="row" spacing={3} alignItems="center">
               <FormControlLabel
                 control={

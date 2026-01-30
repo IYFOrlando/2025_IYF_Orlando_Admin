@@ -28,6 +28,26 @@ export type Academy = {
   order: number
   enabled: boolean
   description: string
+  teacher?: {
+    name: string
+    email: string
+    phone: string
+    credentials?: string
+  }
+  // Additional fields from Firebase
+  active?: boolean // Note: might be duplicate of enabled
+  image?: string
+  tag?: string
+  catchPhrase?: string
+  goal?: string[]
+  age?: string
+  equipment?: string
+  requirements?: string[]
+  gallery?: string[]
+  desc1?: string
+  desc2?: string
+  desc3?: string
+  linkName?: string
 }
 
 export type AcademyInput = Omit<Academy, 'id'>
@@ -61,6 +81,21 @@ export function useAcademies() {
             order: data.order || 999,
             enabled: data.enabled !== false,
             description: data.description || '',
+            teacher: data.teacher || undefined,
+            // Additional fields
+            active: data.active,
+            image: data.image,
+            tag: data.tag,
+            catchPhrase: data.catchPhrase,
+            goal: data.goal || [],
+            age: data.age,
+            equipment: data.equipment,
+            requirements: data.requirements || [],
+            gallery: data.gallery || [],
+            desc1: data.desc1,
+            desc2: data.desc2,
+            desc3: data.desc3,
+            linkName: data.linkName,
           })
         })
         setAcademies(academiesData)
