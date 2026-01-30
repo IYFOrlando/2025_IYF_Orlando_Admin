@@ -16,9 +16,6 @@ import { db } from '../../../lib/firebase'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { AccessDenied } from '../../../components/AccessDenied'
 import Swal from 'sweetalert2'
-import { Users } from 'lucide-react'
-import { PageHeader } from '../../../components/PageHeader'
-import { PageHeaderColors } from '../../../components/pageHeaderColors'
 
 // Types locally for now, could be moved
 interface AcademyDoc {
@@ -363,6 +360,13 @@ export default function TeachersManagementPage() {
 
   return (
     <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4" fontWeight={700}>Teacher Management</Typography>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" onClick={handleFullSync} sx={{ borderRadius: 3, textTransform: 'none' }}>
+            Push Index Sync
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenAssign('')} sx={{ borderRadius: 3, textTransform: 'none' }}>
             Assign / Add Teacher
           </Button>
         </Stack>

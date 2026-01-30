@@ -39,7 +39,18 @@ export const useTeachers = () => {
           ...data
         } as Teacher)
       })
-      setTeachers(teachersData)
+      
+      // Deduplicate by email (primary key)
+      // Keep the first occurrence of each unique email
+      const uniqueTeachers = teachersData.reduce((acc, teacher) => {
+        const existing = acc.find(t => t.email.toLowerCase() === teacher.email.toLowerCase())
+        if (!existing) {
+          acc.push(teacher)
+        }
+        return acc
+      }, [] as Teacher[])
+      
+      setTeachers(uniqueTeachers)
       setLoading(false)
     }, (err) => {
       console.error('Error fetching teachers:', err)
