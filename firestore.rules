@@ -26,14 +26,14 @@ service cloud.firestore {
       return request.auth != null && (isAdmin() || hasGmailAccess());
     }
     
-    // Teacher check via index
+    // Teacher check via consolidated teachers collection
     function isTeacher() {
       return request.auth != null && 
-             exists(/databases/$(database)/documents/teachers_index/$(request.auth.token.email.lower()));
+             exists(/databases/$(database)/documents/teachers/$(request.auth.token.email.lower()));
     }
     
     function getTeacherData() {
-      return get(/databases/$(database)/documents/teachers_index/$(request.auth.token.email.lower())).data;
+      return get(/databases/$(database)/documents/teachers/$(request.auth.token.email.lower())).data;
     }
     
     // Check if teacher is assigned to this specific academy
@@ -44,8 +44,8 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    // 1. Teachers Index (Admin write, Teacher/Admin read)
-    match /teachers_index/{email} {
+    // 1. Teachers Collection (Admin write, Teacher/Admin read)
+    match /teachers/{email} {
       allow read: if request.auth != null && (request.auth.token.email.lower() == email.lower() || isAuthorized());
       allow write: if isAdmin();
     }

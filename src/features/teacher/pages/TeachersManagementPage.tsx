@@ -12,7 +12,7 @@ import {
 } from '@mui/icons-material'
 import { collection, onSnapshot, doc, updateDoc, writeBatch, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
-import { TEACHER_INDEX_COLLECTION } from '../../../lib/config'
+// Teachers now use email-based document IDs in 'teachers' collection
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { AccessDenied } from '../../../components/AccessDenied'
 import Swal from 'sweetalert2'
@@ -206,7 +206,7 @@ export default function TeachersManagementPage() {
             
             if (oldEmail && oldEmail !== newEmail) {
                 try {
-                    await deleteDoc(doc(db, TEACHER_INDEX_COLLECTION, oldEmail))
+                    await deleteDoc(doc(db, 'teachers', oldEmail))
                     console.log(`Deleted old teacher index: ${oldEmail}`)
                 } catch (e) {
                     console.error("Error deleting old teacher index:", e)
@@ -225,7 +225,7 @@ export default function TeachersManagementPage() {
               });
             });
 
-            await setDoc(doc(db, TEACHER_INDEX_COLLECTION, newEmail), {
+            await setDoc(doc(db, 'teachers', newEmail), {
               email: newEmail,
               name: formData.name,
               assignments: teacherAssignments,
@@ -308,7 +308,7 @@ export default function TeachersManagementPage() {
           });
         });
 
-        await setDoc(doc(db, TEACHER_INDEX_COLLECTION, teacherEmail.toLowerCase().trim()), {
+        await setDoc(doc(db, 'teachers', teacherEmail.toLowerCase().trim()), {
           email: teacherEmail.toLowerCase().trim(),
           name: nameToUse,
           assignments: teacherAssignments,
@@ -334,7 +334,7 @@ export default function TeachersManagementPage() {
        const teachersWithEmail = teachers.filter(t => t.email && t.email.trim());
        
        teachersWithEmail.forEach(t => {
-         batch.set(doc(db, TEACHER_INDEX_COLLECTION, t.email.toLowerCase().trim()), {
+         batch.set(doc(db, 'teachers', t.email.toLowerCase().trim()), {
             ...t,
             email: t.email.toLowerCase().trim(),
             authorizedAcademies: [...new Set(t.assignments.map(a => a.academyName))],
