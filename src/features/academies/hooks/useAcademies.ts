@@ -7,8 +7,7 @@ import {
   doc, 
   setDoc, 
   deleteDoc, 
-  serverTimestamp,
-  addDoc
+  serverTimestamp
 } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { COLLECTIONS_CONFIG } from '../../../config/shared'

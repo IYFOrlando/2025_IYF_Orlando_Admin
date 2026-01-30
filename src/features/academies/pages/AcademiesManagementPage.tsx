@@ -1,12 +1,14 @@
 import * as React from 'react'
 import {
-  Box, Card, CardHeader, CardContent, Button, TextField, Dialog, 
+  Box, Card, Button, TextField, Dialog, 
   DialogTitle, DialogContent, DialogActions, FormControlLabel, Switch, 
   Stack, Typography, IconButton, Chip, InputAdornment, Alert
 } from '@mui/material'
-import { DataGrid, GridColDef, GridRenderCellParams, GridToolbar } from '@mui/x-data-grid'
+import { DataGrid, GridToolbar } from '@mui/x-data-grid'
+import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { Plus, Edit, Trash, Save, X, School } from 'lucide-react'
-import { useAcademies, Academy, AcademyInput, AcademyLevel } from '../hooks/useAcademies'
+import { useAcademies } from '../hooks/useAcademies'
+import type { Academy, AcademyInput, AcademyLevel } from '../hooks/useAcademies'
 
 // Initial state for form
 const INITIAL_FORM_STATE: AcademyInput = {
@@ -74,7 +76,7 @@ export default function AcademiesManagementPage() {
       }
       setDialogOpen(false)
       setFormError(null)
-    } catch (err) {
+    } catch {
       setFormError('Failed to save academy. Please try again.')
     }
   }
