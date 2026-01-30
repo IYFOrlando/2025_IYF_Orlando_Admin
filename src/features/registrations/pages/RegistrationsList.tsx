@@ -26,9 +26,11 @@ import { computeAge } from '../../../lib/validations'
 import * as XLSX from 'xlsx'
 import { motion } from 'framer-motion'
 import { 
-  Download, Trash2, Edit2, Plus 
+  Download, Trash2, Edit2, Plus, FileText
 } from 'lucide-react'
 import RegistrationDrawer from '../components/RegistrationDrawer'
+import { PageHeader } from '../../../components/PageHeader'
+import { PageHeaderColors } from '../../../components/pageHeaderColors'
 
 import AdminRegistrationForm from '../components/AdminRegistrationForm'
 
@@ -345,9 +347,16 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
   }, [rows, statusFilter, rowStatus])
 
   return (
-    <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" sx={{ height: 'calc(100vh - 120px)', pb: 2 }}>
+    <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" sx={{ pb: 2 }}>
+      <PageHeader
+        icon={<FileText size={40} />}
+        title="Registrations"
+        subtitle={effectiveIsAdmin ? `Managing ${filteredRows.length} registrations` : isTeacher ? 'Teacher mode (Read-Only)' : 'View only mode'}
+        {...PageHeaderColors.students}
+      />
+      
       <GlassCard>
-        {/* Header */}
+        {/* Actions */}
         <Box sx={{ 
           p: { xs: 2, sm: 3 }, 
           display: 'flex', 
@@ -358,17 +367,6 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
           borderBottom: '1px solid', 
           borderColor: 'divider' 
         }}>
-          <Box>
-            <Typography variant="h5" fontWeight={800} sx={{ 
-              fontSize: { xs: '1.25rem', sm: '1.5rem' },
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' 
-            }}>
-              Registrations
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {effectiveIsAdmin ? 'Manage student capabilities' : isTeacher ? 'Teacher mode (Read-Only)' : 'View only mode'}
-            </Typography>
-          </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
              {effectiveIsAdmin && (
                <Button 
