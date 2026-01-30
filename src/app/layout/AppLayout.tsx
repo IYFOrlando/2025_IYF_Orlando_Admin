@@ -8,12 +8,13 @@ import {
 import { 
   Menu as MenuIcon, 
   LayoutDashboard, Users, CreditCard, 
-  ClipboardCheck, TrendingUp, GraduationCap, 
+  ClipboardCheck, TrendingUp, 
   HeartHandshake, Mail, FileText, AlertTriangle,
   Search, ChevronRight, Command,
   UserPlus,
   History,
-  Settings
+  Settings,
+  School
 } from 'lucide-react'
 
 import AuthMenu from './AuthMenu'
@@ -26,26 +27,32 @@ const DRAWER_WIDTH = 280
 
 type Item = { to: string; label: string; icon: React.ReactNode; adminOnly?: boolean }
 
-const mainItems: Item[] = [
+const overviewItems: Item[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-  { to: '/registrations', label: 'Registrations', icon: <Users size={20} /> },
-  { to: '/payments', label: 'Payments & Records', icon: <CreditCard size={20} /> },
-  { to: '/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
   { to: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
-  { to: '/classes', label: 'Academies', icon: <GraduationCap size={20} /> },
+]
+
+const academicItems: Item[] = [
+  { to: '/classes', label: 'Classes', icon: <School size={20} /> },
+  { to: '/academies-management', label: 'Academy Settings', icon: <Settings size={20} />, adminOnly: true },
+  { to: '/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
+]
+
+const peopleItems: Item[] = [
+  { to: '/registrations', label: 'Registrations', icon: <Users size={20} /> },
+  { to: '/payments', label: 'Payments', icon: <CreditCard size={20} /> },
   { to: '/volunteers', label: 'Volunteers', icon: <HeartHandshake size={20} /> },
   { to: '/teachers', label: 'Teachers', icon: <UserPlus size={20} />, adminOnly: true },
   { to: '/emails', label: 'Email Database', icon: <Mail size={20} /> },
-  { to: '/academies-management', label: 'Academy Settings', icon: <Settings size={20} />, adminOnly: true },
 ]
 
-const reportItems: Item[] = [
+const systemItems: Item[] = [
   { to: '/reports', label: 'Reports', icon: <FileText size={20} /> },
-  { to: '/reports/invalid-academies', label: 'Invalid Academies', icon: <AlertTriangle size={20} /> },
   { to: '/dashboard/activity-log', label: 'Audit Log', icon: <History size={20} />, adminOnly: true },
+  { to: '/reports/invalid-academies', label: 'Data Issues', icon: <AlertTriangle size={20} /> },
 ]
 
-const allItems = [...mainItems, ...reportItems]
+const allItems = [...overviewItems, ...academicItems, ...peopleItems, ...systemItems]
 
 interface NavItemProps extends Item {
   onNavClick?: () => void
@@ -178,23 +185,46 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
       </Box>
 
       {/* Nav */}
-      <Box sx={{ flex: 1, overflowY: 'auto', px: 0 }}>
-        <Box sx={{ px: 3, mb: 1 }}>
+      <Box sx={{ flex: 1, overflowY: 'auto', px: 0, pb: 2 }}>
+        
+        {/* Overview */}
+        <Box sx={{ px: 3, mb: 1, mt: 2 }}>
           <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: 0.5 }}>
-            MENU
+            OVERVIEW
           </Typography>
         </Box>
         <List disablePadding>
-          {mainItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
+          {overviewItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
         </List>
-        
-        <Box sx={{ px: 3, mt: 3, mb: 1 }}>
+
+        {/* Academic */}
+        <Box sx={{ px: 3, mb: 1, mt: 3 }}>
           <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: 0.5 }}>
-            MANAGEMENT
+            ACADEMIC
+          </Typography>
+        </Box>
+        <List disablePadding>
+          {academicItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
+        </List>
+
+        {/* People */}
+        <Box sx={{ px: 3, mb: 1, mt: 3 }}>
+          <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: 0.5 }}>
+            PEOPLE & OPS
+          </Typography>
+        </Box>
+        <List disablePadding>
+          {peopleItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
+        </List>
+
+        {/* System */}
+        <Box sx={{ px: 3, mb: 1, mt: 3 }}>
+          <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: 0.5 }}>
+            SYSTEM
           </Typography>
         </Box>
          <List disablePadding>
-           {reportItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
+           {systemItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
          </List>
       </Box>
 

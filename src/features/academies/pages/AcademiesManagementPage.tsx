@@ -1,15 +1,18 @@
+
 import * as React from 'react'
 import {
-  Box, Card, Button, TextField, Dialog, 
+  Box, Button, TextField, Dialog, 
   DialogTitle, DialogContent, DialogActions, FormControlLabel, Switch, 
-  Stack, Typography, IconButton, Chip, InputAdornment, Alert
+  Stack, Typography, IconButton, Chip, InputAdornment, Alert,
+  Grid, Card, CardMedia, CardContent, CardActionArea, CardActions,
+  Avatar, Divider
 } from '@mui/material'
-import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { Plus, Edit, Trash, Save, X, School } from 'lucide-react'
+import { Plus, Trash, Save, X, School, Clock, DollarSign } from 'lucide-react'
 import { useAcademies } from '../hooks/useAcademies'
 import { TeacherSelector } from '../../teacher/components/TeacherSelector'
+import { useTeachers } from '../../teacher/hooks/useTeachers'
 import type { Academy, AcademyInput, AcademyLevel } from '../hooks/useAcademies'
+import { CircularProgress } from '@mui/material'
 
 // Initial state for form
 const INITIAL_FORM_STATE: AcademyInput = {
@@ -40,6 +43,7 @@ const INITIAL_FORM_STATE: AcademyInput = {
 
 export default function AcademiesManagementPage() {
   const { academies, loading, error, addAcademy, updateAcademy, deleteAcademy } = useAcademies()
+  const { teachers } = useTeachers() // To fetch premium teacher photos
   
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingId, setEditingId] = React.useState<string | null>(null)
@@ -47,6 +51,25 @@ export default function AcademiesManagementPage() {
   const [formError, setFormError] = React.useState<string | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
   const [deleteId, setDeleteId] = React.useState<string | null>(null)
+
+  // Helper to get teacher photo
+  const getTeacherPhoto = (teacherData: { name?: string; email?: string } | undefined) => {
+    if (!teacherData?.email && !teacherData?.name) return undefined
+    // Try to match by name or email
+    const found = teachers.find(t => 
+      (t.email && t.email === teacherData.email) || 
+      t.name === teacherData.name
+    )
+    return found?.photoURL
+  }
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
 
   // Handle Edit Click
   const handleEditClick = (academy: Academy) => {
@@ -61,7 +84,7 @@ export default function AcademiesManagementPage() {
       enabled: academy.enabled,
       description: academy.description,
       teacher: academy.teacher ? { ...academy.teacher } : undefined,
-      // Additional fields
+      // Additional fields (fallback to defaults if missing)
       active: academy.active ?? true,
       image: academy.image || '',
       tag: academy.tag || '',
@@ -87,7 +110,8 @@ export default function AcademiesManagementPage() {
   }
 
   // Handle Delete Click
-  const handleDeleteClick = (id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
     setDeleteId(id)
     setDeleteConfirmOpen(true)
   }
@@ -146,115 +170,151 @@ export default function AcademiesManagementPage() {
     setFormData({ ...formData, levels: updatedLevels })
   }
 
-
-  // --- Columns ---
-  const columns: GridColDef[] = [
-    { field: 'order', headerName: 'Order', width: 70, type: 'number' },
-    { 
-      field: 'name', 
-      headerName: 'Name', 
-      flex: 1, 
-      minWidth: 150,
-      renderCell: (params: GridRenderCellParams) => (
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <School size={16} />
-          <Typography variant="body2">{params.value}</Typography>
-        </Stack>
-      )
-    },
-    { 
-      field: 'price', 
-      headerName: 'Price', 
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight={500}>
-          ${params.value}
-        </Typography>
-      )
-    },
-    { field: 'schedule', headerName: 'Schedule', flex: 1, minWidth: 200 },
-    { 
-      field: 'hasLevels', 
-      headerName: 'Levels', 
-      width: 100, 
-      type: 'boolean',
-      renderCell: (params: GridRenderCellParams) => (
-        params.value ? <Chip label="Yes" size="small" color="info" variant="outlined" /> : <span />
-      )
-    },
-    { 
-      field: 'enabled', 
-      headerName: 'Status', 
-      width: 100, 
-      type: 'boolean',
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip 
-          label={params.value ? 'Active' : 'Disabled'} 
-          size="small" 
-          color={params.value ? 'success' : 'default'} 
-        />
-      )
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 120,
-      sortable: false,
-      renderCell: (params: GridRenderCellParams) => (
-        <Stack direction="row" spacing={1}>
-          <IconButton size="small" onClick={() => handleEditClick(params.row)} color="primary">
-            <Edit size={18} />
-          </IconButton>
-          <IconButton size="small" onClick={() => handleDeleteClick(params.row.id)} color="error">
-            <Trash size={18} />
-          </IconButton>
-        </Stack>
-      )
-    }
-  ]
-
   if (error) {
     return <Alert severity="error">{error}</Alert>
   }
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" fontWeight={800} gutterBottom>
             Academy Settings
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage available academies, prices, and schedules
+            Manage classes, schedules, and teachers
           </Typography>
         </Box>
         <Button 
           variant="contained" 
           startIcon={<Plus size={18} />}
           onClick={handleCreateClick}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 2, px: 3, py: 1 }}
         >
-          Add Academy
+          New Academy
         </Button>
       </Stack>
 
-      <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ height: 600, width: '100%' }}>
-          <DataGrid
-            rows={academies}
-            columns={columns}
-            loading={loading}
-            getRowId={(row) => row.id}
-            disableRowSelectionOnClick
-            slots={{ toolbar: GridToolbar }}
-            initialState={{
-              sorting: {
-                sortModel: [{ field: 'order', sort: 'asc' }],
-              },
-            }}
-          />
-        </Box>
-      </Card>
+      <Grid container spacing={3}>
+        {academies.map((academy) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={academy.id}>
+            <Card 
+              elevation={0}
+              sx={{ 
+                borderRadius: 4, 
+                border: '1px solid', 
+                borderColor: 'divider',
+                overflow: 'visible',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 12px 24px -10px rgba(0,0,0,0.1)',
+                  borderColor: 'primary.main'
+                }
+              }}
+            >
+              <CardActionArea 
+                onClick={() => handleEditClick(academy)}
+                sx={{ borderRadius: 4, overflow: 'hidden' }}
+              >
+                {/* Cover Image */}
+                <Box sx={{ position: 'relative', height: 160, width: '100%', bgcolor: 'action.hover' }}>
+                  {academy.image ? (
+                    <CardMedia
+                      component="img"
+                      height="160"
+                      image={academy.image}
+                      alt={academy.name}
+                      sx={{ objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <Box sx={{ 
+                      height: '100%', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%)',
+                      color: 'white'
+                    }}>
+                      <School size={48} opacity={0.5} />
+                    </Box>
+                  )}
+                  
+                  {/* Status Badge */}
+                  <Chip 
+                    label={academy.enabled ? 'Active' : 'Disabled'} 
+                    size="small"
+                    color={academy.enabled ? 'success' : 'default'}
+                    sx={{ 
+                      position: 'absolute', 
+                      top: 12, 
+                      right: 12, 
+                      bgcolor: academy.enabled ? 'rgba(34, 197, 94, 0.9)' : 'rgba(100, 116, 139, 0.9)',
+                      color: 'white',
+                      fontWeight: 600,
+                      backdropFilter: 'blur(4px)'
+                    }} 
+                  />
+                  
+                  {/* Price Badge */}
+                  <Chip 
+                    icon={<DollarSign size={14} color="white" />}
+                    label={academy.price}
+                    size="small"
+                    sx={{ 
+                      position: 'absolute', 
+                      bottom: 12, 
+                      right: 12, 
+                      bgcolor: 'rgba(0,0,0,0.6)',
+                      color: 'white',
+                      backdropFilter: 'blur(4px)',
+                      border: '1px solid rgba(255,255,255,0.2)'
+                    }} 
+                  />
+                </Box>
+
+                <CardContent sx={{ pb: 1 }}>
+                  <Typography variant="h6" fontWeight={700} noWrap gutterBottom>
+                    {academy.name}
+                  </Typography>
+                  
+                  <Stack spacing={1.5} mt={2}>
+                    {/* Teacher */}
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar 
+                        src={getTeacherPhoto(academy.teacher)} 
+                        sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'primary.light' }}
+                      >
+                        {academy.teacher?.name?.[0] || 'T'}
+                      </Avatar>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {academy.teacher?.name || 'No Teacher Assigned'}
+                      </Typography>
+                    </Stack>
+
+                    {/* Schedule */}
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Clock size={16} color="#94a3b8" />
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {academy.hasLevels ? `${academy.levels?.length || 0} Levels` : (academy.schedule || 'TBD')}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </CardContent>
+              </CardActionArea>
+              
+              <Divider sx={{ mt: 1, opacity: 0.5 }} />
+
+              <CardActions sx={{ justifyContent: 'flex-end', px: 2, py: 1 }}>
+                 <IconButton size="small" onClick={(e) => handleDeleteClick(e, academy.id)} color="error" sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}>
+                   <Trash size={18} />
+                 </IconButton>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
 
       {/* Create/Edit Dialog */}
       <Dialog 
@@ -262,14 +322,15 @@ export default function AcademiesManagementPage() {
         onClose={() => setDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}>
           {editingId ? 'Edit Academy' : 'New Academy'}
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent sx={{ pt: 3 }}>
           {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
           
-          <Stack spacing={3}>
+          <Stack spacing={3} mt={1}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
                 label="Academy Name"
@@ -405,9 +466,9 @@ export default function AcademiesManagementPage() {
               />
             </Stack>
 
-            {/* Teacher Information */}
+            {/* Teacher Information (Selector) */}
             <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 2 }}>
-              Teacher Information
+              Teacher Assignment
             </Typography>
             
             <TeacherSelector 
@@ -416,7 +477,7 @@ export default function AcademiesManagementPage() {
             />
 
             {/* Status Toggles */}
-            <Stack direction="row" spacing={3} alignItems="center">
+            <Stack direction="row" spacing={3} alignItems="center" sx={{ pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -433,7 +494,7 @@ export default function AcademiesManagementPage() {
                     onChange={(e) => setFormData({ ...formData, hasLevels: e.target.checked })}
                   />
                 }
-                label="Has Levels (e.g. Kotlin, English)"
+                label="Has Levels"
               />
             </Stack>
 
@@ -489,7 +550,7 @@ export default function AcademiesManagementPage() {
 
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
           <Button onClick={() => setDialogOpen(false)} color="inherit">
             Cancel
           </Button>
