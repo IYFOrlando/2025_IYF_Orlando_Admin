@@ -806,9 +806,7 @@ const PaymentsPage = React.memo(() => {
       // Keep aspect ratio, fit in height ~80
       const logoH = 90
       const logoW = (logoImg.width / logoImg.height) * logoH
-      // White circle background for logo just in case transparency is weird on blue
-      doc.setFillColor(255, 255, 255)
-      doc.circle(w - 70, 60, 45, 'F') 
+      // Removed white circle background to fix "white stain" look
       doc.addImage(logoImg, 'PNG', w - 105, 25, logoW, logoH)
     } catch (e) {
       // Fallback
@@ -866,13 +864,23 @@ const PaymentsPage = React.memo(() => {
     doc.setFont('helvetica', 'bold')
     doc.text('2026 Spring Semester', col2, detailY)
     
-    // Payment Method (Last used)
+    // Payment Method & Date (Last used)
     if (inv.method) {
       detailY += rowH
       doc.setFont('helvetica', 'normal')
       doc.text('Payment Method:', col1, detailY)
       doc.setFont('helvetica', 'bold')
       doc.text(inv.method.toUpperCase(), col2, detailY)
+    }
+    
+    if (inv.balance <= 0) {
+       detailY += rowH
+       doc.setFont('helvetica', 'normal')
+       doc.text('Payment Date:', col1, detailY)
+       doc.setFont('helvetica', 'bold')
+       // Try to use update date or today
+       const payDate = inv.updatedAt ? new Date(inv.updatedAt.seconds * 1000 || new Date()) : new Date()
+       doc.text(payDate.toLocaleDateString(), col2, detailY)
     }
 
     // --- 3. FROM / TO BOXES ---
