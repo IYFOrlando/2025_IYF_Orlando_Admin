@@ -97,7 +97,7 @@ const ACADEMIES_2026_SPRING = [
     name: "Korean Language",
     description: "Korean Academy offers immersive language courses led by experienced instructors.",
     price: 50,
-    schedule: null,
+    schedule: "See Levels",
     hasLevels: true,
     levels: [
       { name: "Korean Alphabet", schedule: "9:00 AM - 10:15 AM", teacher: { name: "Lim", email: "", phone: "" }, order: 1 },
