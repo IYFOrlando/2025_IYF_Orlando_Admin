@@ -50,6 +50,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts'
+import iyfLogo from '../../../assets/logo/IYF_logo.png' // Import Logo
+import { sendEmail, formatPrice, type SendEmailResult } from '../../../lib/emailService'
 
 // Shared Config
 const INV = COLLECTIONS_CONFIG.academyInvoices
@@ -539,17 +541,29 @@ const PaymentsPage = React.memo(() => {
       const balCents = inv.total - inv.paid
       if (amtCents > balCents) return notifyError('Payment exceeds balance')
       
-        await addDoc(collection(db, PAY), {
+      await addDoc(collection(db, PAY), {
         invoiceId: inv.id, studentId: student.id, amount: amtCents, method, createdAt: serverTimestamp()
       })
       const newPaid = inv.paid + amtCents
         const newBal = inv.total - newPaid
+        const newStatus = newBal === 0 ? 'paid' : 'partial' as const
+        
         await updateDoc(doc(db, INV, inv.id), { 
           paid: newPaid, balance: newBal, 
-          status: newBal === 0 ? 'paid' : 'partial',
+          status: newStatus,
           updatedAt: serverTimestamp() 
         })
+      
       notifySuccess('Payment Recorded')
+      
+      // Auto-email if fully paid
+      if (newBal === 0) {
+        // Construct updated invoice object for email
+        const updatedKwargs = { ...inv, paid: newPaid, balance: newBal, status: newStatus }
+        handleEmailInvoice(updatedKwargs, true).then(() => {
+           notifySuccess('Receipt emailed to student')
+        })
+      }
     }
       setPayAmount(0)
       setMethod('none')
@@ -590,6 +604,140 @@ const PaymentsPage = React.memo(() => {
     }
   }
 
+  // --- Refund Logic ---
+  const handleRefund = async (invoice: Invoice) => {
+    if (invoice.paid <= 0) return notifyError('No payments to refund')
+
+    const { value: refundAmount } = await Swal.fire({
+      title: 'Issue Refund',
+      text: `Max refund amount: ${usd(invoice.paid)}`,
+      input: 'number',
+      inputLabel: 'Amount to refund (positive number)',
+      inputAttributes: { min: '0.01', max: (invoice.paid/100).toString(), step: '0.01' },
+      showCancelButton: true
+    })
+
+    if (!refundAmount) return
+
+    const amtCents = toCents(parseFloat(refundAmount))
+    if (amtCents <= 0) return notifyError('Invalid amount')
+    if (amtCents > invoice.paid) return notifyError('Refund exceeds paid amount')
+
+    try {
+      await addDoc(collection(db, PAY), {
+        invoiceId: invoice.id,
+        studentId: invoice.studentId,
+        amount: -amtCents, // Negative for refund
+        method: 'refund',
+        createdAt: serverTimestamp()
+      })
+      
+      const newPaid = invoice.paid - amtCents
+      const newBal = invoice.total - newPaid
+      const newStatus = newBal > 0 ? (newPaid > 0 ? 'partial' : 'unpaid') : 'paid'
+
+      await updateDoc(doc(db, INV, invoice.id), {
+        paid: newPaid,
+        balance: newBal,
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      })
+      
+      notifySuccess(`Refunded ${usd(amtCents)}`)
+    } catch (e) {
+      notifyError('Refund failed', String(e))
+    }
+  }
+
+  // --- Email Invoice Logic ---
+  const [sendingEmailId, setSendingEmailId] = React.useState<string | null>(null)
+
+  const handleEmailInvoice = async (invoice: Invoice, silent = false) => {
+    // Prevent double send if button clicked
+    if (!silent && sendingEmailId) return
+    if (!silent) setSendingEmailId(invoice.id)
+
+    try {
+      // Find student email from registration or invoice if stored
+      let emailTo = ''
+      if (student && student.id === invoice.studentId) {
+        emailTo = student.reg.email
+      } else {
+        // Fallback: try to find in invoice or lookup registration
+        // For now, if we are in the context of selected student, use that.
+        // If not, we might fail to auto-email if student not loaded.
+        // But recordPayment typically happens when student is selected.
+        if (student) emailTo = student.reg.email
+      }
+      
+      if (!emailTo) {
+        if (!silent) notifyError('No email found for student')
+        return
+      }
+
+      const subject = `Invoice #${invoice.id.slice(0,8).toUpperCase()} - IYF Orlando Academy`
+      const shortId = invoice.id.slice(0,8).toUpperCase()
+      
+      const html = `
+        <div style="font-family: Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+          <h2 style="color: #00A3DA;">Invoice #${shortId}</h2>
+          <p>Dear ${invoice.studentName},</p>
+          <p>Here is your invoice for the IYF Orlando Academy.</p>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Total:</strong> ${formatPrice(invoice.total/100)}</p>
+            <p><strong>Paid:</strong> ${formatPrice(invoice.paid/100)}</p>
+            <p><strong>Balance Due:</strong> <span style="color: ${invoice.balance > 0 ? '#ef4444' : '#22c55e'}; font-weight: bold;">${formatPrice(invoice.balance/100)}</span></p>
+            <p><strong>Status:</strong> ${invoice.status.toUpperCase()}</p>
+          </div>
+
+          <h3>Details</h3>
+          <ul style="list-style: none; padding: 0;">
+            ${invoice.lines.map(l => `
+              <li style="border-bottom: 1px solid #e2e8f0; padding: 8px 0; display: flex; justify-content: space-between;">
+                <span>${l.academy} ${l.period ? `(Period ${l.period})` : ''}</span>
+                <span>${formatPrice(l.amount/100)}</span>
+              </li>
+            `).join('')}
+             ${invoice.lunchAmount ? `
+              <li style="border-bottom: 1px solid #e2e8f0; padding: 8px 0; display: flex; justify-content: space-between;">
+                <span>Lunch / Other Services</span>
+                <span>${formatPrice(invoice.lunchAmount/100)}</span>
+              </li>` : ''}
+              ${invoice.discountAmount ? `
+              <li style="border-bottom: 1px solid #e2e8f0; padding: 8px 0; display: flex; justify-content: space-between; color: #ef4444;">
+                <span>Discount</span>
+                <span>-${formatPrice(invoice.discountAmount/100)}</span>
+              </li>` : ''}
+          </ul>
+          
+          <p style="margin-top: 30px; font-size: 0.9em; color: #64748b;">
+            Thank you for being part of IYF Orlando Academy.<br>
+            If you have questions, contact us at admin@iyforlando.com.
+          </p>
+        </div>
+      `
+
+      const result = await sendEmail({
+        to: emailTo,
+        subject,
+        html,
+        toName: invoice.studentName
+      })
+
+      if (result.success) {
+        if (!silent) notifySuccess('Email sent successfully')
+      } else {
+        if (!silent) notifyError(result.error || 'Failed to send email')
+      }
+
+    } catch (e: any) {
+      if (!silent) notifyError('Error sending email', e.message)
+    } finally {
+      if (!silent) setSendingEmailId(null)
+    }
+  }
+
   const handleExportExcel = () => {
     if (!allInvoices || !allPayments) return notifyError('Data not loaded')
     
@@ -612,97 +760,210 @@ const PaymentsPage = React.memo(() => {
   }
 
   // --- PDF Generation (Premium) ---
-  const generateReceipt = (inv: Invoice) => {
+  const generateReceipt = async (inv: Invoice) => {
     const doc = new jsPDF({ unit:'pt', format:'a4' })
     const w = doc.internal.pageSize.getWidth()
-    const BLUE = [33, 150, 243], DARK = [30, 30, 30], GRAY = [100, 100, 100], LIGHT = [245, 247, 250]
+    const h = doc.internal.pageSize.getHeight()
     
-    // Header
-    doc.setFillColor(BLUE[0], BLUE[1], BLUE[2])
-    doc.rect(0, 0, w, 140, 'F')
-        doc.setTextColor(255, 255, 255)
-    doc.setFontSize(36); doc.setFont('helvetica', 'bold')
-    doc.text('INVOICE', 40, 60)
+    // Colors
+    const IYF_BLUE = [0, 163, 218] // #00A3DA
+    const DARK_SLATE = [30, 41, 59] // #1E293B
+    const MUTED = [100, 116, 139]   // #64748B
+    const LIGHT_GRAY = [248, 250, 252] // #F8FAFC
     
-    doc.setFontSize(12); doc.setFont('helvetica', 'normal')
-    doc.text('IYF Orlando Academy', 40, 85)
-    doc.text(`Invoice #${inv.id.slice(0,8).toUpperCase()}`, 40, 105)
-    doc.text(new Date().toLocaleDateString(), 40, 125)
+    // Helper to load image
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.src = src
+        img.onload = () => resolve(img)
+        img.onerror = reject
+      })
+    }
 
-    // Logo Placeholder
-    doc.setFontSize(24); doc.text('IYF', w - 80, 80)
-    
-    // Bill To
-    let y = 180
-    doc.setTextColor(DARK[0], DARK[1], DARK[2])
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold')
-    doc.text('Bill To:', 40, y)
-    doc.setFontSize(11); doc.setFont('helvetica', 'normal')
-    doc.text(inv.studentName || 'Student', 40, y + 20)
-    
-    // Status
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold')
-    doc.text('Status:', w - 150, y)
-    doc.setTextColor(inv.status === 'paid' ? 76 : 244, inv.status === 'paid' ? 175 : 67, inv.status === 'paid' ? 80 : 54) // Green or Red
-    doc.text(inv.status.toUpperCase(), w - 150, y + 20)
-    
-    // Table Header
-    y += 60
-    doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2])
-    doc.rect(40, y, w - 80, 30, 'F')
-    doc.setTextColor(GRAY[0], GRAY[1], GRAY[2])
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold')
-    doc.text('ITEM', 50, y + 20)
-    doc.text('AMOUNT', 480, y + 20)
-    
-    // Lines
-    y += 30
-    doc.setTextColor(DARK[0], DARK[1], DARK[2])
+    try {
+      // Add Logo
+      const logoImg = await loadImage(iyfLogo)
+      const logoWidth = 120
+      const logoHeight = (logoImg.height / logoImg.width) * logoWidth
+      doc.addImage(logoImg, 'PNG', 40, 40, logoWidth, logoHeight)
+    } catch (e) {
+      console.error('Could not load logo', e)
+      // Fallback text if logo fails
+      doc.setFontSize(24); doc.setTextColor(IYF_BLUE[0], IYF_BLUE[1], IYF_BLUE[2])
+      doc.text('IYF', 40, 60)
+    }
+
+    // HEADER: right aligned "INVOICE"
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(30)
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    // spacing manually for "tracking"
+    doc.text('I N V O I C E', w - 40, 60, { align: 'right' })
+
+    // Invoice Metadata
     doc.setFont('helvetica', 'normal')
-    
-    inv.lines.forEach(l => {
-      y += 20
-      doc.text(l.academy, 50, y)
-      doc.text(usd(l.amount), 480, y)
-      
-      if (l.instructor) {
-        y += 15
-        doc.setFontSize(9); doc.setTextColor(GRAY[0], GRAY[1], GRAY[2])
-        doc.text(`Instr: ${l.instructor.firstName} ${l.instructor.lastName}`, 60, y)
-        doc.setFontSize(10); doc.setTextColor(DARK[0], DARK[1], DARK[2])
-      }
-      y += 10
-      doc.setDrawColor(230, 230, 230); doc.line(40, y, w-40, y)
-    })
-    
-    if (inv.lunchAmount) {
-      y += 20
-      doc.text('Lunch / Other', 50, y)
-      doc.text(usd(inv.lunchAmount), 480, y)
-      y += 10; doc.line(40, y, w-40, y)
-    }
+    doc.setFontSize(10)
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+    doc.text(`Invoice #: ${inv.id.slice(0,8).toUpperCase()}`, w - 40, 85, { align: 'right' })
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, w - 40, 100, { align: 'right' })
 
-    // Totals
-    y += 30
-    const tx = w - 200
-    doc.text('Subtotal:', tx, y); doc.text(usd(inv.subtotal + (inv.lunchAmount||0)), w - 80, y, { align: 'right' })
-    if (inv.discountAmount) {
-      y += 20
-      doc.setTextColor(244, 67, 54)
-      doc.text('Discount:', tx, y); doc.text(`-${usd(inv.discountAmount)}`, w - 80, y, { align: 'right' })
-    }
-    y += 25
-    doc.setTextColor(DARK[0], DARK[1], DARK[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
-    doc.text('Total:', tx, y); doc.text(usd(inv.total), w - 80, y, { align: 'right' })
+    // Organization Info (Below Logo)
+    let y = 110
+    doc.setFontSize(10)
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    doc.text('IYF Orlando Academy', 40, y)
+    doc.text('International Youth Fellowship', 40, y + 15)
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+    doc.text('admin@iyforlando.com', 40, y + 30)
+    // doc.text('123 Address St, Orlando FL', 40, y + 45) // Verify if address is needed
+
+    // Divider
+    y = 170
+    doc.setDrawColor(226, 232, 240) // light border
+    doc.setLineWidth(1)
+    doc.line(40, y, w - 40, y)
+
+    // Bill To Section
+    y += 40
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+    doc.text('BILL TO', 40, y)
     
     y += 20
-    doc.setTextColor(76, 175, 80)
-    doc.text('Paid:', tx, y); doc.text(`-${usd(inv.paid)}`, w - 80, y, { align: 'right' })
+    doc.setFont('helvetica', 'bold') // Name bold
+    doc.setFontSize(14)
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    doc.text(inv.studentName || 'Student', 40, y)
     
+    // Status Badge (Visual only)
+    const statusText = inv.status.toUpperCase()
+    const statusColor = inv.status === 'paid' ? [34, 197, 94] : [239, 68, 68] // Green / Red
+    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text(statusText, w - 40, y, { align: 'right' })
+
+    // TABLE HEADER
+    y += 60
+    doc.setFillColor(LIGHT_GRAY[0], LIGHT_GRAY[1], LIGHT_GRAY[2])
+    doc.rect(40, y - 15, w - 80, 25, 'F') // Header Background
+    
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+    doc.text('SERVICE / DESCRIPTION', 55, y)
+    doc.text('PERIOD', 350, y, { align: 'center' })
+    doc.text('AMOUNT', w - 55, y, { align: 'right' })
+
+    // TABLE ROWS
+    y += 10
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+
+    inv.lines.forEach(l => {
+      y += 25
+      
+      // Academy / Service Name
+      doc.text(l.academy, 55, y)
+      
+      // Period
+      doc.text(l.period ? `Period ${l.period}` : '-', 350, y, { align: 'center' })
+      
+      // Amount
+      doc.text(usd(l.amount), w - 55, y, { align: 'right' })
+      
+      // Instructor sub-line
+      if (l.instructor) {
+        y += 14
+        doc.setFontSize(9)
+        doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+        doc.text(`Instructor: ${l.instructor.firstName} ${l.instructor.lastName}`, 65, y)
+        doc.setFontSize(10)
+        doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+      }
+      
+      // Row separator
+      y += 10
+      doc.setDrawColor(241, 245, 249)
+      doc.line(40, y, w - 40, y)
+    })
+
+    if (inv.lunchAmount) {
+      y += 25
+      doc.text('Lunch / Other Services', 55, y)
+      doc.text('-', 350, y, { align: 'center' })
+      doc.text(usd(inv.lunchAmount), w - 55, y, { align: 'right' })
+      y += 10
+      doc.setDrawColor(241, 245, 249)
+      doc.line(40, y, w - 40, y)
+    }
+
+    // TOTALS SECTION
+    y += 40
+    const valX = w - 55
+    const labelX = w - 160
+    
+    // Subtotal
+    doc.setFontSize(10)
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+    doc.text('Subtotal', labelX, y)
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    doc.text(usd(inv.subtotal + (inv.lunchAmount||0)), valX, y, { align: 'right' })
+    
+    // Discount
+    if (inv.discountAmount) {
+      y += 20
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+      doc.text('Discount', labelX, y)
+      doc.setTextColor(239, 68, 68) // Red
+      doc.text(`- ${usd(inv.discountAmount)}`, valX, y, { align: 'right' })
+    }
+    
+    // Total
     y += 25
-    doc.setFillColor(LIGHT[0], LIGHT[1], LIGHT[2]); doc.rect(tx - 10, y - 15, 140, 25, 'F')
-    doc.setTextColor(BLUE[0], BLUE[1], BLUE[2]); doc.setFontSize(14)
-    doc.text('Balance:', tx, y); doc.text(usd(inv.balance), w - 80, y, { align: 'right' })
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    doc.text('Total', labelX, y)
+    doc.text(usd(inv.total), valX, y, { align: 'right' })
+    
+    // Paid
+    if (inv.paid > 0) {
+      y += 20
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(34, 197, 94) // Green
+      doc.text('Paid', labelX, y)
+      doc.text(`- ${usd(inv.paid)}`, valX, y, { align: 'right' })
+    }
+    
+    // Balance
+    y += 30
+    // Highlight Box
+    doc.setFillColor(IYF_BLUE[0], IYF_BLUE[1], IYF_BLUE[2])
+    doc.roundedRect(labelX - 10, y - 20, 120, 30, 4, 'F')
+    
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(255, 255, 255)
+    doc.text('Balance Due', labelX, y)
+    doc.text(usd(inv.balance), valX, y, { align: 'right' })
+
+    // FOOTER
+    const footerY = h - 60
+    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('Thank you!', 40, footerY)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
+    doc.text('If you have any questions concerning this invoice, please contact us at admin@iyforlando.com.', 40, footerY + 15)
+    doc.text('Payment is due within 15 days.', 40, footerY + 28)
 
     doc.save(`Invoice_${inv.studentName}_${inv.id}.pdf`)
   }
@@ -835,8 +1096,16 @@ const PaymentsPage = React.memo(() => {
                                   </Stack>
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
-                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }}><PictureAsPdfIcon /></IconButton>
-                       <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv) }}><DeleteIcon /></IconButton>
+                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }} title="Download PDF"><PictureAsPdfIcon /></IconButton>
+                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEmailInvoice(inv) }} title="Email Invoice" disabled={!!sendingEmailId}>
+                          {sendingEmailId === inv.id ? <CircularProgress size={20} /> : <MailIcon />}
+                       </IconButton>
+                       {inv.paid > 0 && (
+                         <IconButton size="small" color="warning" onClick={(e) => { e.stopPropagation(); handleRefund(inv) }} title="Issue Refund">
+                           <UndoIcon />
+                         </IconButton>
+                       )}
+                       <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv) }} title="Delete Invoice"><DeleteIcon /></IconButton>
                     </Stack>
                   </GlassCard>
                   </motion.div>
