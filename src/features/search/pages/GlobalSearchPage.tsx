@@ -19,6 +19,10 @@ const SEARCH_TARGETS = [
   { id: 'korea', name: 'Trip to Korea', collection: COLLECTIONS_CONFIG.tripToKorea, type: 'other' },
   { id: 'kdrama', name: 'K-Drama Class', collection: COLLECTIONS_CONFIG.kdrama, type: 'other' },
   { id: 'events', name: 'Event Volunteers', collection: COLLECTIONS_CONFIG.volunteerHours, type: 'other' },
+  { id: 'newsletter', name: 'Newsletter', collection: COLLECTIONS_CONFIG.newsletter, type: 'other' },
+  { id: 'contact', name: 'Contact Messages', collection: COLLECTIONS_CONFIG.contact, type: 'other' },
+  { id: 'teachers', name: 'Teachers (Legacy)', collection: 'teachers', type: 'other' },
+  { id: 'teachersIndex', name: 'Teachers Index', collection: COLLECTIONS_CONFIG.teachersIndex, type: 'other' },
 ]
 
 export default function GlobalSearchPage() {
