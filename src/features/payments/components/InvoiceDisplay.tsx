@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { Box, Paper, Typography, Divider, Grid, Stack } from '@mui/material'
 import { useInvoiceConfig } from '../../settings/hooks/useInvoiceConfig'
 

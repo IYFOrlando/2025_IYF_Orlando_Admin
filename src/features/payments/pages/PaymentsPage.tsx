@@ -1523,7 +1523,28 @@ const PaymentsPage = React.memo(() => {
          </Button>
           </Box>
 
-                    </Box>
+                      {/* Invoice Preview Dialog */}
+      <Dialog 
+        open={!!previewInvoice} 
+        onClose={() => setPreviewInvoice(null)} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2, minHeight: '80vh' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Preview Invoice
+          <Button onClick={() => setPreviewInvoice(null)}>Close</Button>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, bgcolor: '#f5f5f5' }}>
+          {previewInvoice && <InvoiceDisplay invoice={previewInvoice} />}
+        </DialogContent>
+        <DialogActions>
+           <Button startIcon={<PictureAsPdfIcon />} variant="contained" onClick={() => { generateReceipt(previewInvoice!); setPreviewInvoice(null) }}>
+              Download PDF
+           </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   )
 })
 
