@@ -13,16 +13,42 @@ import { PageHeader } from '../../../components/PageHeader'
 
 // Define search targets
 const SEARCH_TARGETS = [
-  { id: 'registrations', name: 'Academy Registrations', collection: COLLECTIONS_CONFIG.springAcademy2026, type: 'academy' },
-  { id: 'volunteers', name: 'Volunteers', collection: COLLECTIONS_CONFIG.volunteerApplications, type: 'volunteer' },
-  { id: 'cooking', name: 'Cooking Class', collection: COLLECTIONS_CONFIG.cookingClass, type: 'other' },
-  { id: 'korea', name: 'Trip to Korea', collection: COLLECTIONS_CONFIG.tripToKorea, type: 'other' },
-  { id: 'kdrama', name: 'K-Drama Class', collection: COLLECTIONS_CONFIG.kdrama, type: 'other' },
-  { id: 'events', name: 'Event Volunteers', collection: COLLECTIONS_CONFIG.volunteerHours, type: 'other' },
-  { id: 'newsletter', name: 'Newsletter', collection: COLLECTIONS_CONFIG.newsletter, type: 'other' },
-  { id: 'contact', name: 'Contact Messages', collection: COLLECTIONS_CONFIG.contact, type: 'other' },
-  { id: 'teachers', name: 'Teachers (Legacy)', collection: 'teachers', type: 'other' },
-  { id: 'teachersIndex', name: 'Teachers Index', collection: COLLECTIONS_CONFIG.teachersIndex, type: 'other' },
+  // --- Main Registrations (Config vs Screenshot variations) ---
+  { id: 'spring2026_config', name: 'Spring 2026 (Config)', collection: COLLECTIONS_CONFIG.springAcademy2026, type: 'academy' },
+  { id: 'spring2026_db', name: 'Spring 2026 (DB)', collection: 'spring_academy_2026', type: 'academy' },
+  { id: 'fall2026', name: 'Fall 2026', collection: 'fall_academy_2026', type: 'academy' },
+  { id: 'registrations_legacy', name: 'Registrations (Legacy)', collection: 'registrations', type: 'academy' },
+
+  // --- Volunteers ---
+  { id: 'volunteers', name: 'Volunteers', collection: 'volunteer_applications', type: 'volunteer' }, // Matches config usually
+  { id: 'events', name: 'Event Volunteers', collection: 'volunteer_hours', type: 'other' },
+
+  // --- Special Events (The missing ones) ---
+  { id: 'cooking_reg', name: 'Cooking Class (DB)', collection: 'cooking_class_registration', type: 'other' },
+  { id: 'cooking_config', name: 'Cooking Class (Config)', collection: COLLECTIONS_CONFIG.cookingClass, type: 'other' },
+  
+  { id: 'korea_reg', name: 'Trip to Korea (DB)', collection: 'trip_to_korea_registration', type: 'other' },
+  { id: 'korea_config', name: 'Trip to Korea (Config)', collection: COLLECTIONS_CONFIG.tripToKorea, type: 'other' },
+
+  { id: 'kdrama_reg', name: 'K-Drama (DB)', collection: 'k_drama_with_friends_registration', type: 'other' },
+  { id: 'kdrama_config', name: 'K-Drama (Config)', collection: COLLECTIONS_CONFIG.kdrama, type: 'other' },
+
+  { id: 'dallas', name: 'Dallas Camp', collection: 'dallas_camp_registration', type: 'other' },
+  { id: 'squid', name: 'Squid Game Survival', collection: 'squid_game_survival_registration', type: 'other' },
+
+  // --- Communications & Other ---
+  { id: 'subscribers', name: 'Subscribers (DB)', collection: 'subscribers', type: 'other' },
+  { id: 'newsletter', name: 'Newsletter (Config)', collection: COLLECTIONS_CONFIG.newsletter, type: 'other' },
+  
+  { id: 'contact_db', name: 'Contact Form (DB)', collection: 'contact-form', type: 'other' },
+  { id: 'contact_config', name: 'Contact (Config)', collection: COLLECTIONS_CONFIG.contact, type: 'other' },
+
+  { id: 'teachers', name: 'Teachers', collection: 'teachers', type: 'other' },
+  { id: 'teachersIndex', name: 'Teachers Index', collection: 'teachers_index', type: 'other' },
+  
+  // --- Financials (Check for person data) ---
+  { id: 'invoices', name: 'Academy Invoices', collection: '2026_spring_academy_invoices_2026', type: 'other' },
+  { id: 'payments', name: 'Academy Payments', collection: 'academy_payments_2026', type: 'other' },
 ]
 
 export default function GlobalSearchPage() {
