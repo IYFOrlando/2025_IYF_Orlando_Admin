@@ -38,6 +38,7 @@ import { usePayments } from '../hooks/usePayments'
 import { useInstructors } from '../hooks/useInstructors'
 import { useInvoiceConfig } from '../../settings/hooks/useInvoiceConfig'
 import InvoiceDialog from '../components/InvoiceDialog'
+import { InvoiceDisplay } from '../components/InvoiceDisplay'
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
 import { latestInvoicePerStudent } from '../utils'
 import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
@@ -198,7 +199,10 @@ const PaymentsPage = React.memo(() => {
   const [studentInvoices, setStudentInvoices] = React.useState<Invoice[]>([])
   const [studentPayments, setStudentPayments] = React.useState<Payment[]>([])
   const [selectedInvoiceId, setSelectedInvoiceId] = React.useState<string | null>(null)
-
+  
+  // Invoice UI Preview State
+  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
+  
   // Composer State
   const [lines, setLines] = React.useState<InvoiceLine[]>([])
   const [lunchSemester, setLunchSemester] = React.useState<boolean>(false)
