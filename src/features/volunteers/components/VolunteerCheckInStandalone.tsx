@@ -388,7 +388,7 @@ export default function VolunteerCheckInStandalone() {
       
       
       let hasTodaySchedule = false
-      let debugInfo: Array<{
+      let debugInfo: {
         slotIndex: number
         slotDate?: string
         normalizedSlotDate?: string
@@ -397,7 +397,7 @@ export default function VolunteerCheckInStandalone() {
         slotData?: any
         slotString?: string
         isString?: boolean
-      }> = []
+      }[] = []
       
       scheduleSnapshot.forEach(doc => {
         const scheduleData = doc.data()
