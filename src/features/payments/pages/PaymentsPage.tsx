@@ -765,7 +765,7 @@ const PaymentsPage = React.memo(() => {
   const generateReceipt = async (inv: Invoice) => {
     const doc = new jsPDF({ unit:'pt', format:'a4' })
     const w = doc.internal.pageSize.getWidth()
-    const h = doc.internal.pageSize.getHeight()
+    // h removed (unused)
     
     // Colors
     const BRAND_BLUE = [21, 101, 192] // A structured boxy blue (Darker than cyan)
