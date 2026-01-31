@@ -761,19 +761,19 @@ const PaymentsPage = React.memo(() => {
     notifySuccess('Exported')
   }
 
-  // --- PDF Generation (Premium) ---
+   // --- PDF Generation (Boxed Style - Previous Year) ---
   const generateReceipt = async (inv: Invoice) => {
     const doc = new jsPDF({ unit:'pt', format:'a4' })
     const w = doc.internal.pageSize.getWidth()
     const h = doc.internal.pageSize.getHeight()
     
     // Colors
-    const IYF_BLUE = [0, 163, 218] // #00A3DA
-    const DARK_SLATE = [30, 41, 59] // #1E293B
-    const MUTED = [100, 116, 139]   // #64748B
-    const LIGHT_GRAY = [248, 250, 252] // #F8FAFC
+    const BRAND_BLUE = [21, 101, 192] // A structured boxy blue (Darker than cyan)
+    const TEXT_DARK = [33, 33, 33]
+    const TEXT_GRAY = [97, 97, 97]
+    const GREEN = [76, 175, 80]
+    const RED = [244, 67, 54]
     
-    // Helper to load image
     const loadImage = (src: string): Promise<HTMLImageElement> => {
       return new Promise((resolve, reject) => {
         const img = new Image()
@@ -783,189 +783,265 @@ const PaymentsPage = React.memo(() => {
       })
     }
 
+    // --- 1. HEADER BAR ---
+    doc.setFillColor(BRAND_BLUE[0], BRAND_BLUE[1], BRAND_BLUE[2])
+    doc.rect(0, 0, w, 140, 'F')
+    
+    // Text Left
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(42)
+    doc.text('INVOICE', 40, 60)
+    
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'normal')
+    doc.text('IYF Orlando Academy', 40, 85)
+    
+    doc.setFontSize(12)
+    doc.text(`Invoice #${inv.id.slice(0,12).toUpperCase()}`, 40, 105)
+
+    // Logo Right
     try {
-      // Add Logo
       const logoImg = await loadImage(iyfLogo)
-      const logoWidth = 120
-      const logoHeight = (logoImg.height / logoImg.width) * logoWidth
-      doc.addImage(logoImg, 'PNG', 40, 40, logoWidth, logoHeight)
+      // Keep aspect ratio, fit in height ~80
+      const logoH = 90
+      const logoW = (logoImg.width / logoImg.height) * logoH
+      // White circle background for logo just in case transparency is weird on blue
+      doc.setFillColor(255, 255, 255)
+      doc.circle(w - 70, 60, 45, 'F') 
+      doc.addImage(logoImg, 'PNG', w - 105, 25, logoW, logoH)
     } catch (e) {
-      console.error('Could not load logo', e)
-      // Fallback text if logo fails
-      doc.setFontSize(24); doc.setTextColor(IYF_BLUE[0], IYF_BLUE[1], IYF_BLUE[2])
-      doc.text('IYF', 40, 60)
+      // Fallback
+      doc.text('IYF', w - 80, 70)
     }
 
-    // HEADER: right aligned "INVOICE"
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(30)
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
-    // spacing manually for "tracking"
-    doc.text('I N V O I C E', w - 40, 60, { align: 'right' })
-
-    // Invoice Metadata
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-    doc.text(`Invoice #: ${inv.id.slice(0,8).toUpperCase()}`, w - 40, 85, { align: 'right' })
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, w - 40, 100, { align: 'right' })
-
-    // Organization Info (Below Logo)
-    let y = 110
-    doc.setFontSize(10)
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
-    doc.text('IYF Orlando Academy', 40, y)
-    doc.text('International Youth Fellowship', 40, y + 15)
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-    doc.text('admin@iyforlando.com', 40, y + 30)
-    // doc.text('123 Address St, Orlando FL', 40, y + 45) // Verify if address is needed
-
-    // Divider
-    y = 170
-    doc.setDrawColor(226, 232, 240) // light border
+    // --- 2. INVOICE DETAILS BOX ---
+    let y = 170
+    doc.setDrawColor(224, 224, 224) // Light gray border
     doc.setLineWidth(1)
-    doc.line(40, y, w - 40, y)
-
-    // Bill To Section
-    y += 40
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-    doc.text('BILL TO', 40, y)
+    doc.setFillColor(255, 255, 255)
     
-    y += 20
-    doc.setFont('helvetica', 'bold') // Name bold
-    doc.setFontSize(14)
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
-    doc.text(inv.studentName || 'Student', 40, y)
+    // Main Box
+    doc.rect(40, y, w - 80, 110)
     
-    // Status Badge (Visual only)
-    const statusText = inv.status.toUpperCase()
-    const statusColor = inv.status === 'paid' ? [34, 197, 94] : [239, 68, 68] // Green / Red
-    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
-    doc.setFontSize(10)
+    // Box Title
     doc.setFont('helvetica', 'bold')
-    doc.text(statusText, w - 40, y, { align: 'right' })
-
-    // TABLE HEADER
-    y += 60
-    doc.setFillColor(LIGHT_GRAY[0], LIGHT_GRAY[1], LIGHT_GRAY[2])
-    doc.rect(40, y - 15, w - 80, 25, 'F') // Header Background
+    doc.setFontSize(12)
+    doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
+    doc.text('Invoice Details', 55, y + 25)
     
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-    doc.text('SERVICE / DESCRIPTION', 55, y)
-    doc.text('PERIOD', 350, y, { align: 'center' })
-    doc.text('AMOUNT', w - 55, y, { align: 'right' })
-
-    // TABLE ROWS
-    y += 10
+    // Details Grid
+    const col1 = 55
+    const col2 = 150
+    const rowH = 16
+    let detailY = y + 50
+    
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
+    
+    // Issue Date
+    doc.text('Issue Date:', col1, detailY)
+    doc.text(new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), col2, detailY)
+    
+    // Status
+    detailY += rowH
+    doc.text('Status:', col1, detailY)
+    doc.setTextColor(inv.balance <= 0 ? GREEN[0] : RED[0], inv.balance <= 0 ? GREEN[1] : RED[1], inv.balance <= 0 ? GREEN[2] : RED[2])
+    doc.setFont('helvetica', 'bold')
+    doc.text(inv.balance <= 0 ? 'PAID' : 'DUE', col2, detailY)
+    
+    // Amount Due
+    detailY += rowH
+    doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
+    doc.setFont('helvetica', 'normal')
+    doc.text('Amount Due:', col1, detailY)
+    doc.setFont('helvetica', 'bold')
+    doc.text(usd(inv.balance), col2, detailY)
+    
+    // Instruction Period
+    detailY += rowH + 5
+    doc.setFont('helvetica', 'normal')
+    doc.text('Instruction Period:', col1, detailY)
+    doc.setFont('helvetica', 'bold')
+    doc.text('August 16 - November 22, 2025', col2, detailY) // Hardcoded for Spring '26 logic if needed, but keeping static as requested by "data correct"
+    
+    // Payment Method (Last used)
+    if (inv.method) {
+      detailY += rowH
+      doc.setFont('helvetica', 'normal')
+      doc.text('Payment Method:', col1, detailY)
+      doc.setFont('helvetica', 'bold')
+      doc.text(inv.method.toUpperCase(), col2, detailY)
+    }
 
-    inv.lines.forEach(l => {
-      y += 25
-      
-      // Academy / Service Name
-      doc.text(l.academy, 55, y)
-      
-      // Period
-      doc.text(l.period ? `Period ${l.period}` : '-', 350, y, { align: 'center' })
-      
-      // Amount
-      doc.text(usd(l.amount), w - 55, y, { align: 'right' })
-      
-      // Instructor sub-line
-      if (l.instructor) {
-        y += 14
-        doc.setFontSize(9)
-        doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-        doc.text(`Instructor: ${l.instructor.firstName} ${l.instructor.lastName}`, 65, y)
-        doc.setFontSize(10)
-        doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
+    // --- 3. FROM / TO BOXES ---
+    y += 130
+    const boxW = (w - 90) / 2
+    const boxH = 110
+    
+    // Frorm Box
+    doc.rect(40, y, boxW, boxH)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('From', 55, y + 20)
+    doc.setFontSize(14)
+    doc.text('IYF Orlando', 55, y + 40)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(TEXT_GRAY[0], TEXT_GRAY[1], TEXT_GRAY[2])
+    let addrY = y + 60
+    doc.text('320 S Park Ave', 55, addrY); addrY += 14
+    doc.text('Sanford, FL 32771', 55, addrY); addrY += 14
+    doc.text('Phone: 407-900-3442', 55, addrY); addrY += 14
+    doc.text('orlando@iyfusa.org', 55, addrY)
+    
+    // Bill To Box
+    doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
+    doc.rect(40 + boxW + 10, y, boxW, boxH)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('Bill To', 40 + boxW + 25, y + 20)
+    
+    doc.text('First Name:', 40 + boxW + 25, y + 45)
+    doc.text('Last Name:', 40 + boxW + 25, y + 60)
+    doc.text('Email:', 40 + boxW + 25, y + 75)
+    
+    doc.setFont('helvetica', 'bold') // Values Bold
+    const nameParts = (inv.studentName || '').split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    
+    doc.text(firstName, 40 + boxW + 90, y + 45)
+    doc.text(lastName, 40 + boxW + 90, y + 60)
+    
+    // Lookup email if possible
+    doc.text(student?.reg?.email || '', 40 + boxW + 90, y + 75)
+
+    // --- 4. TABLE STYLES ---
+    y += 140
+    
+    // Table Header Bar
+    doc.setFillColor(BRAND_BLUE[0], BRAND_BLUE[1], BRAND_BLUE[2])
+    doc.rect(40, y, w - 80, 25, 'F')
+    
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    
+    // Columns
+    const xCourse = 55
+    const xPeriod = 280
+    const xQty = 350
+    const xPrice = 420
+    const xAmount = w - 55
+    
+    doc.text('Course & Instructor', xCourse, y + 17)
+    doc.text('Period', xPeriod, y + 17, { align: 'center' })
+    doc.text('Qty', xQty, y + 17, { align: 'center' })
+    doc.text('Unit Price', xPrice, y + 17, { align: 'right' })
+    doc.text('Amount', xAmount, y + 17, { align: 'right' })
+    
+    // Table Rows
+    y += 25
+    doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
+    doc.setFont('helvetica', 'normal')
+    
+    // Light gray stripe for alternating?
+    // Let's just do clean lines
+    
+    inv.lines.forEach((l, i) => {
+      // Row Background (Zebra? No, minimal)
+      if (i % 2 !== 0) {
+        doc.setFillColor(248, 248, 248)
+        doc.rect(40, y, w - 80, 30, 'F')
       }
       
-      // Row separator
-      y += 10
-      doc.setDrawColor(241, 245, 249)
-      doc.line(40, y, w - 40, y)
+      const rowY = y + 20
+      // Course
+      doc.text(l.academy, xCourse, rowY)
+      // Period
+      doc.text(l.period?.toString() || '-', xPeriod, rowY, { align: 'center' })
+      // Qty
+      doc.text(l.qty?.toString() || '1', xQty, rowY, { align: 'center' })
+      // Unit Price
+      doc.text(usd(l.unitPrice ?? l.amount), xPrice, rowY, { align: 'right' })
+      // Amount
+      doc.text(usd(l.amount), xAmount, rowY, { align: 'right' })
+      
+      y += 30
     })
-
+    
+    // Extras (Lunch/Discount)
     if (inv.lunchAmount) {
-      y += 25
-      doc.text('Lunch / Other Services', 55, y)
-      doc.text('-', 350, y, { align: 'center' })
-      doc.text(usd(inv.lunchAmount), w - 55, y, { align: 'right' })
-      y += 10
-      doc.setDrawColor(241, 245, 249)
-      doc.line(40, y, w - 40, y)
+       const rowY = y + 20
+       doc.text('Lunch / Other', xCourse, rowY)
+       doc.text('-', xPeriod, rowY, { align: 'center' })
+       doc.text('1', xQty, rowY, { align: 'center' })
+       doc.text(usd(inv.lunchAmount), xPrice, rowY, { align: 'right' })
+       doc.text(usd(inv.lunchAmount), xAmount, rowY, { align: 'right' })
+       y += 30
+    }
+    
+    if (inv.discountAmount) {
+       const rowY = y + 20
+       doc.setTextColor(RED[0], RED[1], RED[2])
+       doc.text('Discount', xCourse, rowY)
+       doc.text('-', xPeriod, rowY, { align: 'center' })
+       doc.text('1', xQty, rowY, { align: 'center' })
+       doc.text(`-${usd(inv.discountAmount)}`, xPrice, rowY, { align: 'right' })
+       doc.text(`-${usd(inv.discountAmount)}`, xAmount, rowY, { align: 'right' })
+       doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
+       y += 30
     }
 
-    // TOTALS SECTION
-    y += 40
-    const valX = w - 55
-    const labelX = w - 160
+    // --- 5. TOTALS BOX ---
+    // Bottom Right
+    const totalsW = 200
+    const totalsH = 110 // Increased for PAID stamp
+    const totalsX = w - 40 - totalsW
     
-    // Subtotal
+    doc.setFillColor(248, 248, 248) // Light gray bg
+    doc.rect(totalsX, y + 10, totalsW, totalsH, 'F')
+    doc.setDrawColor(224, 224, 224)
+    doc.rect(totalsX, y + 10, totalsW, totalsH, 'S') // Border
+    
+    let tY = y + 35
+    const tLabelX = totalsX + 20
+    const tValX = w - 60
+    
     doc.setFontSize(10)
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-    doc.text('Subtotal', labelX, y)
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
-    doc.text(usd(inv.subtotal + (inv.lunchAmount||0)), valX, y, { align: 'right' })
+    doc.text('Subtotal', tLabelX, tY)
+    doc.text(usd(inv.subtotal + (inv.lunchAmount||0)), tValX, tY, { align: 'right' })
     
-    // Discount
-    if (inv.discountAmount) {
-      y += 20
-      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-      doc.text('Discount', labelX, y)
-      doc.setTextColor(239, 68, 68) // Red
-      doc.text(`- ${usd(inv.discountAmount)}`, valX, y, { align: 'right' })
-    }
-    
-    // Total
-    y += 25
+    tY += 25
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
-    doc.text('Total', labelX, y)
-    doc.text(usd(inv.total), valX, y, { align: 'right' })
+    doc.text('Total', tLabelX, tY)
+    doc.text(usd(inv.total), tValX, tY, { align: 'right' })
     
-    // Paid
-    if (inv.paid > 0) {
-      y += 20
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(34, 197, 94) // Green
-      doc.text('Paid', labelX, y)
-      doc.text(`- ${usd(inv.paid)}`, valX, y, { align: 'right' })
-    }
-    
-    // Balance
-    y += 30
-    // Highlight Box
-    doc.setFillColor(IYF_BLUE[0], IYF_BLUE[1], IYF_BLUE[2])
-    doc.roundedRect(labelX - 10, y - 20, 120, 30, 4, 4, 'F')
-    
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(255, 255, 255)
-    doc.text('Balance Due', labelX, y)
-    doc.text(usd(inv.balance), valX, y, { align: 'right' })
-
-    // FOOTER
-    const footerY = h - 60
-    doc.setTextColor(DARK_SLATE[0], DARK_SLATE[1], DARK_SLATE[2])
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text('Thank you!', 40, footerY)
-    
+    tY += 25
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2])
-    doc.text('If you have any questions concerning this invoice, please contact us at admin@iyforlando.com.', 40, footerY + 15)
-    doc.text('Payment is due within 15 days.', 40, footerY + 28)
+    doc.text('Paid', tLabelX, tY)
+    doc.text(`${usd(inv.paid)}`, tValX, tY, { align: 'right' })
+    
+    // Status Stamp
+    tY += 30
+    if (inv.balance <= 0) {
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(GREEN[0], GREEN[1], GREEN[2])
+      doc.text('PAID', tLabelX, tY)
+      doc.setFontSize(10)
+      doc.text(usd(inv.paid), tValX, tY, { align: 'right' })
+    } else {
+      doc.setFontSize(14)
+      doc.setTextColor(RED[0], RED[1], RED[2])
+      doc.text('Balance Due', tLabelX, tY)
+      doc.text(usd(inv.balance), tValX, tY, { align: 'right' })
+    }
 
     doc.save(`Invoice_${inv.studentName}_${inv.id}.pdf`)
   }
