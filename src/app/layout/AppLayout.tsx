@@ -48,6 +48,7 @@ const peopleItems: Item[] = [
 ]
 
 const systemItems: Item[] = [
+  { to: '/global-search', label: 'Global Search', icon: <Search size={20} /> },
   { to: '/reports', label: 'Reports', icon: <FileText size={20} /> },
   { to: '/dashboard/activity-log', label: 'Audit Log', icon: <History size={20} />, adminOnly: true },
   { to: '/reports/invalid-academies', label: 'Data Issues', icon: <AlertTriangle size={20} /> },

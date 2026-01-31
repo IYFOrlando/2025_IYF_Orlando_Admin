@@ -11,3 +11,4 @@ yarn.lock
 **/service-account.json
 **/serviceAccountKey.json
 **/*-firebase-adminsdk-*.json
+dist
