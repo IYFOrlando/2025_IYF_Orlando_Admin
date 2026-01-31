@@ -10,15 +10,16 @@ import {
 import {
   collection, onSnapshot, doc, query, where, getDocs, writeBatch
 } from 'firebase/firestore'
+import { onAuthStateChanged, type User } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
 import { REG_COLLECTION, INV_COLLECTION, PAY_COLLECTION } from '../../../lib/config'
-import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
+import { useRegistrations } from '../hooks/useRegistrations'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useRegistrationsExpectedTotals } from '../hooks/useRegistrationExpectedTotal'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
 import { latestInvoicePerStudent } from '../../payments/utils'
-// import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import type { Registration } from '../types'
 import type { Invoice } from '../../payments/types'
 import { usd } from '../../../lib/query'
@@ -123,7 +124,7 @@ const GlassCard = ({ children, sx = {}, ...props }: any) => {
 const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = false, hasGmailAccess = false }: { isAdmin?: boolean; hasGmailAccess?: boolean }) {
   const { isTeacher, teacherProfile, isAdmin: contextIsAdmin } = useTeacherContext()
   const [_userEmail, setUserEmail] = React.useState<string | null>(auth.currentUser?.email || null)
-  React.useEffect(() => onAuthStateChanged(auth, u => setUserEmail(u?.email || null)), [])
+  React.useEffect(() => onAuthStateChanged(auth, (u: User | null) => setUserEmail(u?.email || null)), [])
   
   const forceIsAdmin = React.useMemo(() => 
     ['orlando@iyfusa.org', 'jodlouis.dev@gmail.com', 'michellemoralespradis@gmail.com'].includes(_userEmail || ''), 
