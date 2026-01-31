@@ -20,7 +20,8 @@ import {
   Person as PersonIcon,
   CheckCircle as CheckCircleIcon,
   Mail as MailIcon,
-  Undo as UndoIcon
+  Undo as UndoIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material'
 import {
   collection, addDoc, serverTimestamp, query, where, onSnapshot, doc,
@@ -1184,6 +1185,7 @@ const PaymentsPage = React.memo(() => {
                                   </Stack>
                     <Divider sx={{ my: 1 }} />
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
+                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv) }} title="Preview Invoice"><VisibilityIcon /></IconButton>
                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }} title="Download PDF"><PictureAsPdfIcon /></IconButton>
                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEmailInvoice(inv) }} title="Email Invoice" disabled={!!sendingEmailId}>
                           {sendingEmailId === inv.id ? <CircularProgress size={20} /> : <MailIcon />}
