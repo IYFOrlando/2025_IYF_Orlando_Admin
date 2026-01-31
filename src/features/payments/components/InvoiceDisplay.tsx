@@ -10,7 +10,8 @@ export interface Invoice {
   createdAt?: { seconds: number } | any
   updatedAt?: { seconds: number } | any
   subtotal: number
-  discount: number
+  discountAmount?: number
+  // discount: number (legacy)
   total: number
   balance: number
   method?: string
@@ -206,10 +207,10 @@ export function InvoiceDisplay({ invoice }: InvoiceDisplayProps) {
             <Typography variant="body2" color={TEXT_GRAY}>Subtotal:</Typography>
             <Typography variant="body2">{usd(invoice.subtotal)}</Typography>
           </Box>
-          {invoice.discount > 0 && (
+          {(invoice.discountAmount || 0) > 0 && (
             <Box display="flex" justifyContent="space-between">
             <Typography variant="body2" color={TEXT_GRAY}>Discount:</Typography>
-            <Typography variant="body2" color="success.main">-{usd(invoice.discount)}</Typography>
+            <Typography variant="body2" color="success.main">-{usd(invoice.discountAmount || 0)}</Typography>
             </Box>
           )}
           <Divider />
