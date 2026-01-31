@@ -1,16 +1,17 @@
 import * as React from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Grid, TextField,
-  MenuItem, Button, Typography, Box, Stack
+  MenuItem, Button, Typography, Box, Stack, CircularProgress
 } from '@mui/material'
 import { Trash2, Plus } from 'lucide-react'
 import { db } from '../../../lib/firebase'
 import { REG_COLLECTION } from '../../../lib/config'
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
+import { doc, updateDoc, addDoc, collection, serverTimestamp, getDocs, query, where } from 'firebase/firestore'
 import { Alert as SAlert } from '../../../lib/alerts'
 import { computeAge } from '../../../lib/validations'
 import type { Registration, SelectedAcademy } from '../types'
-import { ACADEMY_OPTIONS, KOREAN_LEVELS, TSHIRT_SIZES, GENDER_OPTIONS } from '../../../lib/constants'
+import { TSHIRT_SIZES, GENDER_OPTIONS } from '../../../lib/constants'
 import { updateInvoiceForRegistration } from '../../../lib/autoInvoice'
 
 // State List
@@ -47,13 +48,49 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
   const [form, setForm] = React.useState<Registration>(initial || EMPTY_REG)
   const isEdit = !!docId
 
-  React.useEffect(() => { 
+  // Dynamic Data
+  const [availableAcademies, setAvailableAcademies] = React.useState<string[]>([])
+  const [academyLevels, setAcademyLevels] = React.useState<Record<string, string[]>>({})
+  const [loadingConfig, setLoadingConfig] = React.useState(false)
+
+  // Fetch Academy Config on Open
+  React.useEffect(() => {
     if (open) {
+      setLoadingConfig(true)
+      const fetchConfig = async () => {
+        try {
+          const colName = COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring'
+          const snap = await getDocs(collection(db, colName))
+          
+          const academies: string[] = []
+          const levels: Record<string, string[]> = {}
+
+          snap.forEach(doc => {
+            const data = doc.data()
+            if (data.name) {
+              academies.push(data.name)
+              if (data.hasLevels && Array.isArray(data.levels)) {
+                // levels is array of objects {name, schedule, ...}
+                levels[data.name] = data.levels.map((l: any) => l.name)
+              }
+            }
+          })
+          
+          setAvailableAcademies(academies.sort())
+          setAcademyLevels(levels)
+        } catch (e) {
+          console.error("Failed to load academy config", e)
+        } finally {
+          setLoadingConfig(false)
+        }
+      }
+      fetchConfig()
+      
+      // Initialize Form
       const fd: Registration = initial ? JSON.parse(JSON.stringify(initial)) : { ...EMPTY_REG }
       if (!fd.selectedAcademies) fd.selectedAcademies = []
       
-      // Legacy normalization: populate selectedAcademies from periods if empty
-      // We no longer assign 'schedule' (Period 1/2) since user said no periods.
+      // Legacy normalization
       if (fd.selectedAcademies.length === 0) {
         if (fd.firstPeriod?.academy) fd.selectedAcademies.push({ ...fd.firstPeriod, schedule: null })
         if (fd.secondPeriod?.academy) fd.selectedAcademies.push({ ...fd.secondPeriod, schedule: null })
@@ -84,9 +121,11 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
       const list = [...(prev.selectedAcademies || [])]
       if (list[index]) {
         list[index] = { ...list[index], [field]: value }
-         // Clear level if academy changes to non-Korean
-        if (field === 'academy' && !value.includes('Korean')) {
-           list[index].level = ''
+         
+        // If academy changes, clear level if the new academy doesn't have the old level options
+        // or just clear it deeply to be safe.
+        if (field === 'academy') {
+           list[index].level = '' 
         }
       }
       return { ...prev, selectedAcademies: list }
@@ -210,29 +249,35 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
           {/* Section: Academies */}
           <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">ACADEMY_SELECTION</Typography></Grid>
           
-          {/* Period 1 */}
+          {/* Dynamic Academy List */}
           <Grid item xs={12}>
+            {loadingConfig ? <CircularProgress size={24} /> : (
             <Stack spacing={2}>
-              {(form.selectedAcademies || []).map((item, idx) => (
+              {(form.selectedAcademies || []).map((item, idx) => {
+                 const currentAcademyName = item.academy || ''
+                 const hasLevels = !!academyLevels[currentAcademyName]
+                 const levels = academyLevels[currentAcademyName] || []
+
+                 return (
                 <Box key={idx} sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={item.academy?.includes('Korean') ? 5 : 10}>
+                    <Grid item xs={12} md={hasLevels ? 5 : 10}>
                       <TextField
                         select
                         label="Academy"
-                        value={item.academy || ''}
+                        value={currentAcademyName}
                         onChange={(e) => handleAcademyChange(idx, 'academy', e.target.value)}
                         fullWidth
                         size="small"
                       >
-                        {ACADEMY_OPTIONS.map((opt) => (
+                        {availableAcademies.map((opt) => (
                           <MenuItem key={opt} value={opt}>
                             {opt}
                           </MenuItem>
                         ))}
                       </TextField>
                     </Grid>
-                    {item.academy?.includes('Korean') && (
+                    {hasLevels && (
                       <Grid item xs={12} md={5}>
                         <TextField
                           select
@@ -242,7 +287,7 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
                           fullWidth
                           size="small"
                         >
-                          {KOREAN_LEVELS.map((l) => (
+                          {levels.map((l) => (
                             <MenuItem key={l} value={l}>
                               {l}
                             </MenuItem>
@@ -257,7 +302,7 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
                     </Grid>
                   </Grid>
                 </Box>
-              ))}
+              )})}
               <Button
                 variant="outlined"
                 startIcon={<Plus size={16} />}
@@ -267,6 +312,7 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
                 Add Academy
               </Button>
             </Stack>
+            )}
           </Grid>
 
         </Grid>
