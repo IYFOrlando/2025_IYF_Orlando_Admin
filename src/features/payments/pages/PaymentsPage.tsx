@@ -36,6 +36,7 @@ import { useAcademyPricing } from '../hooks/useAcademyPricing'
 import { useInvoices } from '../hooks/useInvoices'
 import { usePayments } from '../hooks/usePayments'
 import { useInstructors } from '../hooks/useInstructors'
+import { useInvoiceConfig } from '../../settings/hooks/useInvoiceConfig'
 import InvoiceDialog from '../components/InvoiceDialog'
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from '../types'
 import { latestInvoicePerStudent } from '../utils'
@@ -862,7 +863,7 @@ const PaymentsPage = React.memo(() => {
     doc.setFont('helvetica', 'normal')
     doc.text('Instruction Period:', col1, detailY)
     doc.setFont('helvetica', 'bold')
-    doc.text('2026 Spring Semester', col2, detailY)
+    doc.text(invoiceConfig.currentSemester, col2, detailY)
     
     // Payment Method & Date (Last used)
     if (inv.method) {
@@ -894,16 +895,16 @@ const PaymentsPage = React.memo(() => {
     doc.setFontSize(11)
     doc.text('From', 55, y + 20)
     doc.setFontSize(14)
-    doc.text('IYF Orlando', 55, y + 40)
+    doc.text(invoiceConfig.organizationName, 55, y + 40)
     
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
     doc.setTextColor(TEXT_GRAY[0], TEXT_GRAY[1], TEXT_GRAY[2])
     let addrY = y + 60
-    doc.text('320 S Park Ave', 55, addrY); addrY += 14
-    doc.text('Sanford, FL 32771', 55, addrY); addrY += 14
-    doc.text('Phone: 407-900-3442', 55, addrY); addrY += 14
-    doc.text('orlando@iyfusa.org', 55, addrY)
+    doc.text(invoiceConfig.addressLine1, 55, addrY); addrY += 14
+    doc.text(invoiceConfig.addressLine2, 55, addrY); addrY += 14
+    doc.text(`Phone: ${invoiceConfig.phone}`, 55, addrY); addrY += 14
+    doc.text(invoiceConfig.email, 55, addrY)
     
     // Bill To Box
     doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
