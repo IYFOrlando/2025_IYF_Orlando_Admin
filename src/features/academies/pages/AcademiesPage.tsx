@@ -329,6 +329,46 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     return undefined
   }, [teachers])
 
+  // NEW: Helper to resolve teacher from Academy/Level data with live lookup
+  const resolveAssignedTeacher = React.useCallback((
+    assignedTeacher: { id?: string, name?: string, email?: string, phone?: string } | undefined, 
+    academyName: string, 
+    levelName?: string
+  ) => {
+    // 1. If we have an explicit assignment in the Academy/Level doc
+    if (assignedTeacher?.name || assignedTeacher?.email) {
+      // Try ID match first
+      if (assignedTeacher.id && teachers[assignedTeacher.id]) {
+        return teachers[assignedTeacher.id]
+      }
+      
+      // Try Email match
+      if (assignedTeacher.email) {
+        const match = Object.values(teachers).find(t => t.email === assignedTeacher.email)
+        if (match) return match
+      }
+      
+      // Try Name match
+      if (assignedTeacher.name) {
+        const match = Object.values(teachers).find(t => t.name === assignedTeacher.name)
+        if (match) return match
+      }
+
+      // Return snapshot if live lookup fails
+      return {
+        name: assignedTeacher.name || '',
+        email: assignedTeacher.email || '',
+        phone: assignedTeacher.phone || '',
+        credentials: (assignedTeacher as any).credentials || '',
+        academy: academyName,
+        level: levelName || null
+      }
+    }
+
+    // 2. Fallback to Legacy lookup (Teacher claiming the academy)
+    return getTeacherForAcademy(academyName, levelName)
+  }, [teachers, getTeacherForAcademy])
+
   const generatePDF = React.useCallback((academyName: string, registrations: Registration[], level?: string) => {
     const doc = new jsPDF()
     const teacher = getTeacherForAcademy(academyName, level)
@@ -454,7 +494,11 @@ const AcademiesPage = React.memo(function AcademiesPage() {
             
             {levels.map(level => {
               const levelRegistrations = koreanByLevel[normalizeLevel(level.name)] || []
-              const teacher = getTeacherForAcademy(academy.name, level.name)
+              const teacher = resolveAssignedTeacher(
+                (level as any).teacher, 
+                academy.name, 
+                level.name
+              )
 
               return (
                 <Box key={level.name} sx={{ mb: 3 }}>
@@ -552,7 +596,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     } else {
       // Academy without levels
       const academyRegistrations = getRegistrationsForAcademy(academy.name)
-      const teacher = getTeacherForAcademy(academy.name)
+      const teacher = resolveAssignedTeacher(academy.teacher, academy.name)
       
       return (
         <Accordion key={academy.id} defaultExpanded={false}>
