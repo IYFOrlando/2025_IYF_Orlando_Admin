@@ -14,7 +14,7 @@ export interface Invoice {
   // discount: number (legacy)
   total: number
   balance: number
-  method?: string
+  method?: string | null
   lines: Array<{
     academy?: string
     level?: string
