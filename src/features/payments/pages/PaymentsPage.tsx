@@ -1,10 +1,10 @@
-import * as React from 'react'
 import {
   Card, Grid, Stack, Button, Chip,
   TextField, Autocomplete, Divider, Typography,
   List, ListItem, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Box, Tabs, Tab,
-  Checkbox, FormControlLabel, useTheme, Paper, Alert
+  Checkbox, FormControlLabel, useTheme, Paper, Alert,
+  CircularProgress
 } from '@mui/material'
 import {
   Settings as SettingsIcon,
@@ -17,9 +17,10 @@ import {
   AttachMoney as AttachMoneyIcon,
   Receipt as ReceiptIcon,
   Person as PersonIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Mail as MailIcon,
+  Undo as UndoIcon
 } from '@mui/icons-material'
-
 import {
   collection, addDoc, serverTimestamp, query, where, onSnapshot, doc,
   updateDoc, runTransaction, deleteDoc, getDoc
@@ -51,7 +52,7 @@ import {
   PieChart, Pie, Cell, Legend 
 } from 'recharts'
 import iyfLogo from '../../../assets/logo/IYF_logo.png' // Import Logo
-import { sendEmail, formatPrice, type SendEmailResult } from '../../../lib/emailService'
+import { sendEmail, formatPrice } from '../../../lib/emailService'
 
 // Shared Config
 const INV = COLLECTIONS_CONFIG.academyInvoices
@@ -559,7 +560,7 @@ const PaymentsPage = React.memo(() => {
       // Auto-email if fully paid
       if (newBal === 0) {
         // Construct updated invoice object for email
-        const updatedKwargs = { ...inv, paid: newPaid, balance: newBal, status: newStatus }
+        const updatedKwargs = { ...inv, paid: newPaid, balance: newBal, status: newStatus } as Invoice
         handleEmailInvoice(updatedKwargs, true).then(() => {
            notifySuccess('Receipt emailed to student')
         })
@@ -661,13 +662,13 @@ const PaymentsPage = React.memo(() => {
       // Find student email from registration or invoice if stored
       let emailTo = ''
       if (student && student.id === invoice.studentId) {
-        emailTo = student.reg.email
+        emailTo = student.reg.email || ''
       } else {
         // Fallback: try to find in invoice or lookup registration
         // For now, if we are in the context of selected student, use that.
         // If not, we might fail to auto-email if student not loaded.
         // But recordPayment typically happens when student is selected.
-        if (student) emailTo = student.reg.email
+        if (student) emailTo = student.reg.email || ''
       }
       
       if (!emailTo) {
@@ -944,7 +945,7 @@ const PaymentsPage = React.memo(() => {
     y += 30
     // Highlight Box
     doc.setFillColor(IYF_BLUE[0], IYF_BLUE[1], IYF_BLUE[2])
-    doc.roundedRect(labelX - 10, y - 20, 120, 30, 4, 'F')
+    doc.roundedRect(labelX - 10, y - 20, 120, 30, 4, 4, 'F')
     
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
