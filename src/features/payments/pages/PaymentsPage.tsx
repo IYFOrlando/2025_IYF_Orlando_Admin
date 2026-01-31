@@ -176,6 +176,10 @@ const PaymentsPage = React.memo(() => {
   const { data: allInvoices } = useInvoices()
   const { data: allPayments } = usePayments()
   const { getInstructorByAcademy } = useInstructors()
+  
+  // Dynamic invoice configuration from Firestore
+  const { config: invoiceConfig } = useInvoiceConfig()
+  
   const latestInvoices = React.useMemo(() => latestInvoicePerStudent(allInvoices ?? []), [allInvoices])
 
   const [student, setStudent] = React.useState<StudentOption | null>(null)
