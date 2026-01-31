@@ -16,8 +16,8 @@ export interface Invoice {
   balance: number
   method?: string | null
   lines: Array<{
-    academy?: string
-    level?: string
+    academy?: string | null
+    level?: string | null
     qty?: number
     unitPrice?: number
     amount: number
