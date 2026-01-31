@@ -956,7 +956,7 @@ const PaymentsPage = React.memo(() => {
       
       const rowY = y + 20
       // Course - Ensure Name
-      doc.text(l.academy || l.description || 'General', xCourse, rowY)
+      doc.text(l.academy || (l as any).description || 'General', xCourse, rowY)
       // Period Removed
       // Qty
       doc.text(l.qty?.toString() || '1', xQty, rowY, { align: 'center' })
