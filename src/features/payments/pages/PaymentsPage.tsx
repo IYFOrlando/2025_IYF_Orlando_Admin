@@ -864,7 +864,7 @@ const PaymentsPage = React.memo(() => {
     doc.setFont('helvetica', 'normal')
     doc.text('Instruction Period:', col1, detailY)
     doc.setFont('helvetica', 'bold')
-    doc.text('August 16 - November 22, 2025', col2, detailY) // Hardcoded for Spring '26 logic if needed, but keeping static as requested by "data correct"
+    doc.text('2026 Spring Semester', col2, detailY)
     
     // Payment Method (Last used)
     if (inv.method) {
@@ -930,15 +930,14 @@ const PaymentsPage = React.memo(() => {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
     
-    // Columns
+    // Columns (Removed Period)
     const xCourse = 55
-    const xPeriod = 280
     const xQty = 350
     const xPrice = 420
     const xAmount = w - 55
     
-    doc.text('Course & Instructor', xCourse, y + 17)
-    doc.text('Period', xPeriod, y + 17, { align: 'center' })
+    doc.text('Academy / service', xCourse, y + 17)
+    // Period removed
     doc.text('Qty', xQty, y + 17, { align: 'center' })
     doc.text('Unit Price', xPrice, y + 17, { align: 'right' })
     doc.text('Amount', xAmount, y + 17, { align: 'right' })
@@ -948,9 +947,6 @@ const PaymentsPage = React.memo(() => {
     doc.setTextColor(TEXT_DARK[0], TEXT_DARK[1], TEXT_DARK[2])
     doc.setFont('helvetica', 'normal')
     
-    // Light gray stripe for alternating?
-    // Let's just do clean lines
-    
     inv.lines.forEach((l, i) => {
       // Row Background (Zebra? No, minimal)
       if (i % 2 !== 0) {
@@ -959,10 +955,9 @@ const PaymentsPage = React.memo(() => {
       }
       
       const rowY = y + 20
-      // Course
-      doc.text(l.academy, xCourse, rowY)
-      // Period
-      doc.text(l.period?.toString() || '-', xPeriod, rowY, { align: 'center' })
+      // Course - Ensure Name
+      doc.text(l.academy || l.description || 'General', xCourse, rowY)
+      // Period Removed
       // Qty
       doc.text(l.qty?.toString() || '1', xQty, rowY, { align: 'center' })
       // Unit Price
@@ -977,7 +972,6 @@ const PaymentsPage = React.memo(() => {
     if (inv.lunchAmount) {
        const rowY = y + 20
        doc.text('Lunch / Other', xCourse, rowY)
-       doc.text('-', xPeriod, rowY, { align: 'center' })
        doc.text('1', xQty, rowY, { align: 'center' })
        doc.text(usd(inv.lunchAmount), xPrice, rowY, { align: 'right' })
        doc.text(usd(inv.lunchAmount), xAmount, rowY, { align: 'right' })
@@ -988,7 +982,6 @@ const PaymentsPage = React.memo(() => {
        const rowY = y + 20
        doc.setTextColor(RED[0], RED[1], RED[2])
        doc.text('Discount', xCourse, rowY)
-       doc.text('-', xPeriod, rowY, { align: 'center' })
        doc.text('1', xQty, rowY, { align: 'center' })
        doc.text(`-${usd(inv.discountAmount)}`, xPrice, rowY, { align: 'right' })
        doc.text(`-${usd(inv.discountAmount)}`, xAmount, rowY, { align: 'right' })
