@@ -17,6 +17,7 @@ export type AcademyLevel = {
   schedule: string
   order: number
   teacher?: {
+    id?: string
     name: string
     email: string
     phone: string
@@ -35,6 +36,7 @@ export type Academy = {
   enabled: boolean
   description: string
   teacher?: {
+    id?: string // Added ID for live linking
     name: string
     email: string
     phone: string

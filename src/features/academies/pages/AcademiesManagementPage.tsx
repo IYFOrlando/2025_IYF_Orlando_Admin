@@ -53,15 +53,34 @@ export default function AcademiesManagementPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
   const [deleteId, setDeleteId] = React.useState<string | null>(null)
 
-  // Helper to get teacher photo
-  const getTeacherPhoto = (teacherData: { name?: string; email?: string } | undefined) => {
-    if (!teacherData?.email && !teacherData?.name) return undefined
-    // Try to match by name or email
+  // Helper to get live teacher data
+  const getAssignedTeacher = (teacherData: { id?: string; name?: string; email?: string } | undefined) => {
+    if (!teacherData?.email && !teacherData?.name && !teacherData?.id) return undefined
+    
+    // 1. Try ID match
+    if (teacherData.id) {
+       const byId = teachers.find(t => t.id === teacherData.id)
+       if (byId) return byId
+    }
+
+    // 2. Fallback to Email/Name
     const found = teachers.find(t => 
-      (t.email && t.email === teacherData.email) || 
-      t.name === teacherData.name
+      (t.email && teacherData.email && t.email === teacherData.email) || 
+      (t.name && teacherData.name && t.name === teacherData.name)
     )
-    return found?.photoURL
+    
+    // 3. If no live match, return the stored snapshot (for manual/deleted teachers)
+    if (!found) {
+      return {
+        id: teacherData.id || 'manual',
+        name: teacherData.name || '',
+        email: teacherData.email || '',
+        photoURL: undefined,
+        credentials: undefined
+      }
+    }
+
+    return found
   }
 
   if (loading) {
@@ -281,17 +300,22 @@ export default function AcademiesManagementPage() {
                   
                   <Stack spacing={1.5} mt={2}>
                     {/* Teacher */}
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Avatar 
-                        src={getTeacherPhoto(academy.teacher)} 
-                        sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'primary.light' }}
-                      >
-                        {academy.teacher?.name?.[0] || 'T'}
-                      </Avatar>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {academy.teacher?.name || 'No Teacher Assigned'}
-                      </Typography>
-                    </Stack>
+                    {(() => {
+                      const assignedTeacher = getAssignedTeacher(academy.teacher)
+                      return (
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Avatar 
+                            src={assignedTeacher?.photoURL} 
+                            sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'primary.light' }}
+                          >
+                            {assignedTeacher?.name?.[0] || 'T'}
+                          </Avatar>
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            {assignedTeacher?.name || 'No Teacher Assigned'}
+                          </Typography>
+                        </Stack>
+                      )
+                    })()}
 
                     {/* Schedule */}
                     <Stack direction="row" spacing={1.5} alignItems="center">

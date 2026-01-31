@@ -8,31 +8,45 @@ import { useTeachers } from '../hooks/useTeachers'
 
 interface TeacherSelectorProps {
   selectedTeacher?: {
+    id?: string
     name: string
     email: string
     phone: string
     credentials?: string
   }
-  onTeacherChange: (teacher: { name: string, email: string, phone: string, credentials?: string }) => void
+  onTeacherChange: (teacher: { id?: string, name: string, email: string, phone: string, credentials?: string }) => void
 }
 
 export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSelectorProps) {
   const { teachers, loading } = useTeachers()
   const [selectedId, setSelectedId] = React.useState<string>('')
   
-  // Update local selection when selectedTeacher prop changes (if it matches a known teacher)
+  // Update local selection when selectedTeacher prop changes
   React.useEffect(() => {
-    if (selectedTeacher && teachers.length > 0) {
-      const match = teachers.find(t => 
-        t.name === selectedTeacher.name || 
-        (t.email && t.email === selectedTeacher.email)
-      )
-      if (match) {
-        setSelectedId(match.id)
-      } else {
-        setSelectedId('manual')
+    if (selectedTeacher) {
+      // 1. If we have an ID, match directly
+      if (selectedTeacher.id) {
+        const match = teachers.find(t => t.id === selectedTeacher.id)
+        if (match) {
+          setSelectedId(match.id)
+          return
+        }
       }
-    } else if (!selectedTeacher?.name) {
+      
+      // 2. Fallback to Email/Name matching if ID is missing or not found
+      if (teachers.length > 0) {
+        const match = teachers.find(t => 
+          (selectedTeacher.email && t.email === selectedTeacher.email) ||
+          t.name === selectedTeacher.name
+        )
+        if (match) {
+          setSelectedId(match.id)
+        } else if (selectedTeacher.name) {
+          // If has name but no match, it's manual
+          setSelectedId('manual')
+        }
+      }
+    } else {
       setSelectedId('')
     }
   }, [selectedTeacher, teachers])
@@ -46,13 +60,14 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
     }
     
     if (teacherId === '') {
-      onTeacherChange({ name: '', email: '', phone: '', credentials: '' })
+      onTeacherChange({ id: undefined, name: '', email: '', phone: '', credentials: '' })
       return
     }
 
     const teacher = teachers.find(t => t.id === teacherId)
     if (teacher) {
       onTeacherChange({
+        id: teacher.id,
         name: teacher.name,
         email: teacher.email,
         phone: teacher.phone,
@@ -111,8 +126,9 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
           fullWidth
           value={selectedTeacher?.name || ''}
           onChange={(e) => onTeacherChange({ ...selectedTeacher!, name: e.target.value })}
+          disabled={!isManual}
           // Highlight if manual
-          helperText={isManual ? "Custom entry" : "Linked to teacher database"}
+          helperText={isManual ? "Custom entry (not synchronized)" : "Linked to teacher database (updates automatically)"}
         />
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField
@@ -122,6 +138,7 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
             fullWidth
             value={selectedTeacher?.email || ''}
             onChange={(e) => onTeacherChange({ ...selectedTeacher!, email: e.target.value })}
+            disabled={!isManual}
           />
           <TextField
             label="Teacher Phone"
@@ -129,6 +146,7 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
             fullWidth
             value={selectedTeacher?.phone || ''}
             onChange={(e) => onTeacherChange({ ...selectedTeacher!, phone: e.target.value })}
+            disabled={!isManual}
           />
         </Stack>
         <TextField
@@ -139,6 +157,7 @@ export function TeacherSelector({ selectedTeacher, onTeacherChange }: TeacherSel
           size="small"
           value={selectedTeacher?.credentials || ''}
           onChange={(e) => onTeacherChange({ ...selectedTeacher!, credentials: e.target.value })}
+          disabled={!isManual}
         />
       </Stack>
     </Stack>

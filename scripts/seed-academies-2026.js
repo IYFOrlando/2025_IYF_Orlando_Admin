@@ -207,7 +207,7 @@ const ACADEMIES_2026_SPRING = [
     name: "Taekwondo",
     description: "Master the art of Taekwondo while building discipline, focus, and physical strength.",
     price: 100,
-    schedule: "9:20 AM - 10:20 AM & 10:30 AM - 11:30 AM",
+    schedule: "9:20 AM - 10:20 AM, 10:30 AM - 11:30 AM",
     teacher: { name: "Megan", email: "", phone: "" },
     hasLevels: false,
     levels: [],
