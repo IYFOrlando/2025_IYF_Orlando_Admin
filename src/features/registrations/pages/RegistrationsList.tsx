@@ -8,17 +8,17 @@ import {
   gridClasses
 } from '@mui/x-data-grid'
 import {
-  collection, onSnapshot, doc, deleteDoc
+  collection, onSnapshot, doc, query, where, getDocs, writeBatch
 } from 'firebase/firestore'
-import { onAuthStateChanged } from 'firebase/auth'
 import { db, auth } from '../../../lib/firebase'
+import { REG_COLLECTION, INV_COLLECTION, PAY_COLLECTION } from '../../../lib/config'
 import { useRegistrations, REG_COLLECTION } from '../hooks/useRegistrations'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useRegistrationsExpectedTotals } from '../hooks/useRegistrationExpectedTotal'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
 import { latestInvoicePerStudent } from '../../payments/utils'
-import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
+// import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import type { Registration } from '../types'
 import type { Invoice } from '../../payments/types'
 import { usd } from '../../../lib/query'
@@ -244,7 +244,6 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     if (!effectiveIsAdmin) return
     if (!selection.length) return SAlert.fire({ title:'Nothing selected', icon:'info', timer:1200, showConfirmButton:false })
     const res = await confirmDelete('Delete selected?', `You are about to delete ${selection.length} registration(s).`)
-    if (!res.isConfirmed) return
     if (!res.isConfirmed) return
     try {
       // Use cascading delete for each selected student
