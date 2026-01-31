@@ -211,15 +211,45 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     return map
   }, [invoices, payments])
 
+  /**
+   * Helper to delete a student and all their related data (Invoices, Payments)
+   */
+  const deleteStudentData = async (studentId: string) => {
+    // 1. Delete Invoices
+    const invQuery = query(collection(db, INV_COLLECTION), where('studentId', '==', studentId))
+    const invSnap = await getDocs(invQuery)
+    const batch = writeBatch(db)
+    
+    invSnap.docs.forEach(doc => {
+      batch.delete(doc.ref)
+    })
+
+    // 2. Delete Payments
+    const payQuery = query(collection(db, PAY_COLLECTION), where('studentId', '==', studentId))
+    const paySnap = await getDocs(payQuery)
+    
+    paySnap.docs.forEach(doc => {
+      batch.delete(doc.ref)
+    })
+
+    // 3. Delete Student
+    const studentRef = doc(db, REG_COLLECTION, studentId)
+    batch.delete(studentRef)
+
+    await batch.commit()
+  }
+
   // --- Actions ---
   const handleBulkDelete = async () => {
     if (!effectiveIsAdmin) return
     if (!selection.length) return SAlert.fire({ title:'Nothing selected', icon:'info', timer:1200, showConfirmButton:false })
     const res = await confirmDelete('Delete selected?', `You are about to delete ${selection.length} registration(s).`)
     if (!res.isConfirmed) return
+    if (!res.isConfirmed) return
     try {
-      await Promise.all(selection.map(id => deleteDoc(doc(db, REG_COLLECTION, String(id)))))
-      notifySuccess('Deleted', `${selection.length} registration(s) removed`)
+      // Use cascading delete for each selected student
+      await Promise.all(selection.map(id => deleteStudentData(String(id))))
+      notifySuccess('Deleted', `${selection.length} registration(s) and related data removed`)
       setSelection([])
     } catch (e:any) { notifyError('Delete failed', e?.message) }
   }
@@ -515,8 +545,8 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
              const res = await confirmDelete('Delete registration?', `Remove ${selectedReg.firstName} ${selectedReg.lastName}?`)
             if (res.isConfirmed) {
               try {
-                await deleteDoc(doc(db, REG_COLLECTION, selectedReg.id))
-                notifySuccess('Deleted', 'Registration removed')
+                await deleteStudentData(selectedReg.id)
+                notifySuccess('Deleted', 'Registration and related data removed')
                 setSelectedReg(null)
               } catch (e: any) {
                 notifyError('Error', e?.message)
