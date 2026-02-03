@@ -364,14 +364,7 @@ export default function ReportsPage() {
             else if (rawAc.includes('conversation')) levelStr = 'Conversation'
           }
           
-          if (levelStr) {
-            const levelName = normalizeLevel(levelStr)
-            koreanLevelMap.set(levelName, (koreanLevelMap.get(levelName) || 0) + 1)
-          }
-        }
-      })
-          
-          if (levelStr) {
+            if (levelStr) {
             const levelName = normalizeLevel(levelStr)
             koreanLevelMap.set(levelName, (koreanLevelMap.get(levelName) || 0) + 1)
           }
