@@ -1205,8 +1205,27 @@ const PaymentsPage = React.memo(() => {
                         return (
                           <Stack key={idx} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
                              <Box>
-                               <Typography variant="body2" fontWeight={500}>{ac.academy}</Typography>
-                               <Typography variant="caption" color="text.secondary">{ac.level || 'No Level'}</Typography>
+                               {(() => {
+                                 const normAc = normalizeAcademy(ac.academy)
+                                 let displayLevel = ac.level
+                                 // Inference logic for Korean
+                                 if (normAc === 'Korean Language' && (!displayLevel || displayLevel.toLowerCase() === 'n/a')) {
+                                   const lowerAc = (ac.academy || '').toLowerCase()
+                                   if (lowerAc.includes('movie')) displayLevel = 'K-Movie Conversation'
+                                   else if (lowerAc.includes('conversation')) displayLevel = 'Conversation'
+                                 }
+                                 
+                                 const finalAcademy = normAc === 'Korean Language' ? 'Korean Language' : ac.academy
+                                 
+                                 return (
+                                   <>
+                                     <Typography variant="body2" fontWeight={500}>{finalAcademy}</Typography>
+                                     <Typography variant="caption" color="text.secondary">
+                                       {displayLevel && displayLevel.toLowerCase() !== 'n/a' ? normalizeLevel(displayLevel) : (normAc === 'Korean Language' ? 'Placement Test Required' : 'No Level')}
+                                     </Typography>
+                                   </>
+                                 )
+                               })()}
                              </Box>
                              {paidInvoice ? (
                                <Chip label="Paid" size="small" color="success" variant="filled" icon={<CheckCircleIcon />} />
