@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom'
 
 // --- Types ---
 type CountRow = { academy: string; count: number }
-type KoreanLevelRow = { level: string; count: number }
+
 
 // --- Animation ---
 const containerVariants = {

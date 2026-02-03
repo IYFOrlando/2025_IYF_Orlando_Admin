@@ -1192,7 +1192,7 @@ const PaymentsPage = React.memo(() => {
                         
                         // Find invoices covering this academy
                         const coveringInvoices = studentInvoices.filter(inv => 
-                          (inv.status !== 'void') &&
+                          ((inv.status as string) !== 'void') &&
                           inv.lines.some(l => norm(l.academy) === academyName && (!l.level || norm(l.level) === norm(ac.level)))
                         )
                         
