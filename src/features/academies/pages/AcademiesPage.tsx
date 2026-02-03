@@ -122,7 +122,16 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         })
       })
       
-      setAcademies(academiesData.filter(a => a.enabled))
+      setAcademies(academiesData.filter(a => {
+        if (!a.enabled) return false
+        // Hide "Korean Conversation" and other variations that are normalized to "Korean Language"
+        // but keep the main "Korean Language" academy
+        const normalized = normalizeAcademy(a.name)
+        if (normalized === 'Korean Language' && a.name !== 'Korean Language') {
+          return false
+        }
+        return true
+      }))
       setAcademiesLoading(false)
     }, () => {
       setAcademiesLoading(false)
