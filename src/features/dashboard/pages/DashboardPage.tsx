@@ -11,11 +11,7 @@ import { useAutoInvoice } from '../../registrations/hooks/useAutoInvoice'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { displayYMD } from '../../../lib/date'
-import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
-  BarChart, Bar, PieChart, Pie, Cell, Legend
-} from 'recharts'
+import { normalizeAcademy } from '../../../lib/normalization'
 import { motion } from 'framer-motion'
 import { 
   Download, Users, School, TrendingUp, DollarSign, Clock,
@@ -85,14 +81,11 @@ const StatValue = ({ value, label, icon: Icon, color, subValue }: any) => (
   </Box>
 )
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1']
-
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import TeacherDashboardPage from './TeacherDashboardPage'
 
 // Old "DashboardPage" becomes "AdminDashboard"
 function AdminDashboard() {
-  const theme = useTheme()
   const navigate = useNavigate()
   // ... existing hooks
   const { data: registrations, loading: regLoading } = useRegistrations()
@@ -102,20 +95,21 @@ function AdminDashboard() {
   useAutoInvoice(true)
 
   // ... existing calculation logic ...
-  const { totals, academyRows, koreanLevelRows, dailyStats, financialStats, unpaidCount, partialPaidCount } = React.useMemo(() => {
+  const { totals, academyRows, financialStats, unpaidCount, partialPaidCount } = React.useMemo(() => {
     // 1. Registration Stats
     const academies = new Map<string, number>()
-    const koreanLevels = new Map<string, number>()
-    const dailyCounts = new Map<string, number>()
+    // const dailyCounts = new Map<string, number>() // Unused
 
     for (const r of registrations) {
-      // Daily Trend
+      // Daily Trend - REMOVED for optimization
+      /*
       if (r.createdAt) {
         const dateStr = displayYMD(r.createdAt)
         if (dateStr) {
           dailyCounts.set(dateStr, (dailyCounts.get(dateStr) || 0) + 1)
         }
       }
+      */
 
       // Academies
       if ((r as any).selectedAcademies && Array.isArray((r as any).selectedAcademies)) {
@@ -123,46 +117,29 @@ function AdminDashboard() {
           if (a.academy && normalizeAcademy(a.academy) !== 'n/a') {
             const key = normalizeAcademy(a.academy)
             academies.set(key, (academies.get(key) || 0) + 1)
-            if (key === 'korean language' && a.level) {
-              const lvl = normalizeLevel(a.level)
-              koreanLevels.set(lvl, (koreanLevels.get(lvl) || 0) + 1)
-            }
           }
         })
       } else {
         // Legacy
-        const check = (a: any, l: any) => {
+        const check = (a: any) => {
           if (a && normalizeAcademy(a) !== 'n/a') {
             const key = normalizeAcademy(a)
             academies.set(key, (academies.get(key) || 0) + 1)
-            if (key === 'korean language' && l) {
-              const lvl = normalizeLevel(l)
-              koreanLevels.set(lvl, (koreanLevels.get(lvl) || 0) + 1)
-            }
           }
         }
-        check(r.firstPeriod?.academy, r.firstPeriod?.level)
-        check(r.secondPeriod?.academy, r.secondPeriod?.level)
+        check(r.firstPeriod?.academy)
+        check(r.secondPeriod?.academy)
       }
     }
-
-    const dailyStats = Array.from(dailyCounts.entries())
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => a.date.localeCompare(b.date))
 
     const academyRows: CountRow[] = Array.from(academies.entries())
       .map(([academy, count]) => ({ academy, count }))
       .sort((a, b) => b.count - a.count)
     
-    const koreanLevelRows: KoreanLevelRow[] = Array.from(koreanLevels.entries())
-      .map(([level, count]) => ({ level, count }))
-      .sort((a, b) => b.count - a.count)
-
     const totalAcademies = Array.from(academies.values()).reduce((a, b) => a + b, 0)
-
-    // 2. Financial Stats — one invoice per student (the latest); older ones are history and don't count
+    
+        // 2. Financial Stats
     const latest = latestInvoicePerStudent(invoices)
-    // Use only latest invoices for collected amount to avoid double-counting
     const totalCollected = latest.reduce((sum, inv) => sum + (inv.paid ?? 0), 0)
     const totalPending = latest.reduce((sum, inv) => sum + (inv.balance ?? 0), 0)
     const fullyPaidCount = latest.filter(inv => inv.status === 'paid').length
@@ -178,10 +155,15 @@ function AdminDashboard() {
       { status: 'Partial', count: partialPaidCount, color: '#FF9800' },
       { status: 'Unpaid', count: unpaidCount, color: '#F44336' }
     ].filter(item => item.count > 0)
-
-    // Today's Registrations
+    
+    // Calculate today's registrations lightly
+    let registrationsToday = 0
     const todayStr = displayYMD(new Date())
-    const registrationsToday = dailyCounts.get(todayStr) || 0
+    for (const r of registrations) {
+       if (r.createdAt && displayYMD(r.createdAt) === todayStr) {
+         registrationsToday++
+       }
+    }
 
     return {
       totals: {
@@ -190,8 +172,6 @@ function AdminDashboard() {
         registrationsToday
       },
       academyRows,
-      koreanLevelRows,
-      dailyStats,
       financialStats: {
         collected: totalCollected,
         pending: totalPending,
@@ -505,174 +485,116 @@ function AdminDashboard() {
         </Grid>
       </Grid>
 
-      {/* Charts Row */}
+      {/* Navigation Hub Widget */}
       <Grid container spacing={3}>
-        {/* Main Trend Chart */}
-        <Grid item xs={12} lg={8}>
-          <GlassCard>
-            <CardContent sx={{ height: 400 }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>Registration Trend</Typography>
-              {dailyStats.length > 0 ? (
-                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dailyStats}>
-                    <defs>
-                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2196F3" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#2196F3" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.2} />
-                    <XAxis 
-                      dataKey="date" 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: theme.palette.text.secondary, fontSize: 12 }} 
-                      dy={10}
-                      minTickGap={30}
-                    />
-                    <YAxis 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: theme.palette.text.secondary, fontSize: 12 }} 
-                    />
-                    <RechartsTooltip 
-                      contentStyle={{ 
-                        borderRadius: 12, 
-                        border: 'none', 
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        backgroundColor: theme.palette.background.paper 
-                      }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#2196F3" 
-                      fillOpacity={1} 
-                      fill="url(#colorCount)" 
-                      strokeWidth={3}
-                      activeDot={{ r: 6 }}
-                    />
-                  </AreaChart>
-                  </ResponsiveContainer>
-                </Box>
-              ) : (
-                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
-                  <Typography color="text.secondary">No trend data available yet.</Typography>
-                </Box>
-              )}
-            </CardContent>
-          </GlassCard>
-        </Grid>
-
-        {/* Payment Status Breakdown */}
-        <Grid item xs={12} lg={4}>
-          <GlassCard>
-            <CardContent sx={{ height: 400 }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>Payment Status</Typography>
-              {financialStats.paymentStatusData.length > 0 ? (
-                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                    <Pie
-                      data={financialStats.paymentStatusData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={5}
-                      dataKey="count"
-                      nameKey="status"
-                    >
-                      {financialStats.paymentStatusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip 
-                      contentStyle={{ borderRadius: 8 }}
-                      formatter={(value: number | undefined) => [`${value ?? 0} students`, 'Count']}
-                    />
-                    <Legend verticalAlign="bottom" height={36}/>
-                  </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              ) : (
-                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
-                  <Typography color="text.secondary">No payment data available.</Typography>
-                </Box>
-              )}
-            </CardContent>
-          </GlassCard>
-        </Grid>
-
-        {/* Korean Levels (moved to bottom) - Only show if there are Korean Language registrations */}
-        {koreanLevelRows.length > 0 && (
-          <Grid item xs={12} lg={4}>
-            <GlassCard>
-              <CardContent sx={{ height: 400 }}>
-                <Typography variant="h6" fontWeight={700} gutterBottom>Korean Levels</Typography>
-                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                    <Pie
-                      data={koreanLevelRows}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={80}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="count"
-                      nameKey="level"
-                    >
-                      {koreanLevelRows.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip contentStyle={{ borderRadius: 8 }} />
-                    <Legend verticalAlign="bottom" height={36}/>
-                  </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </GlassCard>
-          </Grid>
-        )}
-
-        {/* Bottom Bar Chart */}
         <Grid item xs={12}>
-          <GlassCard>
-            <CardContent sx={{ minHeight: 400 }}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>Academy Distribution</Typography>
-              {academyRows.length > 0 ? (
-                <Box sx={{ width: '100%', height: 320, minWidth: 0, minHeight: 0 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={academyRows} layout="vertical" margin={{ left: 40, right: 20, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.2} />
-                      <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="academy" 
-                        type="category" 
-                        width={120}
-                        tick={{ fill: theme.palette.text.primary, fontWeight: 500, fontSize: 13 }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: 8 }} />
-                      <Bar dataKey="count" fill="#2196F3" radius={[0, 6, 6, 0]} barSize={24}>
-                        {academyRows.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              ) : (
-                 <Box display="flex" alignItems="center" justifyContent="center" height={200}>
-                  <Typography color="text.secondary">No academies selected.</Typography>
-                </Box>
-              )}
-            </CardContent>
-          </GlassCard>
+           <GlassCard sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight={700} gutterBottom sx={{ mb: 3 }}>
+                 🧩 Application Modules
+              </Typography>
+              
+              <Grid container spacing={4}>
+                 {/* Academic Column */}
+                 <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                       <School size={18} color="#9C27B0" />
+                       <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>ACADEMIC</Typography>
+                    </Box>
+                    <Stack spacing={1.5}>
+                       {[
+                         { label: 'Classes & Academies', to: '/classes', icon: School, color: '#9C27B0' },
+                         { label: 'Student Progress', to: '/progress', icon: TrendingUp, color: '#673AB7' },
+                         { label: 'Daily Attendance', to: '/attendance', icon: Clock, color: '#3F51B5' },
+                       ].map(item => (
+                         <Button
+                           key={item.to}
+                           variant="outlined"
+                           fullWidth
+                           startIcon={<item.icon size={18} />}
+                           onClick={() => navigate(item.to)}
+                           sx={{ 
+                             justifyContent: 'flex-start', 
+                             py: 1.5, 
+                             borderRadius: 2,
+                             borderColor: 'divider',
+                             color: 'text.primary',
+                             '&:hover': { borderColor: item.color, bgcolor: `${item.color}08`, color: item.color }
+                           }}
+                         >
+                           {item.label}
+                         </Button>
+                       ))}
+                    </Stack>
+                 </Grid>
+
+                 {/* People Column */}
+                 <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                       <Users size={18} color="#2196F3" />
+                       <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>PEOPLE & OPS</Typography>
+                    </Box>
+                    <Stack spacing={1.5}>
+                       {[
+                         { label: 'Registrations', to: '/registrations', icon: Users, color: '#2196F3' },
+                         { label: 'Payments & Invoices', to: '/payments', icon: CreditCard, color: '#00BCD4' },
+                         { label: 'Volunteers', to: '/volunteers', icon: Users, color: '#03A9F4' }, // changed icon from HeartHandshake if not imported
+                         { label: 'Email Database', to: '/emails', icon: FileText, color: '#607D8B' },
+                       ].map(item => (
+                         <Button
+                           key={item.to}
+                           variant="outlined"
+                           fullWidth
+                           startIcon={<item.icon size={18} />}
+                           onClick={() => navigate(item.to)}
+                           sx={{ 
+                             justifyContent: 'flex-start', 
+                             py: 1.5, 
+                             borderRadius: 2,
+                             borderColor: 'divider',
+                             color: 'text.primary',
+                             '&:hover': { borderColor: item.color, bgcolor: `${item.color}08`, color: item.color }
+                           }}
+                         >
+                           {item.label}
+                         </Button>
+                       ))}
+                    </Stack>
+                 </Grid>
+
+                 {/* System Column */}
+                 <Grid item xs={12} md={4}>
+                    <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                       <TrendingUp size={18} color="#FF9800" />
+                       <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>SYSTEM & INSIGHTS</Typography>
+                    </Box>
+                    <Stack spacing={1.5}>
+                       {[
+                         { label: 'Analytics Dashboard', to: '/analytics', icon: TrendingUp, color: '#FF9800' },
+                         { label: 'Reports', to: '/reports', icon: FileText, color: '#FF5722' },
+                         { label: 'Global Search', to: '/global-search', icon: CheckCircle, color: '#795548' }, // used CheckCircle as generic or maybe just remove icon if Search not imported
+                       ].map(item => (
+                         <Button
+                           key={item.to}
+                           variant="outlined"
+                           fullWidth
+                           startIcon={<item.icon size={18} />}
+                           onClick={() => navigate(item.to)}
+                           sx={{ 
+                             justifyContent: 'flex-start', 
+                             py: 1.5, 
+                             borderRadius: 2,
+                             borderColor: 'divider',
+                             color: 'text.primary',
+                             '&:hover': { borderColor: item.color, bgcolor: `${item.color}08`, color: item.color }
+                           }}
+                         >
+                           {item.label}
+                         </Button>
+                       ))}
+                    </Stack>
+                 </Grid>
+              </Grid>
+           </GlassCard>
         </Grid>
       </Grid>
     </Box>

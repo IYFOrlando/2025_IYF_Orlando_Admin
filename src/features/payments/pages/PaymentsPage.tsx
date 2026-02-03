@@ -5,7 +5,7 @@ import {
   List, ListItem, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Box, Tabs, Tab,
   Checkbox, FormControlLabel, useTheme, Paper, Alert,
-  CircularProgress
+  CircularProgress, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material'
 import {
   Settings as SettingsIcon,
@@ -21,7 +21,10 @@ import {
   CheckCircle as CheckCircleIcon,
   Mail as MailIcon,
   Undo as UndoIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  CreditCard as CreditCardIcon,
+  ConfirmationNumber as ConfirmationNumberIcon,
+  Percent as PercentIcon
 } from '@mui/icons-material'
 import {
   collection, addDoc, serverTimestamp, query, where, onSnapshot, doc,
@@ -46,7 +49,7 @@ import { isKoreanLanguage, mapKoreanLevel, norm, usd } from '../../../lib/query'
 import { toCents, fromCents } from '../../../lib/money'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import { logger } from '../../../lib/logger'
-import { getDiscountByCode, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../../../lib/constants'
+import { getDiscountByCode, DISCOUNT_CODES, PERIOD_1_ACADEMIES, PERIOD_2_ACADEMIES } from '../../../lib/constants'
 import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
@@ -57,6 +60,7 @@ import {
 } from 'recharts'
 import iyfLogo from '../../../assets/logo/IYF_logo.png' // Import Logo
 import { sendEmail, formatPrice } from '../../../lib/emailService'
+import { CreatePaymentSchema } from '../schemas'
 
 // Shared Config
 const INV = COLLECTIONS_CONFIG.academyInvoices
@@ -104,6 +108,18 @@ function paidAcademyKeys(invs: Invoice[]): Set<string> {
     for (const l of inv.lines) {
       const key = `${norm(l.academy)}|${(l.level || '').toString().trim().toLowerCase()}`
       covered.add(key)
+    }
+  }
+  return covered
+}
+
+function invoicedAcademyKeys(invs: Invoice[]): Set<string> {
+  const covered = new Set<string>()
+  for (const inv of invs) {
+    if ((inv.status as string) === 'void') continue 
+    for (const l of inv.lines) {
+        const key = `${norm(l.academy)}|${(l.level || '').toString().trim().toLowerCase()}`
+        covered.add(key)
     }
   }
   return covered
@@ -222,8 +238,10 @@ const PaymentsPage = React.memo(() => {
   const [appliedDiscount, setAppliedDiscount] = React.useState<any>(null)
 
   // Payment State
-  const [method, setMethod] = React.useState<'cash'|'zelle'|'none'>('none')
+  const [method, setMethod] = React.useState<'cash' | 'zelle' | 'check' | 'card' | 'discount' | 'refund' | 'none'>('none')
   const [payAmount, setPayAmount] = React.useState<number>(0)
+  const [paymentNotes, setPaymentNotes] = React.useState<string>('')
+  const [paymentDiscountType, setPaymentDiscountType] = React.useState<string>('')
   const [applyToAllInvoices, setApplyToAllInvoices] = React.useState<boolean>(false)
 
   // Admin Dialogs
@@ -380,7 +398,8 @@ const PaymentsPage = React.memo(() => {
   React.useEffect(() => {
     if (!student?.reg) { setLines([]); return }
     const r = student.reg as any
-    const covered = paidAcademyKeys(studentInvoices)
+    // Use invoicedAcademyKeys to check coverage across ALL invoices (paid or unpaid)
+    const covered = invoicedAcademyKeys(studentInvoices)
     const L: InvoiceLine[] = []
 
     if (Array.isArray(r.selectedAcademies) && r.selectedAcademies.length > 0) {
@@ -514,13 +533,27 @@ const PaymentsPage = React.memo(() => {
     notifySuccess('Invoice Created')
   }
 
+
+
   const recordPayment = async () => {
     if (!student || (!applyToAllInvoices && !selectedInvoiceId)) return
+    
+    // Zod Validation Step 1: Pre-check basic inputs before logic
+    // We construct a potential input object to validate
+    const basicValidation = CreatePaymentSchema.pick({ method: true, amount: true }).safeParse({
+      method: method === 'none' ? 'cash' : method, // fallback for validation check, logic handles 'none' below
+      amount: toCents(payAmount)
+    })
+    
     if (method === 'none' || payAmount <= 0) return notifyError('Invalid payment details')
+    if (!basicValidation.success) {
+      return notifyError(basicValidation.error.issues[0].message)
+    }
 
     const amtCents = toCents(payAmount)
 
     if (applyToAllInvoices) {
+      // ... existing applyToAll logic ...
       let rem = amtCents
       const unpaid = studentInvoices.filter(i => (i.total - i.paid) > 0).sort((a,b) => (b.total-b.paid) - (a.total-a.paid))
       if (!unpaid.length) return notifyError('No unpaid invoices')
@@ -534,9 +567,22 @@ const PaymentsPage = React.memo(() => {
         const share = idx === unpaid.length - 1 ? rem : Math.round(amtCents * (bal / totalDebt))
         const pay = Math.min(rem, Math.min(share, bal))
         if (pay <= 0) return
+        
+        // Final sanity check with Zod for each distribution
+        const val = CreatePaymentSchema.safeParse({
+          studentId: student.id,
+          invoiceId: inv.id,
+          amount: pay,
+          method: method,
+          notes: paymentNotes
+        })
+        if (!val.success) {
+           console.error("Payment validation failed internally", val.error)
+           return // Skip invalid entry 
+        }
 
-      await addDoc(collection(db, PAY), {
-          invoiceId: inv.id, studentId: student.id, amount: pay, method, createdAt: serverTimestamp() 
+        await addDoc(collection(db, PAY), {
+          invoiceId: inv.id, studentId: student.id, amount: pay, method, notes: paymentNotes, createdAt: serverTimestamp() 
         })
         const newPaid = inv.paid + pay
         const newBal = inv.total - newPaid
@@ -548,37 +594,54 @@ const PaymentsPage = React.memo(() => {
         rem -= pay
       }))
       notifySuccess('Payment Distributed')
-        } else {
+    } else {
+      // Single Invoice Payment
       const inv = studentInvoices.find(i => i.id === selectedInvoiceId)!
       const balCents = inv.total - inv.paid
+      
       if (amtCents > balCents) return notifyError('Payment exceeds balance')
       
+      // Zod Validation: Full Check
+      const validation = CreatePaymentSchema.safeParse({
+        studentId: student.id,
+        invoiceId: inv.id,
+        amount: amtCents,
+        method: method,
+        notes: paymentNotes
+      })
+
+      if (!validation.success) {
+        return notifyError(validation.error.issues[0].message)
+      }
+
       await addDoc(collection(db, PAY), {
-        invoiceId: inv.id, studentId: student.id, amount: amtCents, method, createdAt: serverTimestamp()
+        invoiceId: inv.id, studentId: student.id, amount: amtCents, method, notes: paymentNotes, createdAt: serverTimestamp()
       })
       const newPaid = inv.paid + amtCents
-        const newBal = inv.total - newPaid
-        const newStatus = newBal === 0 ? 'paid' : 'partial' as const
+      const newBal = inv.total - newPaid
+      const newStatus = newBal === 0 ? 'paid' : 'partial' as const
         
-        await updateDoc(doc(db, INV, inv.id), { 
+      await updateDoc(doc(db, INV, inv.id), { 
           paid: newPaid, balance: newBal, 
           status: newStatus,
           updatedAt: serverTimestamp() 
-        })
+      })
       
       notifySuccess('Payment Recorded')
       
       // Auto-email if fully paid
       if (newBal === 0) {
-        // Construct updated invoice object for email
         const updatedKwargs = { ...inv, paid: newPaid, balance: newBal, status: newStatus } as Invoice
         handleEmailInvoice(updatedKwargs, true).then(() => {
            notifySuccess('Receipt emailed to student')
         })
       }
     }
-      setPayAmount(0)
-      setMethod('none')
+    // Reset Form
+    setPayAmount(0)
+    setMethod('none')
+    setPaymentNotes('')
+    setPaymentDiscountType('')
   }
   
   const deleteInvoice = async (inv: Invoice) => {
@@ -1118,7 +1181,51 @@ const PaymentsPage = React.memo(() => {
               </Typography>
               
               <Divider sx={{ mb: 2 }} />
+
+              {/* Enrolled Academies Status Context */}
+              {student && (
+                <Box sx={{ mb: 3 }}>
+                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>Enrolled Academies Status</Typography>
+                   <Stack spacing={1}>
+                     {(student.reg.selectedAcademies as any[] || []).map((ac, idx) => {
+                        const academyName = norm(ac.academy)
+                        
+                        // Find invoices covering this academy
+                        const coveringInvoices = studentInvoices.filter(inv => 
+                          (inv.status !== 'void') &&
+                          inv.lines.some(l => norm(l.academy) === academyName && (!l.level || norm(l.level) === norm(ac.level)))
+                        )
+                        
+                        const paidInvoice = coveringInvoices.find(i => i.status === 'paid' || i.status === 'exonerated')
+                        const unpaidInvoice = coveringInvoices.find(i => i.status !== 'paid' && i.status !== 'exonerated')
+                        
+                        // If not covered, it should be in 'lines' (pending)
+                        const isPending = lines.some(l => norm(l.academy) === academyName)
+                        
+                        return (
+                          <Stack key={idx} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
+                             <Box>
+                               <Typography variant="body2" fontWeight={500}>{ac.academy}</Typography>
+                               <Typography variant="caption" color="text.secondary">{ac.level || 'No Level'}</Typography>
+                             </Box>
+                             {paidInvoice ? (
+                               <Chip label="Paid" size="small" color="success" variant="filled" icon={<CheckCircleIcon />} />
+                             ) : unpaidInvoice ? (
+                               <Chip label="Invoiced (Due)" size="small" color="info" variant="outlined" icon={<ReceiptIcon />} />
+                             ) : isPending ? (
+                               <Chip label="Pending Creation" size="small" color="warning" variant="outlined" />
+                             ) : (
+                               <Chip label="Not Invoiced" size="small" color="default" variant="outlined" />
+                             )}
+                          </Stack>
+                        )
+                     })}
+                     {/* Legacy support for older registrations if needed, simplified for main 2026 structure above */}
+                   </Stack>
+                </Box>
+              )}
               
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>Invoice Items to Create</Typography>
               <Stack spacing={1}>
                  {lines.map((l, i) => (
                    <Paper key={i} elevation={0} sx={{ p: 1, bgcolor: 'action.hover', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1132,7 +1239,7 @@ const PaymentsPage = React.memo(() => {
                       <IconButton size="small" onClick={() => { setEditingLine(l); setEditingLineIndex(i); setInvoiceDialogOpen(true) }}><EditIcon fontSize="small"/></IconButton>
                    </Paper>
                  ))}
-                 {!lines.length && <Typography variant="body2" color="text.secondary" align="center">No pending academies.</Typography>}
+                 {!lines.length && <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>All academies are already invoiced.</Typography>}
               </Stack>
               
               <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -1184,18 +1291,28 @@ const PaymentsPage = React.memo(() => {
                         </Stack>
                                   </Stack>
                     <Divider sx={{ my: 1 }} />
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv) }} title="Preview Invoice"><VisibilityIcon /></IconButton>
-                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }} title="Download PDF"><PictureAsPdfIcon /></IconButton>
-                       <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEmailInvoice(inv) }} title="Email Invoice" disabled={!!sendingEmailId}>
-                          {sendingEmailId === inv.id ? <CircularProgress size={20} /> : <MailIcon />}
-                       </IconButton>
+                    <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" rowGap={1}>
+                       <Button size="small" variant="outlined" startIcon={<VisibilityIcon />} onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv) }}>
+                          View
+                       </Button>
+                       <Button size="small" variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={(e) => { e.stopPropagation(); generateReceipt(inv) }}>
+                          PDF
+                       </Button>
+                       <Button size="small" variant="outlined" startIcon={sendingEmailId === inv.id ? <CircularProgress size={16}/> : <MailIcon />} onClick={(e) => { e.stopPropagation(); handleEmailInvoice(inv) }} disabled={!!sendingEmailId}>
+                          Email
+                       </Button>
+                       
                        {inv.paid > 0 && (
-                         <IconButton size="small" color="warning" onClick={(e) => { e.stopPropagation(); handleRefund(inv) }} title="Issue Refund">
-                           <UndoIcon />
-                         </IconButton>
+                         <Button size="small" variant="outlined" color="warning" startIcon={<UndoIcon />} onClick={(e) => { e.stopPropagation(); handleRefund(inv) }}>
+                           Refund
+                         </Button>
                        )}
-                       <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv) }} title="Delete Invoice"><DeleteIcon /></IconButton>
+                       
+                       <Box sx={{ flexGrow: 1 }} />
+                       
+                       <Button size="small" variant="text" color="error" startIcon={<DeleteIcon />} onClick={(e) => { e.stopPropagation(); deleteInvoice(inv) }}>
+                          Delete
+                       </Button>
                     </Stack>
                   </GlassCard>
                   </motion.div>
@@ -1211,10 +1328,11 @@ const PaymentsPage = React.memo(() => {
            <GlassCard sx={{ p: 3, height: '100%' }}>
               <Typography variant="h5" fontWeight={700} gutterBottom>Payment Terminal</Typography>
               
-              <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+              <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }} variant="scrollable" scrollButtons="auto">
                 <Tab label="Dashboard" />
                 <Tab label="Pay Invoice" />
-                <Tab label="Records" />
+                <Tab label="Student Logs" />
+                <Tab label="Global History" />
               </Tabs>
 
               {activeTab === 0 && (
@@ -1305,7 +1423,7 @@ const PaymentsPage = React.memo(() => {
                                 <Box>
                                    <Typography variant="subtitle2" fontWeight={600}>
                                       {allInvoices?.find(i => i.id === p.invoiceId)?.studentName || 'Student'}
-                    </Typography>
+                                   </Typography>
                                    <Typography variant="caption" color="text.secondary">
                                       {p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'} • {p.method?.toUpperCase()}
                                    </Typography>
@@ -1321,8 +1439,14 @@ const PaymentsPage = React.memo(() => {
                     </Stack>
               )}
 
-              {activeTab === 2 && (
+              {activeTab === 1 && (
                 <Stack spacing={3} component={motion.div} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                   {!student ? (
+                     <Box sx={{ p: 4, textAlign: 'center', opacity: 0.6 }}>
+                       <Typography variant="body1">Select a student from the list to record a payment.</Typography>
+                     </Box>
+                   ) : (
+                   <>
                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 3 }}>
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>Balance Due</Typography>
                       <Typography variant="h3" fontWeight={700}>
@@ -1332,39 +1456,126 @@ const PaymentsPage = React.memo(() => {
 
                    <TextField 
                       label="Payment Amount" variant="outlined" fullWidth type="number"
-                      value={payAmount} onChange={e => setPayAmount(Number(e.target.value))}
+                      value={payAmount ? payAmount / 100 : ''} 
+                      onChange={e => setPayAmount(Math.round(Number(e.target.value) * 100))}
                       InputProps={{ startAdornment: <AttachMoneyIcon color="action" /> }}
+                      inputProps={{ step: "0.01" }}
                    />
                    
-                   <Stack direction="row" spacing={1}>
+                   <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={1}>
+                          {/* Cash */}
                           <Chip 
                         icon={<AttachMoneyIcon />} 
                         label="Cash" 
                         clickable 
                         color={method === 'cash' ? 'success' : 'default'} 
                         onClick={() => setMethod('cash')} 
+                        variant={method === 'cash' ? 'filled' : 'outlined'}
                           />
+                          {/* Zelle */}
                           <Chip 
                         icon={<LocalOfferIcon />} 
                         label="Zelle" 
                         clickable 
                         color={method === 'zelle' ? 'info' : 'default'} 
                         onClick={() => setMethod('zelle')} 
+                        variant={method === 'zelle' ? 'filled' : 'outlined'}
+                          />
+                          {/* Card */}
+                          <Chip 
+                        icon={<CreditCardIcon />} 
+                        label="Card" 
+                        clickable 
+                        color={method === 'card' ? 'primary' : 'default'} 
+                        onClick={() => setMethod('card')} 
+                        variant={method === 'card' ? 'filled' : 'outlined'}
+                          />
+                          {/* Check */}
+                          <Chip 
+                        icon={<ConfirmationNumberIcon />} 
+                        label="Check" 
+                        clickable 
+                        color={method === 'check' ? 'secondary' : 'default'} 
+                        onClick={() => setMethod('check')} 
+                        variant={method === 'check' ? 'filled' : 'outlined'}
+                          />
+                          {/* Discount */}
+                          <Chip 
+                        icon={<PercentIcon />} 
+                        label="Discount" 
+                        clickable 
+                        color={method === 'discount' ? 'warning' : 'default'} 
+                        onClick={() => setMethod('discount')} 
                           />
                         </Stack>
+
+                      {/* Dynamic Inputs based on Method */}
+                      <Box sx={{ mt: 2 }}>
+                        {method === 'discount' && (
+                          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                            <InputLabel>Discount Type</InputLabel>
+                            <Select
+                              value={paymentDiscountType}
+                              label="Discount Type"
+                              onChange={(e) => {
+                                 const code = e.target.value
+                                 setPaymentDiscountType(code)
+                                 const conf = DISCOUNT_CODES[code as keyof typeof DISCOUNT_CODES]
+                                 if (conf) {
+                                    setPaymentNotes(conf.description)
+                                    // Auto-calculate amount
+                                    let baseAmount = 0
+                                    if (applyToAllInvoices) {
+                                       // Sum of all balances
+                                       baseAmount = studentInvoices.reduce((acc, inv) => acc + inv.balance, 0)
+                                    } else if (selectedInvoiceId) {
+                                       baseAmount = studentInvoices.find(i => i.id === selectedInvoiceId)?.balance || 0
+                                    }
+                                    
+                                    if (baseAmount > 0 || conf.type === 'fixed') {
+                                       if (conf.type === 'percentage') {
+                                           setPayAmount(Math.round(baseAmount * (conf.discount / 100)))
+                                       } else {
+                                           setPayAmount(conf.discount * 100)
+                                       }
+                                    }
+                                 }
+                              }}
+                            >
+                              {Object.entries(DISCOUNT_CODES).map(([code, details]) => (
+                                <MenuItem key={code} value={code}>
+                                  {details.name} ({details.type === 'percentage' ? `${details.discount}%` : `$${details.discount}`})
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        )}
+                        
+                        <TextField
+                           label={method === 'check' ? "Check Number" : method === 'discount' ? "Explanation / Note" : "Reference / Note (Optional)"}
+                           variant="outlined"
+                           fullWidth
+                           size="small"
+                           value={paymentNotes}
+                           onChange={e => setPaymentNotes(e.target.value)}
+                           placeholder={method === 'check' ? "e.g. #1234" : method === 'discount' ? "e.g. Approved by Director" : ""}
+                        />
+                      </Box>
 
                         <FormControlLabel
                      control={<Checkbox checked={applyToAllInvoices} onChange={e => setApplyToAllInvoices(e.target.checked)} />} 
                      label="Apply to all invoices (Oldest first)" 
                    />
 
-                   <Button variant="contained" size="large" onClick={recordPayment} disabled={!method || method === 'none'} sx={{ mt: 2, height: 50, fontSize: '1.1rem' }}>
+                   <Button variant="contained" size="large" onClick={recordPayment} disabled={!method || method === 'none' || payAmount <= 0} sx={{ mt: 2, height: 50, fontSize: '1.1rem' }}>
                      Process Payment
                    </Button>
+                   </>
+                   )}
                 </Stack>
               )}
 
-              {activeTab === 1 && (
+              {activeTab === 2 && (
                 <List>
                    {studentPayments.map(p => (
                      <ListItem key={p.id} 
@@ -1381,8 +1592,83 @@ const PaymentsPage = React.memo(() => {
                         </Stack>
                      </ListItem>
                    ))}
-                   {!studentPayments.length && <Typography align="center" sx={{ mt: 4, color: 'text.secondary' }}>No payments found</Typography>}
+                   {!studentPayments.length && <Typography align="center" sx={{ mt: 4, color: 'text.secondary' }}>No payments found for this student.</Typography>}
                 </List>
+              )}
+
+              {activeTab === 3 && (
+                <Stack spacing={2} component={motion.div} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <Typography variant="h6">Global History</Typography>
+                  
+                  {/* Sub-tabs for History */}
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>Weekly Payment Breakdown</Typography>
+                  <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                    {(() => {
+                        const payments = allPayments || []
+                        if (!payments.length) return <Typography variant="caption">No payments recorded.</Typography>
+                        
+                        // Group by week
+                        const grouped: Record<string, { total: number, payments: any[] }> = {}
+                        payments.forEach(p => {
+                            const d = p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : new Date()
+                            // Get start of week (Sunday)
+                            const day = d.getDay()
+                            const diff = d.getDate() - day
+                            const start = new Date(d)
+                            start.setDate(diff); start.setHours(0,0,0,0)
+                            const key = start.toLocaleDateString()
+                            
+                            if (!grouped[key]) grouped[key] = { total: 0, payments: [] }
+                            grouped[key].total += p.amount
+                            grouped[key].payments.push(p)
+                        })
+                        
+                        return Object.entries(grouped)
+                           .sort((a,b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+                           .map(([weekStart, data]) => (
+                             <Paper key={weekStart} sx={{ mb: 2, overflow: 'hidden' }} variant="outlined">
+                                <Box sx={{ p: 2, bgcolor: 'action.hover', display: 'flex', justifyContent: 'space-between' }}>
+                                   <Typography fontWeight={600}>Week of {weekStart}</Typography>
+                                   <Typography fontWeight={700} color="primary">{usd(data.total)}</Typography>
+                                </Box>
+                                <Divider />
+                                <List dense>
+                                   {data.payments.map((p, idx) => (
+                                     <ListItem key={idx}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                           <Typography variant="body2">
+                                              {allInvoices?.find(i => i.id === p.invoiceId)?.studentName || 'Unknown Student'}
+                                           </Typography>
+                                           <Typography variant="caption">{usd(p.amount)} ({p.method})</Typography>
+                                        </Box>
+                                     </ListItem>
+                                   ))}
+                                </List>
+                             </Paper>
+                           ))
+                    })()}
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Typography variant="subtitle2" color="text.secondary">All Invoices (Global)</Typography>
+                  <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                     {(allInvoices || []).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)).map(inv => (
+                        <Paper key={inv.id} sx={{ mb: 1, p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} variant="outlined">
+                           <Box>
+                              <Typography variant="subtitle2">#{inv.id.slice(0,6)} • {inv.studentName}</Typography>
+                              <Typography variant="caption" color="text.secondary">{new Date(inv.createdAt?.seconds*1000).toLocaleDateString()} • {inv.status}</Typography>
+                           </Box>
+                           <Stack direction="row" alignItems="center" spacing={1}>
+                              <Typography variant="body2" fontWeight={600}>{usd(inv.total)}</Typography>
+                              <IconButton size="small" onClick={() => setPreviewInvoice(inv)}><VisibilityIcon fontSize="small"/></IconButton>
+                           </Stack>
+                        </Paper>
+                     ))}
+                     {(!allInvoices || !allInvoices.length) && <Typography variant="caption">No invoices found.</Typography>}
+                  </Box>
+
+                </Stack>
               )}
            </GlassCard>
                       </Grid>

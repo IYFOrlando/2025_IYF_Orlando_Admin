@@ -43,6 +43,11 @@ export const normalizeLevel = (level: string | null): string => {
     return 'Intermediate'
   }
   
+  // Group Conversation variations (except K-Movie which is handled below)
+  if (normalized.includes('conversation') && !normalized.includes('movie')) {
+    return 'Conversation'
+  }
+  
   // Handle K-Movie Conversation (keep as is, it's a specific level)
   if (normalized.includes('k-movie') || normalized.includes('movie')) {
     return 'K-Movie Conversation'

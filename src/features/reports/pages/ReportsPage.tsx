@@ -31,7 +31,7 @@ import autoTable from 'jspdf-autotable'
 import logoImage from '../../../assets/logo/IYF_logo.png'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
-import { normalizeAcademy } from '../../../lib/normalization'
+import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 import { useInvoices } from '../../payments/hooks/useInvoices'
 import { usePayments } from '../../payments/hooks/usePayments'
 import { latestInvoicePerStudent } from '../../payments/utils'
@@ -353,7 +353,8 @@ export default function ReportsPage() {
       const academies = (r as any).selectedAcademies || [r.firstPeriod, r.secondPeriod].filter(Boolean)
       academies.forEach((a: any) => {
         if (a?.academy?.toLowerCase() === 'korean language' && a?.level) {
-          koreanLevelMap.set(a.level, (koreanLevelMap.get(a.level) || 0) + 1)
+          const levelName = normalizeLevel(a.level)
+          koreanLevelMap.set(levelName, (koreanLevelMap.get(levelName) || 0) + 1)
         }
       })
     })
