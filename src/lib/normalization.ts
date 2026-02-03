@@ -11,7 +11,7 @@ export const normalizeAcademy = (academy: string | null): string => {
   const normalized = academy.trim().toLowerCase()
   
   // Normalize Korean Language variations
-  if (normalized.includes('korean') && normalized.includes('language')) {
+  if (normalized.includes('korean') && (normalized.includes('language') || normalized.includes('conversation') || normalized.includes('movie'))) {
     return 'Korean Language'
   }
   

@@ -338,8 +338,24 @@ export default function ReportsPage() {
     ;(registrations || []).forEach(r => {
       const academies = (r as any).selectedAcademies || [r.firstPeriod, r.secondPeriod].filter(Boolean)
       academies.forEach((a: any) => {
-        if (a?.academy) {
-          totalAcademyMap.set(a.academy, (totalAcademyMap.get(a.academy) || 0) + 1)
+        const normAc = normalizeAcademy(a?.academy)
+        if (normAc === 'Korean Language') {
+          let levelStr = a?.level
+          
+          // Fallback: inference from academy name if level is missing (legacy)
+          if (!levelStr) {
+            const rawAc = (a?.academy || '').toLowerCase()
+            if (rawAc.includes('movie')) levelStr = 'K-Movie Conversation'
+            else if (rawAc.includes('conversation')) levelStr = 'Conversation'
+          }
+          
+          if (levelStr) {
+            const levelName = normalizeLevel(levelStr)
+            totalAcademyMap.set(levelName, (totalAcademyMap.get(levelName) || 0) + 1)
+          }
+        } else if (a?.academy) { // For non-Korean Language academies, use the original logic
+          const normName = normalizeAcademy(a.academy)
+          totalAcademyMap.set(normName, (totalAcademyMap.get(normName) || 0) + 1)
         }
       })
     })
@@ -352,9 +368,21 @@ export default function ReportsPage() {
     ;(registrations || []).forEach(r => {
       const academies = (r as any).selectedAcademies || [r.firstPeriod, r.secondPeriod].filter(Boolean)
       academies.forEach((a: any) => {
-        if (a?.academy?.toLowerCase() === 'korean language' && a?.level) {
-          const levelName = normalizeLevel(a.level)
-          koreanLevelMap.set(levelName, (koreanLevelMap.get(levelName) || 0) + 1)
+        const normAc = normalizeAcademy(a?.academy)
+        if (normAc === 'Korean Language') {
+          let levelStr = a?.level
+          
+          // Fallback: inference from academy name if level is missing (legacy)
+          if (!levelStr) {
+            const rawAc = (a?.academy || '').toLowerCase()
+            if (rawAc.includes('movie')) levelStr = 'K-Movie Conversation'
+            else if (rawAc.includes('conversation')) levelStr = 'Conversation'
+          }
+          
+          if (levelStr) {
+            const levelName = normalizeLevel(levelStr)
+            koreanLevelMap.set(levelName, (koreanLevelMap.get(levelName) || 0) + 1)
+          }
         }
       })
     })
