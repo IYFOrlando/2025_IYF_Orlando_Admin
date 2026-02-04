@@ -97,38 +97,37 @@ function AdminDashboard() {
   // ... existing calculation logic ...
   const { totals, academyRows, financialStats, unpaidCount, partialPaidCount } = React.useMemo(() => {
     // 1. Registration Stats
+    // 1. Registration Stats
     const academies = new Map<string, number>()
-    // const dailyCounts = new Map<string, number>() // Unused
+    const uniqueStudents = new Set<string>()
+    const uniqueStudentAcademies = new Set<string>() // Deduplicate student+academy combos
 
     for (const r of registrations) {
-      // Daily Trend - REMOVED for optimization
-      /*
-      if (r.createdAt) {
-        const dateStr = displayYMD(r.createdAt)
-        if (dateStr) {
-          dailyCounts.set(dateStr, (dailyCounts.get(dateStr) || 0) + 1)
-        }
-      }
-      */
+      // Deduplicate Total Registrations (Unique Students)
+      const studentKey = (r.email || `${r.firstName}_${r.lastName}`).toLowerCase().trim()
+      uniqueStudents.add(studentKey)
 
       // Academies
+      const processAcademy = (rawName: string) => {
+        if (rawName && normalizeAcademy(rawName) !== 'n/a') {
+           const normName = normalizeAcademy(rawName)
+           // Create a unique key for this student + academy
+           const enrollmentKey = `${studentKey}|${normName}`
+           
+           // Only count if this student hasn't been counted for this academy yet
+           if (!uniqueStudentAcademies.has(enrollmentKey)) {
+             uniqueStudentAcademies.add(enrollmentKey)
+             academies.set(normName, (academies.get(normName) || 0) + 1)
+           }
+        }
+      }
+
       if ((r as any).selectedAcademies && Array.isArray((r as any).selectedAcademies)) {
-        (r as any).selectedAcademies.forEach((a: any) => {
-          if (a.academy && normalizeAcademy(a.academy) !== 'n/a') {
-            const key = normalizeAcademy(a.academy)
-            academies.set(key, (academies.get(key) || 0) + 1)
-          }
-        })
+        (r as any).selectedAcademies.forEach((a: any) => processAcademy(a.academy))
       } else {
         // Legacy
-        const check = (a: any) => {
-          if (a && normalizeAcademy(a) !== 'n/a') {
-            const key = normalizeAcademy(a)
-            academies.set(key, (academies.get(key) || 0) + 1)
-          }
-        }
-        check(r.firstPeriod?.academy)
-        check(r.secondPeriod?.academy)
+        processAcademy(r.firstPeriod?.academy)
+        processAcademy(r.secondPeriod?.academy)
       }
     }
 
@@ -136,6 +135,7 @@ function AdminDashboard() {
       .map(([academy, count]) => ({ academy, count }))
       .sort((a, b) => b.count - a.count)
     
+    // Total class selections (sum of all unique enrollments)
     const totalAcademies = Array.from(academies.values()).reduce((a, b) => a + b, 0)
     
         // 2. Financial Stats
@@ -167,7 +167,7 @@ function AdminDashboard() {
 
     return {
       totals: {
-        registrations: registrations.length,
+        registrations: uniqueStudents.size,
         totalAcademies,
         registrationsToday
       },

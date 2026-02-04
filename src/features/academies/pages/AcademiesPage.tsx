@@ -140,9 +140,29 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     return () => unsubscribe()
   }, [])
 
+  // Helper to deduplicate registrations, keeping only the most recent one for each student
+  const deduplicateRegistrations = React.useCallback((regs: Registration[]) => {
+    const seen = new Set<string>()
+    return regs.filter(reg => {
+      // Create a unique key for the student (normalize to lower case to be safe)
+      // Use email as primary identifier, or name combination if email is missing
+      const key = reg.email 
+        ? reg.email.toLowerCase().trim()
+        : `${reg.firstName?.toLowerCase().trim() || ''}_${reg.lastName?.toLowerCase().trim() || ''}`
+      
+      // If we've seen this student before, skip (since the list is already sorted by newest first)
+      if (seen.has(key)) {
+        return false
+      }
+      
+      seen.add(key)
+      return true
+    })
+  }, [])
+
   // Get registrations for a specific academy (using selectedAcademies - 2026 structure)
   const getRegistrationsForAcademy = React.useCallback((academyName: string, level?: string) => {
-    return registrations?.filter(reg => {
+    const filtered = registrations?.filter(reg => {
       // NEW STRUCTURE (2026): Check selectedAcademies array
       if ((reg as any).selectedAcademies && Array.isArray((reg as any).selectedAcademies)) {
         return (reg as any).selectedAcademies.some((academyData: any) => {
@@ -169,17 +189,41 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       
       return matchesAcademy
     }) || []
-  }, [registrations])
+
+    return deduplicateRegistrations(filtered)
+  }, [registrations, deduplicateRegistrations])
 
   // For Korean Language, group by levels
   const getKoreanRegistrationsByLevel = React.useCallback((academyName: string) => {
-    const registrations = getRegistrationsForAcademy(academyName)
+    // Note: getRegistrationsForAcademy already deduplicates, but since we are potentially
+    // dealing with a subset, we should rely on that deduplication.
+    // However, here we are iterating over the raw 'registrations' again essentially?
+    // Wait, getRegistrationsForAcademy calls filters then deduplicates.
+    
+    // For efficiency and consistency, let's get the raw filtered list for this academy first,
+    // then organize by level, THEN deduplicate each level bucket.
+    // OR: just deduplicate valid registrations for this academy first.
+    
+    // Let's implement logic similar to getRegistrationsForAcademy but partitioning by level.
+    
+    const academyRegs = registrations?.filter(reg => {
+       // Filter just for this academy first (legacy + new)
+       if ((reg as any).selectedAcademies && Array.isArray((reg as any).selectedAcademies)) {
+        return (reg as any).selectedAcademies.some((academyData: any) => 
+          normalizeAcademy(academyData.academy || '') === normalizeAcademy(academyName)
+        )
+      }
+      const p1 = normalizeAcademy(reg?.firstPeriod?.academy || '')
+      const p2 = normalizeAcademy(reg?.secondPeriod?.academy || '')
+      return p1 === normalizeAcademy(academyName) || p2 === normalizeAcademy(academyName)
+    }) || []
+
     const byLevel: Record<string, Registration[]> = {}
     
-    registrations.forEach(reg => {
+    academyRegs.forEach(reg => {
       let level: string | null = null
       
-      // NEW STRUCTURE (2026): Get level from selectedAcademies
+      // NEW STRUCTURE
       if ((reg as any).selectedAcademies && Array.isArray((reg as any).selectedAcademies)) {
         const academyData = (reg as any).selectedAcademies.find((a: any) => 
           normalizeAcademy(a.academy || '') === normalizeAcademy(academyName)
@@ -188,12 +232,12 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       } else {
         // LEGACY STRUCTURE
         const p1Academy = normalizeAcademy(reg?.firstPeriod?.academy || '')
-        const p2Academy = normalizeAcademy(reg?.secondPeriod?.academy || '')
         
         if (p1Academy === normalizeAcademy(academyName)) {
           level = reg?.firstPeriod?.level || null
-        } else if (p2Academy === normalizeAcademy(academyName)) {
-          level = reg?.secondPeriod?.level || null
+        } else {
+           // If not first period, must be second (filtered above)
+           level = reg?.secondPeriod?.level || null
         }
       }
       
@@ -204,8 +248,13 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       byLevel[normalizedLevel].push(reg)
     })
     
+    // Deduplicate each level's list
+    Object.keys(byLevel).forEach(key => {
+      byLevel[key] = deduplicateRegistrations(byLevel[key])
+    })
+    
     return byLevel
-  }, [getRegistrationsForAcademy])
+  }, [registrations, deduplicateRegistrations])
 
   const studentCols = React.useMemo<GridColDef[]>(()=>[
     { 
