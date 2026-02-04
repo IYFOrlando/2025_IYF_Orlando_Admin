@@ -97,8 +97,8 @@ export default function AnalyticsPage() {
         })
       } else {
         // Legacy
-        processAcademy(r.firstPeriod?.academy, r.firstPeriod?.level)
-        processAcademy(r.secondPeriod?.academy, r.secondPeriod?.level)
+        processAcademy(r.firstPeriod?.academy || '', r.firstPeriod?.level || '')
+        processAcademy(r.secondPeriod?.academy || '', r.secondPeriod?.level || '')
       }
     }
 

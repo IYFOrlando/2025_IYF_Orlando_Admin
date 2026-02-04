@@ -365,7 +365,6 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
         const mergedIds = row.mergedIds || [row.id]
         let totalFee = 0, paid = 0, balance = 0
         let lastPaymentDate = ''
-        let paymentMethod = ''
         
         mergedIds.forEach((subId: string) => {
            const pData = paymentDataMap.get(String(subId))
@@ -375,7 +374,6 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
              balance += pData.balance
              if (pData.lastPaymentDate > lastPaymentDate) {
                lastPaymentDate = pData.lastPaymentDate
-               paymentMethod = pData.paymentMethod
              }
            }
         })

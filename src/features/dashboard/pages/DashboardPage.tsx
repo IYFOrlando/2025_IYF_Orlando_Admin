@@ -126,8 +126,8 @@ function AdminDashboard() {
         (r as any).selectedAcademies.forEach((a: any) => processAcademy(a.academy))
       } else {
         // Legacy
-        processAcademy(r.firstPeriod?.academy)
-        processAcademy(r.secondPeriod?.academy)
+        processAcademy(r.firstPeriod?.academy || '')
+        processAcademy(r.secondPeriod?.academy || '')
       }
     }
 
