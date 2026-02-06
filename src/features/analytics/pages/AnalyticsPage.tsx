@@ -38,26 +38,9 @@ export default function AnalyticsPage() {
     const academies = new Map<string, number>()
     const koreanLevels = new Map<string, number>()
     const dailyCounts = new Map<string, number>()
-    
-    const uniqueStudents = new Set<string>()
-    const uniqueStudentAcademies = new Set<string>() // Deduplicate student+academy
-    const uniqueStudentLevels = new Set<string>() // Deduplicate student+level (for Korean)
 
     for (const r of registrations) {
-      // Deduplicate Total Registrations (Unique Students)
-      const studentKey = (r.email || `${r.firstName}_${r.lastName}`).toLowerCase().trim()
-      
-      // Only count unique students for daily stats if possible, OR if we want daily FORM submissions?
-      // Usually "Registration Trend" implies new people. Let's count forms for trend (activity) or people?
-      // Let's stick to unique students for total, but for "Daily Trend", counting only the FIRST time we see them?
-      // Or just keep daily trend as "forms submitted"? 
-      // User complaint was about "Total Registrations" number. 
-      // Let's keep dailyCounts as form counts (activity) for now, or it complicates "When did they register?".
-      
-      // Let's proceed with unique students for the KEY METRIC "Total Registrations".
-      uniqueStudents.add(studentKey)
-
-      // Daily Trend (Keep existing logic or dedupe?) - let's keep existing logic as "activity volume" for now unless requested.
+      // Daily Trend
       if (r.createdAt) {
         const dateStr = displayYMD(r.createdAt)
         if (dateStr) {
@@ -66,39 +49,31 @@ export default function AnalyticsPage() {
       }
 
       // Academies
-      const processAcademy = (rawName: string, rawLevel?: string) => {
-        if (rawName && normalizeAcademy(rawName) !== 'n/a') {
-           const normName = normalizeAcademy(rawName)
-           // enrollment key
-           const enrollmentKey = `${studentKey}|${normName}`
-           
-           if (!uniqueStudentAcademies.has(enrollmentKey)) {
-             uniqueStudentAcademies.add(enrollmentKey)
-             academies.set(normName, (academies.get(normName) || 0) + 1)
-             
-             // Korean Levels
-             if (normName === 'korean language' && rawLevel) {
-                const normLevel = normalizeLevel(rawLevel)
-                const levelKey = `${studentKey}|${normLevel}` // Assuming can't enroll in same level twice?
-                // Actually student can be in only one level usually?
-                // Let's just track student+level uniqueness
-                if (!uniqueStudentLevels.has(levelKey)) {
-                   uniqueStudentLevels.add(levelKey)
-                   koreanLevels.set(normLevel, (koreanLevels.get(normLevel) || 0) + 1)
-                }
-             }
-           }
-        }
-      }
-
       if ((r as any).selectedAcademies && Array.isArray((r as any).selectedAcademies)) {
         (r as any).selectedAcademies.forEach((a: any) => {
-          processAcademy(a.academy, a.level)
+          if (a.academy && normalizeAcademy(a.academy) !== 'n/a') {
+            const key = normalizeAcademy(a.academy)
+            academies.set(key, (academies.get(key) || 0) + 1)
+            if (key === 'korean language' && a.level) {
+              const lvl = normalizeLevel(a.level)
+              koreanLevels.set(lvl, (koreanLevels.get(lvl) || 0) + 1)
+            }
+          }
         })
       } else {
         // Legacy
-        processAcademy(r.firstPeriod?.academy || '', r.firstPeriod?.level || '')
-        processAcademy(r.secondPeriod?.academy || '', r.secondPeriod?.level || '')
+        const check = (a: any, l: any) => {
+          if (a && normalizeAcademy(a) !== 'n/a') {
+            const key = normalizeAcademy(a)
+            academies.set(key, (academies.get(key) || 0) + 1)
+            if (key === 'korean language' && l) {
+              const lvl = normalizeLevel(l)
+              koreanLevels.set(lvl, (koreanLevels.get(lvl) || 0) + 1)
+            }
+          }
+        }
+        check(r.firstPeriod?.academy, r.firstPeriod?.level)
+        check(r.secondPeriod?.academy, r.secondPeriod?.level)
       }
     }
 
@@ -137,7 +112,7 @@ export default function AnalyticsPage() {
 
     return {
       totals: {
-        registrations: uniqueStudents.size,
+        registrations: registrations.length,
         totalAcademies,
         registrationsToday
       },

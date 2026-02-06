@@ -154,107 +154,19 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
     return raw
   }, [data, isTeacher, teacherProfile])
 
-  // Merge duplicate registrations (Visual Merge)
-  const mergedRows = React.useMemo(() => {
-    // We want to group by unique student (Name + Email)
-    // The input 'rows' is already sorted by newest first (from useRegistrations)
-    const grouped = new Map<string, Registration & { mergedIds: string[] }>()
-
-    rows.forEach(row => {
-      // Create a unique key
-      const key = (row.email 
-        ? row.email 
-        : `${row.firstName}_${row.lastName}`
-      ).toLowerCase().trim()
-
-      if (!grouped.has(key)) {
-        // First time seeing this student (Newest registration)
-        // Initialize with this row data and start the mergedIds array
-        grouped.set(key, { 
-          ...row, 
-          mergedIds: [row.id],
-          // Ensure selectedAcademies is an array
-          selectedAcademies: row.selectedAcademies || 
-            [row.firstPeriod, row.secondPeriod].filter((x:any)=>x?.academy).map((x:any) => ({ 
-              academy: x.academy, 
-              level: x.level,
-              schedule: null 
-            })) as any
-        })
-      } else {
-        // Duplicate found (Older registration)
-        const primary = grouped.get(key)!
-        primary.mergedIds.push(row.id)
-
-        // Merge Academies: Add any academies from this older row that aren't in the primary yet
-        const currentAcademies = row.selectedAcademies || 
-          [row.firstPeriod, row.secondPeriod].filter((x:any)=>x?.academy).map((x:any) => ({ 
-             academy: x.academy, 
-             level: x.level,
-             schedule: null
-          })) as any
-
-        currentAcademies.forEach((newItem: any) => {
-          if (!newItem?.academy) return
-          
-          // Check if we already have this academy/level in the primary
-          const exists = primary.selectedAcademies?.some(existing => {
-            const sameAcademy = (existing.academy || '').toLowerCase() === (newItem.academy || '').toLowerCase()
-            const sameLevel = (existing.level || '').toLowerCase() === (newItem.level || '').toLowerCase()
-            return sameAcademy && sameLevel
-          })
-
-          if (!exists && primary.selectedAcademies) {
-            primary.selectedAcademies.push(newItem)
-          } else if (!exists && !primary.selectedAcademies) {
-             primary.selectedAcademies = [newItem]
-          }
-        })
-      }
-    })
-
-    return Array.from(grouped.values())
-  }, [rows])
-
-  const { expectedByRegId, loading: expectedLoading } = useRegistrationsExpectedTotals(mergedRows) // Use mergedRows for calculations if needed, but expectedTotals might expect raw id map? 
-  // actually expectedByRegId maps ID -> Amount. If we pass mergedRows, it will calculate for the Primary ID.
-  // But we need to calculate expected totals for ALL merged IDs to get accurate billing?
-  // Let's stick to 'rows' for expectedTotals hook to ensure we have data for every ID, then aggregate in rowStatus.
-  
-  // Re-run expected totals on RAW rows to ensure we have map data for every ID
-  const { expectedByRegId: rawExpected, loading: rawExpectedLoading } = useRegistrationsExpectedTotals(rows)
-
+  const { expectedByRegId, loading: expectedLoading } = useRegistrationsExpectedTotals(rows)
   const [selection, setSelection] = React.useState<string[]>([])
 
-  // Derive status per row (Aggregation of all merged IDs)
-  const rowStatus = React.useCallback((id: string, mergedIds?: string[]): 'unpaid' | 'partial' | 'paid' | 'exonerated' => {
-    // If no mergedIds (shouldn't happen with new logic, but fallback), use single ID
-    const allIds = mergedIds && mergedIds.length > 0 ? mergedIds : [id]
-    
-    let totalExpected = 0
-    let totalPaid = 0
-    let isExonerated = false
-    
-    allIds.forEach(subId => {
-       const b = byStudent.get(subId)
-       const exp = rawExpected.get(subId) ?? (rawExpectedLoading ? (b?.total ?? 0) : 0)
-       
-       totalExpected += exp
-       totalPaid += (b?.paid ?? 0)
-       if (b?.status === 'exonerated') isExonerated = true
-    })
-
-    if (isExonerated) return 'exonerated'
-    
-    // If it's loading, fallback to simple check
-    if (rawExpectedLoading && totalPaid === 0 && totalExpected === 0) return 'unpaid'
-
-    const balance = Math.max(0, totalExpected - totalPaid)
-    
-    if (balance <= 0) return 'paid'
-    if (totalPaid > 0) return 'partial'
-    return 'unpaid'
-  }, [byStudent, rawExpected, rawExpectedLoading])
+  // Derive status per row (same logic as drawer: expected from academies - paid)
+  const rowStatus = React.useCallback((id: string): 'unpaid' | 'partial' | 'paid' | 'exonerated' => {
+    const b = byStudent.get(id)
+    const paid = b?.paid ?? 0
+    const expected = expectedByRegId.get(id) ?? (expectedLoading ? (b?.total ?? 0) : 0)
+    if (b?.status === 'exonerated') return 'exonerated'
+    if (expectedLoading) return (b?.status ?? 'unpaid') as 'unpaid' | 'partial' | 'paid' | 'exonerated'
+    const balance = Math.max(0, expected - paid)
+    return (balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid') as 'unpaid' | 'partial' | 'paid' | 'exonerated'
+  }, [byStudent, expectedByRegId, expectedLoading])
 
   // Dialog State
   const [formOpen, setFormOpen] = React.useState(false)
@@ -332,55 +244,20 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
   const handleBulkDelete = async () => {
     if (!effectiveIsAdmin) return
     if (!selection.length) return SAlert.fire({ title:'Nothing selected', icon:'info', timer:1200, showConfirmButton:false })
-    const res = await confirmDelete('Delete selected?', `You are about to delete ${selection.length} student(s) (including duplicate registrations).`)
+    const res = await confirmDelete('Delete selected?', `You are about to delete ${selection.length} registration(s).`)
     if (!res.isConfirmed) return
     try {
-      // Resolve all actual document IDs to delete (handling merged rows)
-      // Find the merged rows corresponding to the selection
-      const idsToDelete: string[] = []
-      
-      selection.forEach(selectedId => {
-        const row = mergedRows.find(r => r.id === selectedId)
-        if (row && row.mergedIds) {
-          idsToDelete.push(...row.mergedIds)
-        } else {
-          idsToDelete.push(String(selectedId))
-        }
-      })
-      
-      // Use cascading delete for each resolved ID
-      // Batch promises to avoid overwhelming
-      await Promise.all(idsToDelete.map(id => deleteStudentData(String(id))))
-      
-      notifySuccess('Deleted', `${idsToDelete.length} registration document(s) removed`)
+      // Use cascading delete for each selected student
+      await Promise.all(selection.map(id => deleteStudentData(String(id))))
+      notifySuccess('Deleted', `${selection.length} registration(s) and related data removed`)
       setSelection([])
     } catch (e:any) { notifyError('Delete failed', e?.message) }
   }
 
   const handleExportExcel = () => {
     try {
-      // Use filteredRows (which are now merged) for export
-      const exportData = filteredRows.map((row: any, index: number) => {
-        // Aggregate payment status for merged rows
-        const mergedIds = row.mergedIds || [row.id]
-        let totalFee = 0, paid = 0, balance = 0
-        let lastPaymentDate = ''
-        
-        mergedIds.forEach((subId: string) => {
-           const pData = paymentDataMap.get(String(subId))
-           if (pData) {
-             totalFee += pData.totalFee
-             paid += pData.paid
-             balance += pData.balance
-             if (pData.lastPaymentDate > lastPaymentDate) {
-               lastPaymentDate = pData.lastPaymentDate
-             }
-           }
-        })
-        
-        // Calculate status string
-        const status = rowStatus(row.id, row.mergedIds).toUpperCase()
-
+      const exportData = rows.map((row: any, index: number) => {
+        const pData = paymentDataMap.get(String(row.id)) || { totalFee: 0, paid: 0, balance: 0, lastPaymentDate: '', paymentMethod: '' }
         return {
           '#': index + 1,
           'First': row.firstName||'', 'Last': row.lastName||'', 'Email': row.email||'', 
@@ -388,8 +265,8 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
           'Academies': (row.selectedAcademies||[]).map((a:any)=>`${a.academy||''}${a.level?` (${a.level})`:''}`).join(' | '),
           'City': row.city||'', 'State': row.state||'', 'Zip': row.zipCode||'',
           'Created': row.createdAt?.seconds ? new Date(row.createdAt.seconds*1000).toLocaleString() : (isValidDate(new Date(row.createdAt)) ? new Date(row.createdAt).toLocaleString() : ''),
-          'Fee': usd(totalFee), 'Paid': usd(paid), 'Balance': usd(balance),
-          'Status': status
+          'Fee': usd(pData.totalFee), 'Paid': usd(pData.paid), 'Balance': usd(pData.balance),
+          'Status': rowStatus(String(row.id)).toUpperCase()
         }
       })
       const ws = XLSX.utils.json_to_sheet(exportData)
@@ -499,9 +376,9 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
 
   // Filter rows by payment status (uses same logic as column and drawer)
   const filteredRows = React.useMemo(() => {
-    if (statusFilter === 'all') return mergedRows
-    return mergedRows.filter(row => rowStatus(row.id, row.mergedIds) === statusFilter)
-  }, [mergedRows, statusFilter, rowStatus])
+    if (statusFilter === 'all') return rows
+    return rows.filter(row => rowStatus(row.id) === statusFilter)
+  }, [rows, statusFilter, rowStatus])
 
   return (
     <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" sx={{ height: 'calc(100vh - 120px)', pb: 2 }}>

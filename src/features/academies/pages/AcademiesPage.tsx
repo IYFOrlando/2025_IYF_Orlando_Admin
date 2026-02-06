@@ -124,12 +124,35 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       
       setAcademies(academiesData.filter(a => {
         if (!a.enabled) return false
+        
         // Hide "Korean Conversation" and other variations that are normalized to "Korean Language"
         // but keep the main "Korean Language" academy
         const normalized = normalizeAcademy(a.name)
-        if (normalized === 'Korean Language' && a.name !== 'Korean Language') {
-          return false
+        if (normalized === 'Korean Language') {
+           // If this is the main Korean Language academy, ensure it has "Korean Conversation" level
+           if (a.name === 'Korean Language') {
+             const hasConversation = a.levels?.some(l => 
+               normalizeLevel(l.name) === 'Korean Conversation' || 
+               l.name.toLowerCase().includes('conversation')
+             )
+             
+             if (!hasConversation) {
+               if (!a.levels) a.levels = []
+               // Inject Korean Conversation level
+               a.levels.push({
+                 name: 'Korean Conversation',
+                 schedule: '1:30 PM - 2:30 PM', // Default schedule
+                 order: 4
+               })
+               // Ensure it's marked as having levels
+               a.hasLevels = true
+             }
+             return true
+           }
+           // Hide the standalone "Korean Conversation" academy
+           return false
         }
+        
         return true
       }))
       setAcademiesLoading(false)
