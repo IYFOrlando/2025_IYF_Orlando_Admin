@@ -28,7 +28,17 @@ type Academy = {
   price: number
   schedule: string
   hasLevels: boolean
-  levels?: Array<{ name: string; schedule: string; order: number }>
+  levels?: Array<{ 
+    name: string
+    schedule: string
+    order: number
+    teacher?: { 
+      name: string
+      email: string
+      phone: string
+      credentials?: string
+    } 
+  }>
   order: number
   enabled: boolean
   description: string
