@@ -264,6 +264,25 @@ const AcademiesPage = React.memo(function AcademiesPage() {
         }
       }
       
+      // Fallback: inference from academy name if level is missing (legacy) or is "N/A"
+      // Fallback: inference from academy name if level is missing (legacy) or is "N/A"
+      // This maps standalone "Korean Conversation" academy registrations (which have N/A level) to the "Korean Conversation" level bucket
+      if (!level || level.toLowerCase() === 'n/a' || normalizeLevel(level) === 'No Level') {
+        // Check specifically for conversation/movie in the raw academy names
+        // This handles cases where 'find' might have returned a generic 'Korean Language' entry first
+        const hasConversation = (reg as any).selectedAcademies?.some((a:any) => a.academy?.toLowerCase().includes('conversation'))
+        const hasMovie = (reg as any).selectedAcademies?.some((a:any) => a.academy?.toLowerCase().includes('movie'))
+        
+        // Also check legacy fields
+        const legacyAc1 = (reg?.firstPeriod?.academy || '').toLowerCase()
+        const legacyAc2 = (reg?.secondPeriod?.academy || '').toLowerCase()
+        const legacyHasConversation = legacyAc1.includes('conversation') || legacyAc2.includes('conversation')
+        const legacyHasMovie = legacyAc1.includes('movie') || legacyAc2.includes('movie')
+
+        if (hasMovie || legacyHasMovie) level = 'K-Movie Conversation'
+        else if (hasConversation || legacyHasConversation) level = 'Korean Conversation'
+      }
+
       const normalizedLevel = normalizeLevel(level)
       if (!byLevel[normalizedLevel]) {
         byLevel[normalizedLevel] = []
