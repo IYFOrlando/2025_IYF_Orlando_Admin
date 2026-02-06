@@ -138,11 +138,18 @@ const AcademiesPage = React.memo(function AcademiesPage() {
              
              if (!hasConversation) {
                if (!a.levels) a.levels = []
+               // Find the standalone Korean Conversation academy to get the teacher
+               const conversationAcademy = academiesData.find(a => 
+                 normalizeAcademy(a.name).includes('Korean Language') && 
+                 a.name.toLowerCase().includes('conversation')
+               )
+
                // Inject Korean Conversation level
                a.levels.push({
                  name: 'Korean Conversation',
                  schedule: '1:30 PM - 2:30 PM', // Default schedule
-                 order: 4
+                 order: 4,
+                 teacher: conversationAcademy?.teacher // Inject the teacher!
                })
                // Ensure it's marked as having levels
                a.hasLevels = true
