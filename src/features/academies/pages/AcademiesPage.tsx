@@ -706,7 +706,6 @@ const AcademiesPage = React.memo(function AcademiesPage() {
                   </Box>
                 </Box>
               )
-              )
             })}
 
             {/* Render any unassigned/orphaned levels that weren't caught in the configured levels loop */}
