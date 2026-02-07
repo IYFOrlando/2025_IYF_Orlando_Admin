@@ -1,5 +1,6 @@
+import * as React from 'react'
 import { 
-  Box, Typography, Grid, Card, CardContent, Button, Chip, Stack, useTheme, alpha 
+  Box, Typography, Grid, Card, CardContent, Button, Chip, Stack, useTheme, alpha, CircularProgress
 } from '@mui/material'
 import { motion } from 'framer-motion'
 import { 
@@ -7,6 +8,10 @@ import {
 } from 'lucide-react'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useNavigate } from 'react-router-dom'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+import { db } from '../../../lib/firebase'
+import { ATTENDANCE_COLLECTION } from '../../../lib/config'
+import { useRegistrations } from '../../registrations/hooks/useRegistrations'
 
 // --- Components ---
 const GlassCard = ({ children, sx = {}, ...props }: any) => {
@@ -36,7 +41,7 @@ const GlassCard = ({ children, sx = {}, ...props }: any) => {
   )
 }
 
-const StatCard = ({ label, value, icon: Icon, color, subtext }: any) => (
+const StatCard = ({ label, value, icon: Icon, color, subtext, loading }: any) => (
   <GlassCard>
     <CardContent>
       <Stack direction="row" alignItems="center" spacing={2} mb={2}>
@@ -47,9 +52,13 @@ const StatCard = ({ label, value, icon: Icon, color, subtext }: any) => (
           {label}
         </Typography>
       </Stack>
-      <Typography variant="h3" fontWeight={800} sx={{ mb: 1 }}>
-        {value}
-      </Typography>
+      {loading ? (
+        <CircularProgress size={24} sx={{ mb: 1 }} />
+      ) : (
+        <Typography variant="h3" fontWeight={800} sx={{ mb: 1 }}>
+          {value}
+        </Typography>
+      )}
       {subtext && (
         <Typography variant="body2" color="text.secondary">
           {subtext}
@@ -63,9 +72,98 @@ export default function TeacherDashboardPage() {
   const { teacherProfile } = useTeacherContext()
   const navigate = useNavigate()
   const theme = useTheme()
+  const { data: allRegistrations } = useRegistrations()
+
+  // -- Stats State --
+  const [stats, setStats] = React.useState({
+    attendancePercent: 0,
+    attendanceLabel: '0%',
+    totalStudents: 0
+  })
+  const [loadingStats, setLoadingStats] = React.useState(true)
+
+  // -- Calculate Stats --
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      if (!teacherProfile) return
+
+      try {
+        setLoadingStats(true)
+        const myAcademies = teacherProfile.academies.map(a => a.academyName)
+        
+        // 1. Calculate Total Students for this teacher
+        // Filter registrations where selectedAcademies matches any of myAcademies
+        let teacherStudents = 0
+        allRegistrations.forEach(reg => {
+          let isMyStudent = false
+          
+          // Check new array structure
+          if (reg.selectedAcademies?.some(sa => myAcademies.includes(sa.academy))) {
+            isMyStudent = true
+          }
+          // Check legacy
+          else if (myAcademies.includes(reg.firstPeriod?.academy) || myAcademies.includes(reg.secondPeriod?.academy)) {
+            isMyStudent = true
+          }
+
+          if (isMyStudent) teacherStudents++
+        })
+
+        // 2. Calculate Attendance for Today (or nearest Saturday)
+        const d = new Date()
+        const day = d.getDay()
+        if (day !== 6) {
+           const diff = (day + 1) % 7
+           d.setDate(d.getDate() - diff)
+        }
+        const targetDate = d.toISOString().slice(0, 10)
+
+        // Query existing attendance docs for this date
+        // Note: This matches "AttendancePage" logic. 
+        // We query ALL attendance for this date, then filter client side for my academies to save reads? 
+        // Or query per academy. Query per academy might be too many reads if many academies.
+        // Let's query by date and filter client side since attendance records for one day aren't massive yet.
+        const q = query(collection(db, ATTENDANCE_COLLECTION), where('date', '==', targetDate))
+        const snap = await getDocs(q)
+        
+        let presentCount = 0
+        let totalMarked = 0
+
+        snap.forEach(doc => {
+          const data = doc.data()
+          if (myAcademies.includes(data.academy)) {
+            totalMarked++
+            if (data.present) presentCount++
+          }
+        })
+
+        // If no records marked yet, attendance is 0%
+        // But maybe we want "Taken / Total"? 
+        // Requirement said "Percentage".
+        // Use totalMarked if we want % of those marked. 
+        // OR use teacherStudents if we want % of total class.
+        // Usually % Attendance means (Present / Total Enrolled). 
+        const percent = teacherStudents > 0 ? Math.round((presentCount / teacherStudents) * 100) : 0
+
+        setStats({
+          attendancePercent: percent,
+          attendanceLabel: `${percent}%`,
+          totalStudents: teacherStudents
+        })
+
+      } catch (e) {
+        console.error("Failed to calc stats", e)
+      } finally {
+        setLoadingStats(false)
+      }
+    }
+
+    if (teacherProfile && allRegistrations.length > 0) {
+      fetchStats()
+    }
+  }, [teacherProfile, allRegistrations])
 
   const classesCount = teacherProfile?.academies.length || 0
-  const totalStudents = 0 // TODO: Calculate real student count
   
   // Get greeting based on time
   const hour = new Date().getHours()
@@ -101,7 +199,8 @@ export default function TeacherDashboardPage() {
         <Grid item xs={12} sm={6} md={4}>
           <StatCard 
             label="Total Students" 
-            value={totalStudents} 
+            value={stats.totalStudents} 
+            loading={loadingStats}
             icon={Users} 
             color={theme.palette.success.main}
             subtext="Across all your classes"
@@ -110,10 +209,11 @@ export default function TeacherDashboardPage() {
         <Grid item xs={12} sm={6} md={4}>
           <StatCard 
             label="Attendance Today" 
-            value="0%" 
+            value={stats.attendanceLabel} 
+            loading={loadingStats}
             icon={CheckCircle} 
             color={theme.palette.warning.main}
-            subtext="Not taken yet"
+            subtext="Present / Total Enrolled"
           />
         </Grid>
       </Grid>
@@ -143,7 +243,7 @@ export default function TeacherDashboardPage() {
                     <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                          <Users size={16} />
-                         <Typography variant="body2" fontWeight={500}>-- Students</Typography>
+                         <Typography variant="body2" fontWeight={500}>{/* TODO: specific count per class */} Student Roster</Typography>
                        </Box>
                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                          <Calendar size={16} />

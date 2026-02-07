@@ -706,7 +706,93 @@ const AcademiesPage = React.memo(function AcademiesPage() {
                   </Box>
                 </Box>
               )
+              )
             })}
+
+            {/* Render any unassigned/orphaned levels that weren't caught in the configured levels loop */}
+            {(() => {
+              const processedLevels = new Set(academy.levels?.map(l => normalizeLevel(l.name)) || [])
+              const allLevels = Object.keys(groupedRegistrations)
+              const unassignedLevels = allLevels.filter(l => !processedLevels.has(l) && l !== 'No Level')
+              const noLevelStudents = groupedRegistrations['No Level'] || []
+
+              return (
+                <>
+                  {/* Unassigned/Unknown Levels */}
+                  {unassignedLevels.map(levelName => {
+                     const levelRegistrations = groupedRegistrations[levelName] || []
+                     if (levelRegistrations.length === 0) return null
+                     
+                     return (
+                      <Box key={`unassigned-${levelName}`} sx={{ mb: 4 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 2, py: 1, bgcolor: '#fff3e0', borderRadius: 1 }}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                             <Typography variant="subtitle1" fontWeight={600} color="warning.main">
+                               {levelName} (Unconfigured Level)
+                             </Typography>
+                             <Chip label={`${levelRegistrations.length} students`} size="small" color="warning" variant="outlined" />
+                          </Stack>
+                          <Button
+                            startIcon={<PrintIcon />}
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            onClick={() => generatePDF(academy.name, levelRegistrations, levelName)}
+                          >
+                            Export PDF
+                          </Button>
+                        </Stack>
+                         <Box sx={{ height: 300, display: 'flex', flexDirection: 'column' }}>
+                          <DataGrid
+                            rows={levelRegistrations}
+                            columns={studentCols}
+                            loading={loading}
+                            disableRowSelectionOnClick
+                            getRowId={(r)=>r.id}
+                            slots={{ toolbar: GridToolbar }}
+                            density="compact"
+                          />
+                        </Box>
+                      </Box>
+                     )
+                  })}
+
+                  {/* Explicit No Level Bucket */}
+                  {noLevelStudents.length > 0 && (
+                     <Box key="no-level" sx={{ mb: 4 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1, px: 2, py: 1, bgcolor: '#ffebee', borderRadius: 1 }}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                             <Typography variant="subtitle1" fontWeight={600} color="error.main">
+                               Unassigned Level
+                             </Typography>
+                             <Chip label={`${noLevelStudents.length} students`} size="small" color="error" variant="outlined" />
+                          </Stack>
+                           <Button
+                            startIcon={<PrintIcon />}
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            onClick={() => generatePDF(academy.name, noLevelStudents, 'Unassigned')}
+                          >
+                            Export PDF
+                          </Button>
+                        </Stack>
+                         <Box sx={{ height: 300, display: 'flex', flexDirection: 'column' }}>
+                          <DataGrid
+                            rows={noLevelStudents}
+                            columns={studentCols}
+                            loading={loading}
+                            disableRowSelectionOnClick
+                            getRowId={(r)=>r.id}
+                            slots={{ toolbar: GridToolbar }}
+                            density="compact"
+                          />
+                        </Box>
+                      </Box>
+                  )}
+                </>
+              )
+            })()}
           </AccordionDetails>
         </Accordion>
       )
