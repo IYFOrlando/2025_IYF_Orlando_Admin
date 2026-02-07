@@ -1,12 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 
 import { AuthProvider } from '../context/AuthContext'
 import { TeacherProvider } from '../features/auth/context/TeacherContext'
 import AppLayout from './layout/AppLayout'
 import AuthGate from './layout/auth/AuthGate'
+import PublicAccessPage from './layout/auth/PublicAccessPage'
 import theme from '../theme'
 
 // Pages
@@ -79,6 +80,14 @@ const router = createBrowserRouter([
   },
   // Public pages (no auth required)
   {
+    path: '/login',
+    element: <PublicAccessPage />,
+  },
+  {
+    path: '/sign-in',
+    element: <PublicAccessPage />,
+  },
+  {
     path: '/checkin',
     element: <CheckInPage />,
   },
@@ -89,6 +98,11 @@ const router = createBrowserRouter([
   {
     path: '/volunteer-registration',
     element: <VolunteerRegistrationPage />,
+  },
+  // 404 Catch-all -> Redirect to Dashboard (which will gate auth)
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
   },
 ])
 
