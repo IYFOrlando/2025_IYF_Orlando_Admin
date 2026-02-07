@@ -98,11 +98,11 @@ export default function TeacherDashboardPage() {
           let isMyStudent = false
           
           // Check new array structure
-          if (reg.selectedAcademies?.some(sa => myAcademies.includes(sa.academy))) {
+          if (reg.selectedAcademies?.some(sa => myAcademies.includes(sa.academy || ''))) {
             isMyStudent = true
           }
           // Check legacy
-          else if (myAcademies.includes(reg.firstPeriod?.academy) || myAcademies.includes(reg.secondPeriod?.academy)) {
+          else if (myAcademies.includes(reg.firstPeriod?.academy || '') || myAcademies.includes(reg.secondPeriod?.academy || '')) {
             isMyStudent = true
           }
 

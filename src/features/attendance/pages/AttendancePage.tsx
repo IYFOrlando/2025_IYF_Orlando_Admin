@@ -29,6 +29,7 @@ import { useInstructors } from '../../payments/hooks/useInstructors'
 import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotifications'
 import { PageHeader } from '../../../components/PageHeader'
 import { PageHeaderColors } from '../../../components/pageHeaderColors'
+import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 
 const KOREAN = 'Korean Language'
 const KOREAN_LEVELS = ['Alphabet', 'Beginner', 'Intermediate', 'K-Movie Conversation'] as const
@@ -119,8 +120,6 @@ export default function AttendancePage() {
       }
     }
   }, [academy, level, getInstructorByAcademy])
-
-import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 
   // Academies from registrations (normalized)
   const academies = React.useMemo(() => {
