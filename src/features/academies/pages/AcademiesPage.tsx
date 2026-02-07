@@ -711,15 +711,15 @@ const AcademiesPage = React.memo(function AcademiesPage() {
             {/* Render any unassigned/orphaned levels that weren't caught in the configured levels loop */}
             {(() => {
               const processedLevels = new Set(academy.levels?.map(l => normalizeLevel(l.name)) || [])
-              const allLevels = Object.keys(groupedRegistrations)
+              const allLevels = Object.keys(koreanByLevel)
               const unassignedLevels = allLevels.filter(l => !processedLevels.has(l) && l !== 'No Level')
-              const noLevelStudents = groupedRegistrations['No Level'] || []
+              const noLevelStudents = koreanByLevel['No Level'] || []
 
               return (
                 <>
                   {/* Unassigned/Unknown Levels */}
                   {unassignedLevels.map(levelName => {
-                     const levelRegistrations = groupedRegistrations[levelName] || []
+                     const levelRegistrations = koreanByLevel[levelName] || []
                      if (levelRegistrations.length === 0) return null
                      
                      return (
