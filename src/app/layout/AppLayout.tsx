@@ -481,5 +481,34 @@ export default function AppLayout(props: AppLayoutProps) {
     return <TeacherLayout />
   }
 
+  if (role === 'unauthorized') {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: '100vh', 
+          gap: 3,
+          bgcolor: 'background.default',
+          p: 4,
+          textAlign: 'center'
+        }}
+      >
+        <Typography variant="h1" fontSize={64}>🚫</Typography>
+        <Typography variant="h5" fontWeight={700} color="error.main">
+          Access Denied
+        </Typography>
+        <Typography variant="body1" color="text.secondary" maxWidth={400}>
+          You are signed in, but your account is not authorized as an Administrator or Teacher.
+        </Typography>
+        <Typography variant="body2" color="text.disabled">
+          Please contact the system administrator (orlando@iyfusa.org) if you believe this is an error.
+        </Typography>
+      </Box>
+    )
+  }
+
   return <AdminLayout {...props} />
 }

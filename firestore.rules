@@ -15,10 +15,9 @@ service cloud.firestore {
              ];
     }
     
-    // Gmail access check (legacy/broad admin)
+    // Gmail access check (DISABLED - SECURITY RISK)
     function hasGmailAccess() {
-      return request.auth != null && 
-             request.auth.token.email.lower().matches('.*@gmail\\.com$');
+      return false;
     }
     
     // Authorized for read-only access to most admin data

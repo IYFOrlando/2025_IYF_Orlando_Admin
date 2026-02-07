@@ -12,6 +12,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { ATTENDANCE_COLLECTION } from '../../../lib/config'
 import { useRegistrations } from '../../registrations/hooks/useRegistrations'
+import { normalizeAcademy } from '../../../lib/normalization'
 
 // --- Components ---
 const GlassCard = ({ children, sx = {}, ...props }: any) => {
@@ -89,7 +90,7 @@ export default function TeacherDashboardPage() {
 
       try {
         setLoadingStats(true)
-        const myAcademies = teacherProfile.academies.map(a => a.academyName)
+        const myAcademies = teacherProfile.academies.map(a => normalizeAcademy(a.academyName))
         
         // 1. Calculate Total Students for this teacher
         // Filter registrations where selectedAcademies matches any of myAcademies
@@ -98,11 +99,11 @@ export default function TeacherDashboardPage() {
           let isMyStudent = false
           
           // Check new array structure
-          if (reg.selectedAcademies?.some(sa => myAcademies.includes(sa.academy || ''))) {
+          if (reg.selectedAcademies?.some(sa => myAcademies.includes(normalizeAcademy(sa.academy || '')))) {
             isMyStudent = true
           }
           // Check legacy
-          else if (myAcademies.includes(reg.firstPeriod?.academy || '') || myAcademies.includes(reg.secondPeriod?.academy || '')) {
+          else if (myAcademies.includes(normalizeAcademy(reg.firstPeriod?.academy || '')) || myAcademies.includes(normalizeAcademy(reg.secondPeriod?.academy || ''))) {
             isMyStudent = true
           }
 

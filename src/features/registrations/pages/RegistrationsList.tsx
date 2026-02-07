@@ -30,6 +30,7 @@ import { motion } from 'framer-motion'
 import { 
   Download, Trash2, Edit2, Plus, Users 
 } from 'lucide-react'
+import { normalizeAcademy } from '../../../lib/normalization'
 import RegistrationDrawer from '../components/RegistrationDrawer'
 
 import AdminRegistrationForm from '../components/AdminRegistrationForm'
@@ -143,12 +144,12 @@ const RegistrationsList = React.memo(function RegistrationsList({ isAdmin = fals
   const rows = React.useMemo(() => {
     const raw = data ?? []
     if (isTeacher && teacherProfile?.academies) {
-      const assigned = teacherProfile.academies.map(a => a.academyName)
+      const assigned = teacherProfile.academies.map(a => normalizeAcademy(a.academyName))
       return raw.filter(r => {
         const academies = r.selectedAcademies?.length 
           ? r.selectedAcademies 
           : [r.firstPeriod, r.secondPeriod].filter((x:any)=>x?.academy)
-        return academies.some((a:any) => assigned.includes(a.academy))
+        return academies.some((a:any) => assigned.includes(normalizeAcademy(a.academy || '')))
       })
     }
     return raw

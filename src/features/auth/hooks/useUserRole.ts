@@ -9,7 +9,7 @@ export const useUserRole = () => {
 
     if (!currentUser) {
         return { 
-            role: 'viewer' as UserRole, 
+            role: 'unauthorized' as UserRole, 
             teacherProfile: null, 
             loading: false,
             isAdmin: false,
@@ -27,7 +27,7 @@ export const useUserRole = () => {
       console.debug('[AuthCheck] Recognized as Teacher:', isTeacher)
     }
 
-    let role: UserRole = 'viewer'
+    let role: UserRole = 'unauthorized'
     if (isAdmin) role = 'admin'
     else if (isTeacher) role = 'teacher'
 
