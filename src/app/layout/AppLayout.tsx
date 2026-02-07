@@ -22,6 +22,11 @@ import iyfLogo from '../../assets/logo/IYF_logo.png'
 import { useTeacherContext } from '../../features/auth/context/TeacherContext'
 import TeacherLayout from '../../features/teacher/components/TeacherLayout'
 import TeacherNotificationsPanel from '../../features/dashboard/components/TeacherNotificationsPanel'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { signOut, getAuth } from 'firebase/auth'
+import { db } from '../../lib/firebase'
+import { SECURITY_LOGS_COLLECTION } from '../../lib/config'
+import { Button } from '@mui/material'
 
 const DRAWER_WIDTH = 280
 
@@ -454,14 +459,49 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
 }
 
 export default function AppLayout(props: AppLayoutProps) {
-  const { role, loading } = useTeacherContext()
+  const { role, loading, teacherProfile } = useTeacherContext()
+  const navigate = useNavigate()
+
+  // Security Audit Logging for Unauthorized Access
+  React.useEffect(() => {
+    if (!loading && role === 'unauthorized') {
+      const logAttempt = async () => {
+        try {
+          const auth = getAuth()
+          if (auth.currentUser) {
+            await addDoc(collection(db, SECURITY_LOGS_COLLECTION), {
+              email: auth.currentUser.email,
+              uid: auth.currentUser.uid,
+              timestamp: serverTimestamp(),
+              userAgent: navigator.userAgent,
+              type: 'unauthorized_access_attempt',
+              path: window.location.pathname
+            })
+          }
+        } catch (error) {
+          console.error('Failed to log security attempt', error)
+        }
+      }
+      logAttempt()
+    }
+  }, [loading, role])
+
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth()
+      await signOut(auth)
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout failed', error)
+    }
+  }
 
   if (loading) {
     return (
       <Box 
         sx={{ 
           display: 'flex', 
-          flexDirection: 'column',
+          flexDirection: 'column', 
           alignItems: 'center', 
           justifyContent: 'center', 
           height: '100vh', 
@@ -481,34 +521,45 @@ export default function AppLayout(props: AppLayoutProps) {
     return <TeacherLayout />
   }
 
-  if (role === 'unauthorized') {
-    return (
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100vh', 
-          gap: 3,
-          bgcolor: 'background.default',
-          p: 4,
-          textAlign: 'center'
-        }}
-      >
-        <Typography variant="h1" fontSize={64}>🚫</Typography>
-        <Typography variant="h5" fontWeight={700} color="error.main">
-          Access Denied
-        </Typography>
-        <Typography variant="body1" color="text.secondary" maxWidth={400}>
-          You are signed in, but your account is not authorized as an Administrator or Teacher.
-        </Typography>
-        <Typography variant="body2" color="text.disabled">
-          Please contact the system administrator (orlando@iyfusa.org) if you believe this is an error.
-        </Typography>
-      </Box>
-    )
+  // STRICT CHECK: Only explicitly authorized admins can see the Admin Layout
+  if (role === 'admin') {
+    return <AdminLayout {...props} />
   }
 
-  return <AdminLayout {...props} />
+  // Fallback for unauthorized users (or unexpected states)
+  return (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        height: '100vh', 
+        gap: 3,
+        bgcolor: 'background.default',
+        p: 4,
+        textAlign: 'center'
+      }}
+    >
+      <Typography variant="h1" fontSize={64}>🚫</Typography>
+      <Typography variant="h5" fontWeight={700} color="error.main">
+        Access Denied
+      </Typography>
+      <Typography variant="body1" color="text.secondary" maxWidth={400}>
+        You are signed in as <strong>{teacherProfile?.email || 'Unknown User'}</strong>, but this account is not authorized as an Administrator.
+      </Typography>
+      <Typography variant="body2" color="text.disabled">
+        Please contact the system administrator (orlando@iyfusa.org) if you believe this is an error.
+      </Typography>
+      
+      <Button 
+        variant="outlined" 
+        color="error" 
+        onClick={handleLogout}
+        sx={{ mt: 2 }}
+      >
+        Sign Out
+      </Button>
+    </Box>
+  )
 }

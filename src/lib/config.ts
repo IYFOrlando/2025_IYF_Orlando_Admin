@@ -21,6 +21,7 @@ export const SETTINGS_COLLECTION = COLLECTIONS_CONFIG.settings;
 export const TEACHER_NOTIFICATIONS_COLLECTION = COLLECTIONS_CONFIG.teacherNotifications;
 export const TEACHER_ACTIVITY_LOG_COLLECTION = COLLECTIONS_CONFIG.teacherActivityLog;
 export const TEACHER_INDEX_COLLECTION = COLLECTIONS_CONFIG.teachersIndex;
+export const SECURITY_LOGS_COLLECTION = 'security_attempts';
 
 export const LUNCH_SEMESTER_CENTS = Number(import.meta.env.VITE_LUNCH_SEMESTER_CENTS || 5000);
 export const LUNCH_SINGLE_CENTS = Number(import.meta.env.VITE_LUNCH_SINGLE_CENTS || 500);

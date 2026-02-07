@@ -111,6 +111,11 @@ service cloud.firestore {
     }
 
     // --- Final Catch-all ---
+    match /security_attempts/{document} {
+      allow create: if request.auth != null; // Allow any authenticated user to log their attempt
+      allow read, update, delete: if isAdmin(); // Only admins can see/modify logs
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
