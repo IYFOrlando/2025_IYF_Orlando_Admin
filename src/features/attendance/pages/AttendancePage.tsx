@@ -120,26 +120,28 @@ export default function AttendancePage() {
     }
   }, [academy, level, getInstructorByAcademy])
 
-  // Academies from registrations (all selected academies)
+import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
+
+  // Academies from registrations (normalized)
   const academies = React.useMemo(() => {
     // If teacher, only show their assigned academies
     if (isTeacher && teacherProfile) {
-      return teacherProfile.academies.map(a => a.academyName).sort((a, b) => a.localeCompare(b))
+      return Array.from(new Set(teacherProfile.academies.map(a => normalizeAcademy(a.academyName)))).sort((a, b) => a.localeCompare(b))
     }
 
     const set = new Set<string>()
     regs.forEach(r => {
       // Check legacy period fields
-      const a1 = (r?.firstPeriod?.academy || '').trim()
-      const a2 = (r?.secondPeriod?.academy || '').trim()
-      if (a1 && a1.toLowerCase() !== 'n/a') set.add(a1)
-      if (a2 && a2.toLowerCase() !== 'n/a') set.add(a2)
+      const a1 = normalizeAcademy(r?.firstPeriod?.academy || '')
+      const a2 = normalizeAcademy(r?.secondPeriod?.academy || '')
+      if (a1 && a1.toLowerCase() !== 'n/a' && a1 !== 'No Academy') set.add(a1)
+      if (a2 && a2.toLowerCase() !== 'n/a' && a2 !== 'No Academy') set.add(a2)
       
       // Check new selectedAcademies array
       if (r.selectedAcademies && Array.isArray(r.selectedAcademies)) {
         r.selectedAcademies.forEach(sa => {
-          const a = (sa?.academy || '').trim()
-          if (a && a.toLowerCase() !== 'n/a') set.add(a)
+          const a = normalizeAcademy(sa?.academy || '')
+          if (a && a.toLowerCase() !== 'n/a' && a !== 'No Academy') set.add(a)
         })
       }
     })
@@ -153,7 +155,7 @@ export default function AttendancePage() {
     }
   }, [isTeacher, academies, academy])
 
-  // Roster for selected class (Dynamic)
+  // Roster for selected class (Dynamic & Normalized)
   const roster = React.useMemo(() => {
     if (!academy) return []
     const isK = academy === KOREAN
@@ -165,28 +167,49 @@ export default function AttendancePage() {
       let studentLevel = ''
 
       // 1. Check legacy periods
-      const p1 = (r?.firstPeriod?.academy || '').trim()
-      const p2 = (r?.secondPeriod?.academy || '').trim()
+      const p1 = normalizeAcademy(r?.firstPeriod?.academy || '')
+      const p2 = normalizeAcademy(r?.secondPeriod?.academy || '')
       
       if (p1 === academy) {
         isEnrolled = true
-        studentLevel = (r?.firstPeriod?.level || '').trim()
+        studentLevel = normalizeLevel(r?.firstPeriod?.level || '')
       } else if (p2 === academy) {
         isEnrolled = true
-        studentLevel = (r?.secondPeriod?.level || '').trim()
+        studentLevel = normalizeLevel(r?.secondPeriod?.level || '')
       }
 
       // 2. Check new selectedAcademies
       if (!isEnrolled && r.selectedAcademies) {
-        const found = r.selectedAcademies.find(sa => (sa?.academy || '').trim() === academy)
+        const found = r.selectedAcademies.find(sa => normalizeAcademy(sa?.academy || '') === academy)
         if (found) {
           isEnrolled = true
-          studentLevel = (found.level || '').trim()
+          studentLevel = normalizeLevel(found.level || '')
         }
       }
 
       if (isEnrolled) {
         // Filter by level if Korean
+        // For normalized levels, we need to match broadly? 
+        // normalizeLevel returns standardized string. 
+        // The dropdown KOREAN_LEVELS should also be normalized or match the output of normalizeLevel.
+        // KOREAN_LEVELS = ['Alphabet', 'Beginner', 'Intermediate', 'K-Movie Conversation']
+        // normalizeLevel handles 'Korean Conversation' -> 'Conversation' (Wait, logic check below)
+        
+        /* 
+           Review normalization.ts logic:
+           - 'Korean Conversation' -> 'Korean Language' (Academy)
+           - 'K-Movie Conversation' -> 'K-Movie Conversation' (Level)
+           - 'Conversation' -> 'Conversation' (Level)
+           
+           If registered as "Korean Conversation" (Academy) + "Beginner" (Level)?
+           Then Academy="Korean Language", Level="Beginner". Correct.
+           
+           If registered as "Korean Language" (Academy) + "K-Movie Conversation" (Level)?
+           Then correctly "Korean Language", "K-Movie Conversation".
+           
+           Does normalizeLevel handle "K-Movie" properly? Yes.
+        */
+
         if (!isK || !level || studentLevel === level) {
           const fullName = `${r.firstName || ''} ${r.lastName || ''}`.trim()
           list.push({ id: r.id, name: fullName })
