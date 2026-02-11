@@ -200,56 +200,38 @@ export default function AttendancePage() {
 
     regs.forEach((r: Registration) => {
       // Consolidated check: is student enrolled in this academy?
-      let isEnrolled = false;
-      let studentLevel = "";
+      // support multiple levels
+      const studentLevels = new Set<string>();
 
       // 1. Check legacy periods
       const p1 = normalizeAcademy(r?.firstPeriod?.academy || "");
       const p2 = normalizeAcademy(r?.secondPeriod?.academy || "");
 
       if (p1 === academy) {
-        isEnrolled = true;
-        studentLevel = normalizeLevel(r?.firstPeriod?.level || "");
-      } else if (p2 === academy) {
-        isEnrolled = true;
-        studentLevel = normalizeLevel(r?.secondPeriod?.level || "");
+        studentLevels.add(normalizeLevel(r?.firstPeriod?.level || ""));
+      }
+      if (p2 === academy) {
+        studentLevels.add(normalizeLevel(r?.secondPeriod?.level || ""));
       }
 
       // 2. Check new selectedAcademies
-      if (!isEnrolled && r.selectedAcademies) {
-        const found = r.selectedAcademies.find(
-          (sa) => normalizeAcademy(sa?.academy || "") === academy,
-        );
-        if (found) {
-          isEnrolled = true;
-          studentLevel = normalizeLevel(found.level || "");
-        }
+      if (r.selectedAcademies && Array.isArray(r.selectedAcademies)) {
+        r.selectedAcademies.forEach((sa) => {
+          if (normalizeAcademy(sa?.academy || "") === academy) {
+            studentLevels.add(normalizeLevel(sa?.level || ""));
+          }
+        });
       }
 
-      if (isEnrolled) {
-        // Filter by level if Korean
-        // For normalized levels, we need to match broadly?
-        // normalizeLevel returns standardized string.
-        // The dropdown KOREAN_LEVELS should also be normalized or match the output of normalizeLevel.
-        // KOREAN_LEVELS = ['Alphabet', 'Beginner', 'Intermediate', 'K-Movie Conversation']
-        // normalizeLevel handles 'Korean Conversation' -> 'Conversation' (Wait, logic check below)
-
-        /* 
-           Review normalization.ts logic:
-           - 'Korean Conversation' -> 'Korean Language' (Academy)
-           - 'K-Movie Conversation' -> 'K-Movie Conversation' (Level)
-           - 'Conversation' -> 'Conversation' (Level)
-           
-           If registered as "Korean Conversation" (Academy) + "Beginner" (Level)?
-           Then Academy="Korean Language", Level="Beginner". Correct.
-           
-           If registered as "Korean Language" (Academy) + "K-Movie Conversation" (Level)?
-           Then correctly "Korean Language", "K-Movie Conversation".
-           
-           Does normalizeLevel handle "K-Movie" properly? Yes.
-        */
-
-        if (!isK || !level || studentLevel === level) {
+      if (studentLevels.size > 0) {
+        // If Korean and filtering by level, check if student has THAT level
+        if (isK && level) {
+          if (studentLevels.has(level)) {
+            const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
+            list.push({ id: r.id, name: fullName });
+          }
+        } else {
+          // No level filter or not Korean -> include
           const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
           list.push({ id: r.id, name: fullName });
         }

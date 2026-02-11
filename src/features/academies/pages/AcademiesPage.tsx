@@ -42,6 +42,7 @@ import { db } from "../../../lib/firebase";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import { computeAge } from "../../../lib/validations";
 import { COLLECTIONS_CONFIG } from "../../../config/shared.js";
+import { deduplicateRegistrations } from "../../../lib/registrations";
 
 type Academy = {
   id: string;
@@ -244,24 +245,8 @@ const AcademiesPage = React.memo(function AcademiesPage() {
   }, []);
 
   // Helper to deduplicate registrations, keeping only the most recent one for each student
-  const deduplicateRegistrations = React.useCallback((regs: Registration[]) => {
-    const seen = new Set<string>();
-    return regs.filter((reg) => {
-      // Create a unique key for the student (normalize to lower case to be safe)
-      // Use email as primary identifier, or name combination if email is missing
-      const key = reg.email
-        ? reg.email.toLowerCase().trim()
-        : `${reg.firstName?.toLowerCase().trim() || ""}_${reg.lastName?.toLowerCase().trim() || ""}`;
-
-      // If we've seen this student before, skip (since the list is already sorted by newest first)
-      if (seen.has(key)) {
-        return false;
-      }
-
-      seen.add(key);
-      return true;
-    });
-  }, []);
+  // MOVED TO src/lib/registrations.ts
+  // const deduplicateRegistrations = React.useCallback((regs: Registration[]) => { ... }, []);
 
   // Get registrations for a specific academy (using selectedAcademies - 2026 structure)
   const getRegistrationsForAcademy = React.useCallback(
@@ -308,7 +293,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
 
       return deduplicateRegistrations(filtered);
     },
-    [registrations, deduplicateRegistrations],
+    [registrations],
   );
 
   // For Korean Language, group by levels
@@ -419,7 +404,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
 
       return byLevel;
     },
-    [registrations, deduplicateRegistrations],
+    [registrations],
   );
 
   const studentCols = React.useMemo<GridColDef[]>(

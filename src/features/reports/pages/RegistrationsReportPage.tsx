@@ -1,103 +1,139 @@
-import * as React from 'react'
+import * as React from "react";
 import {
-  Box, Card, CardHeader, CardContent, Typography, Grid, Chip,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
-} from '@mui/material'
-import { useRegistrations } from '../../registrations/hooks/useRegistrations'
-import { format } from 'date-fns'
+  Box,
+  Card,
+  CardHeader,
+  CardContent,
+  Typography,
+  Grid,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from "@mui/material";
+import { useRegistrations } from "../../registrations/hooks/useRegistrations";
+import { deduplicateRegistrations } from "../../../lib/registrations";
+import { normalizeAcademy } from "../../../lib/normalization";
+import { format } from "date-fns";
 
 type DailyStats = {
-  date: string
-  total: number
-  academies: Record<string, number>
-}
+  date: string;
+  total: number;
+  academies: Record<string, number>;
+};
 
 type AcademyStats = {
-  academy: string
-  total: number
-  dailyBreakdown: Record<string, number>
-}
+  academy: string;
+  total: number;
+  dailyBreakdown: Record<string, number>;
+};
 
 export default function RegistrationsReportPage() {
-  const { data: registrations, loading, error } = useRegistrations()
+  const { data: registrations, loading, error } = useRegistrations();
 
   const stats = React.useMemo(() => {
-    if (!registrations) return { dailyStats: [], academyStats: [], totalRegistrations: 0 }
+    if (!registrations)
+      return { dailyStats: [], academyStats: [], totalRegistrations: 0 };
 
     // Group by date
-    const dailyMap = new Map<string, DailyStats>()
-    const academyMap = new Map<string, AcademyStats>()
+    const dailyMap = new Map<string, DailyStats>();
+    const academyMap = new Map<string, AcademyStats>();
 
-    registrations.forEach(reg => {
-      const createdAt = reg.createdAt?.toDate?.() || new Date(reg.createdAt || Date.now())
-      const dateKey = format(createdAt, 'yyyy-MM-dd')
-      const dateDisplay = format(createdAt, 'MMM dd, yyyy')
+    const uniqueRegs = deduplicateRegistrations(registrations);
+
+    uniqueRegs.forEach((reg) => {
+      const createdAt =
+        reg.createdAt?.toDate?.() || new Date(reg.createdAt || Date.now());
+      const dateKey = format(createdAt, "yyyy-MM-dd");
+      const dateDisplay = format(createdAt, "MMM dd, yyyy");
 
       // Daily stats
       if (!dailyMap.has(dateKey)) {
         dailyMap.set(dateKey, {
           date: dateDisplay,
           total: 0,
-          academies: {}
-        })
+          academies: {},
+        });
       }
-      const daily = dailyMap.get(dateKey)!
-      daily.total++
+      const daily = dailyMap.get(dateKey)!;
+      daily.total++;
 
       // Academy stats
-      const academies = [
-        reg.firstPeriod?.academy,
-        reg.secondPeriod?.academy
-      ].filter(Boolean) as string[]
+      const academiesSet = new Set<string>();
 
-      academies.forEach(academy => {
-        if (!academy || academy === 'N/A') return
+      // New Structure
+      if (reg.selectedAcademies && Array.isArray(reg.selectedAcademies)) {
+        reg.selectedAcademies.forEach((sa) => {
+          const norm = normalizeAcademy(sa.academy || "");
+          if (norm && norm !== "No Academy" && norm !== "n/a") {
+            academiesSet.add(norm);
+          }
+        });
+      }
 
+      // Legacy Structure (fallback/merge)
+      const p1 = normalizeAcademy(reg.firstPeriod?.academy || "");
+      const p2 = normalizeAcademy(reg.secondPeriod?.academy || "");
+      if (p1 && p1 !== "No Academy" && p1 !== "n/a") academiesSet.add(p1);
+      if (p2 && p2 !== "No Academy" && p2 !== "n/a") academiesSet.add(p2);
+
+      const academies = Array.from(academiesSet);
+
+      academies.forEach((academy) => {
         // Update daily academy count
-        daily.academies[academy] = (daily.academies[academy] || 0) + 1
+        daily.academies[academy] = (daily.academies[academy] || 0) + 1;
 
         // Update academy stats
         if (!academyMap.has(academy)) {
           academyMap.set(academy, {
             academy,
             total: 0,
-            dailyBreakdown: {}
-          })
+            dailyBreakdown: {},
+          });
         }
-        const academyStat = academyMap.get(academy)!
-        academyStat.total++
-        academyStat.dailyBreakdown[dateKey] = (academyStat.dailyBreakdown[dateKey] || 0) + 1
-      })
-    })
+        const academyStat = academyMap.get(academy)!;
+        academyStat.total++;
+        academyStat.dailyBreakdown[dateKey] =
+          (academyStat.dailyBreakdown[dateKey] || 0) + 1;
+      });
+    });
 
     // Convert to arrays and sort
-    const dailyStats = Array.from(dailyMap.values())
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    const dailyStats = Array.from(dailyMap.values()).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
 
-    const academyStats = Array.from(academyMap.values())
-      .sort((a, b) => b.total - a.total)
+    const academyStats = Array.from(academyMap.values()).sort(
+      (a, b) => b.total - a.total,
+    );
 
     return {
       dailyStats,
       academyStats,
-      totalRegistrations: registrations.length
-    }
-  }, [registrations])
+      totalRegistrations: uniqueRegs.length,
+    };
+  }, [registrations]);
 
   if (loading) {
     return (
       <Box sx={{ p: 3 }}>
         <Typography>Loading registrations...</Typography>
       </Box>
-    )
+    );
   }
 
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Typography color="error">Error loading registrations: {error}</Typography>
+        <Typography color="error">
+          Error loading registrations: {error}
+        </Typography>
       </Box>
-    )
+    );
   }
 
   return (
@@ -114,9 +150,7 @@ export default function RegistrationsReportPage() {
               <Typography color="textSecondary" gutterBottom>
                 Total Registrations
               </Typography>
-              <Typography variant="h3">
-                {stats.totalRegistrations}
-              </Typography>
+              <Typography variant="h3">{stats.totalRegistrations}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -126,9 +160,7 @@ export default function RegistrationsReportPage() {
               <Typography color="textSecondary" gutterBottom>
                 Registration Days
               </Typography>
-              <Typography variant="h3">
-                {stats.dailyStats.length}
-              </Typography>
+              <Typography variant="h3">{stats.dailyStats.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -138,9 +170,7 @@ export default function RegistrationsReportPage() {
               <Typography color="textSecondary" gutterBottom>
                 Active Academies
               </Typography>
-              <Typography variant="h3">
-                {stats.academyStats.length}
-              </Typography>
+              <Typography variant="h3">{stats.academyStats.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -157,9 +187,13 @@ export default function RegistrationsReportPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Date</strong></TableCell>
-                  <TableCell align="center"><strong>Total</strong></TableCell>
-                  {stats.academyStats.slice(0, 8).map(academy => (
+                  <TableCell>
+                    <strong>Date</strong>
+                  </TableCell>
+                  <TableCell align="center">
+                    <strong>Total</strong>
+                  </TableCell>
+                  {stats.academyStats.slice(0, 8).map((academy) => (
                     <TableCell key={academy.academy} align="center">
                       <strong>{academy.academy}</strong>
                     </TableCell>
@@ -169,15 +203,13 @@ export default function RegistrationsReportPage() {
               <TableBody>
                 {stats.dailyStats.map((day) => (
                   <TableRow key={day.date}>
-                    <TableCell><strong>{day.date}</strong></TableCell>
-                    <TableCell align="center">
-                      <Chip 
-                        label={day.total} 
-                        color="primary" 
-                        size="small"
-                      />
+                    <TableCell>
+                      <strong>{day.date}</strong>
                     </TableCell>
-                    {stats.academyStats.slice(0, 8).map(academy => (
+                    <TableCell align="center">
+                      <Chip label={day.total} color="primary" size="small" />
+                    </TableCell>
+                    {stats.academyStats.slice(0, 8).map((academy) => (
                       <TableCell key={academy.academy} align="center">
                         {day.academies[academy.academy] || 0}
                       </TableCell>
@@ -219,5 +251,5 @@ export default function RegistrationsReportPage() {
         </CardContent>
       </Card>
     </Box>
-  )
+  );
 }
