@@ -23,7 +23,8 @@ export const useUserRole = () => {
   } = useTeacherProfile(impersonatedEmail);
 
   const realEmail = currentUser?.email?.toLowerCase().trim() || "";
-  const isAdmin = ADMIN_EMAILS.includes(realEmail);
+  const isRealAdmin = ADMIN_EMAILS.includes(realEmail);
+  const isAdmin = isRealAdmin && !impersonatedEmail;
 
   // Actions
   const impersonate = (email: string) => {
