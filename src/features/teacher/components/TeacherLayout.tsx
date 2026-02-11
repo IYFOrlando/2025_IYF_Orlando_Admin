@@ -24,8 +24,6 @@ import {
   Users,
   ClipboardCheck,
   TrendingUp,
-  ClipboardCheck,
-  TrendingUp,
   School,
   Calendar,
   Eye as VisibilityIcon,

@@ -22,6 +22,18 @@ import { format } from "date-fns";
 import { normalizeAcademy } from "../../../lib/normalization";
 import { useAcademies } from "../../academies/hooks/useAcademies";
 
+interface InvalidAcademyRecord {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  cellNumber: string;
+  createdAt: string;
+  period: "P1" | "P2" | string;
+  invalidAcademy: string;
+  issue: string;
+}
+
 export default function InvalidAcademiesReportPage() {
   const {
     data: registrations,

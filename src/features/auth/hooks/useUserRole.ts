@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTeacherProfile } from "./useTeacherProfile";
 import { ADMIN_EMAILS } from "../../../lib/admin";

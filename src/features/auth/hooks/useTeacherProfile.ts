@@ -78,7 +78,12 @@ export const useTeacherProfile = (overrideEmail?: string | null) => {
           setProfile({
             id: email,
             email: email,
-            name: foundTeacherName || userDisplayName(currentUser),
+            name:
+              foundTeacherName ||
+              userDisplayName({
+                displayName: currentUser?.displayName,
+                email: currentUser?.email,
+              }),
             phone: foundTeacherData?.phone,
             credentials: foundTeacherData?.credentials,
             academies: taughtAcademies,
@@ -96,7 +101,7 @@ export const useTeacherProfile = (overrideEmail?: string | null) => {
     );
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser, overrideEmail]);
 
   return { isTeacher, profile, loading };
 };
