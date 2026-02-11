@@ -1,4 +1,4 @@
-import { Registration } from "../features/registrations/types";
+import type { Registration } from "../features/registrations/types";
 
 /**
  * Deduplicate registrations based on email or name.

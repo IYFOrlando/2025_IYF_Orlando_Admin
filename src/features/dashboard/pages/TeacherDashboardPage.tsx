@@ -134,8 +134,6 @@ export default function TeacherDashboardPage() {
         let teacherStudents = 0;
 
         uniqueRegs.forEach((reg) => {
-          let isMyStudent = false;
-
           // Check against all teacher assignments
           // If teacher has specific level, strict match. If no level (Main), broad match.
           const isMatch = teacherProfile.academies.some((asg) => {
