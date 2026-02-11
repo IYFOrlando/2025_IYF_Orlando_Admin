@@ -8,7 +8,7 @@ import {
   useTheme,
   Avatar,
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   getAuth,
   signInWithRedirect,
