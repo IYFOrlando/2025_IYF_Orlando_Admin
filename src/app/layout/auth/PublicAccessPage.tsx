@@ -8,13 +8,8 @@ import {
   useTheme,
   Avatar,
 } from "@mui/material";
-import { useState, useEffect } from "react";
-import {
-  getAuth,
-  signInWithRedirect,
-  getRedirectResult,
-  GoogleAuthProvider,
-} from "firebase/auth";
+import { useState } from "react";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { Alert as SAlert } from "../../../lib/alerts";
 import { motion } from "framer-motion";
 import GoogleIcon from "@mui/icons-material/Google";
@@ -26,47 +21,6 @@ export default function PublicAccessPage() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  // Handle redirect result on mount
-  useEffect(() => {
-    const auth = getAuth();
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          // User is signed in, AuthGate will handle the rest
-        }
-      })
-      .catch((e) => {
-        setLoading(false);
-        setError(e?.message || "Google login failed.");
-        SAlert.fire({
-          title: "Login Failed",
-          text: "Google authentication failed. Please try again.",
-          icon: "error",
-        });
-      });
-  }, []);
-
-  // Handle redirect result on mount
-  useEffect(() => {
-    const auth = getAuth();
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          // User is signed in, AuthGate will handle the rest
-          // No need to set loading to false here as the component will likely unmount
-        }
-      })
-      .catch((e) => {
-        setLoading(false);
-        setError(e?.message || "Google login failed.");
-        SAlert.fire({
-          title: "Login Failed",
-          text: "Google authentication failed. Please try again.",
-          icon: "error",
-        });
-      });
-  }, []);
-
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError("");
@@ -74,10 +28,16 @@ export default function PublicAccessPage() {
     try {
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (e: any) {
+      setError(e?.message || "Google login failed.");
+      SAlert.fire({
+        title: "Login Failed",
+        text: "Google authentication failed. Please try again.",
+        icon: "error",
+      });
+    } finally {
       setLoading(false);
-      setError(e?.message || "Failed to start login.");
     }
   };
 
