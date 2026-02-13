@@ -43,7 +43,7 @@ export function useSupabaseInvoices() {
         studentId: inv.student_id,
         studentName: inv.student
           ? `${inv.student.first_name} ${inv.student.last_name}`
-          : "Unknown",
+          : inv.buyer_name || "Walk-in",
         lines: inv.items.map((item: any) => ({
           academy: item.description,
           unitPrice: (item.unit_price || 0) * 100, // DB(Dollars) -> UI(Cents)

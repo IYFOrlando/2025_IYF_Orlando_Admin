@@ -93,6 +93,8 @@ import Swal from "sweetalert2";
 import iyfLogo from "../../../assets/logo/IYF_logo.png";
 import { sendEmail, formatPrice } from "../../../lib/emailService";
 import { CreatePaymentSchema } from "../schemas";
+import { supabase } from "../../../lib/supabase";
+import LunchIcon from "@mui/icons-material/Restaurant";
 
 // --- Helpers ---
 /** Resolve academy name to a key in academyPrices (e.g. "Kids" → "kids academy") */
@@ -274,11 +276,13 @@ const PaymentsPage = React.memo(() => {
     data: allInvoices,
     createInvoice: createInv,
     deleteInvoice: delInv,
+    refetch: refetchInvoices,
   } = useSupabaseInvoices(); // Supabase
   const {
     data: allPayments,
     recordPayment: recPay,
     deletePayment: delPay,
+    refetch: refetchPayments,
   } = useSupabasePayments(); // Supabase
   const { getInstructorByAcademy } = useSupabaseInstructors(); // Supabase
 
@@ -352,6 +356,13 @@ const PaymentsPage = React.memo(() => {
   const [, setEditMap] = React.useState<Record<string, number>>({});
   const [, setEditLunchSem] = React.useState<number>(0);
   const [, setEditLunchSingle] = React.useState<number>(0);
+
+  // Quick Lunch Sale State (for non-students)
+  const [lunchBuyerName, setLunchBuyerName] = React.useState("");
+  const [lunchBuyerEmail, setLunchBuyerEmail] = React.useState("");
+  const [lunchQty, setLunchQty] = React.useState<number>(1);
+  const [lunchMethod, setLunchMethod] = React.useState<"cash" | "zelle" | "check" | "card" | "none">("none");
+  const [lunchProcessing, setLunchProcessing] = React.useState(false);
 
   // UI State
   const [activeTab, setActiveTab] = React.useState(0);
@@ -908,6 +919,97 @@ const PaymentsPage = React.memo(() => {
       if (!silent) notifyError("Error sending email", e.message);
     } finally {
       if (!silent) setSendingEmailId(null);
+    }
+  };
+
+  // ---------- Walk-in Lunch Sale ----------
+  const handleLunchSale = async () => {
+    if (!lunchBuyerName.trim()) return notifyError("Buyer name is required");
+    if (lunchMethod === "none") return notifyError("Select a payment method");
+    if (lunchQty < 1) return notifyError("Quantity must be at least 1");
+
+    const singlePrice = Number(pricing.lunch?.single || 500); // cents
+    const totalCents = lunchQty * singlePrice;
+    const totalDollars = totalCents / 100;
+
+    setLunchProcessing(true);
+    try {
+      // Get active semester
+      const { data: semData } = await supabase
+        .from("semesters")
+        .select("id")
+        .eq("name", "Spring 2026")
+        .limit(1);
+      const semesterId = semData?.[0]?.id || null;
+
+      // 1. Create Invoice (no student_id for walk-in)
+      const { data: inv, error: invError } = await supabase
+        .from("invoices")
+        .insert({
+          semester_id: semesterId,
+          student_id: null,
+          buyer_name: lunchBuyerName.trim(),
+          buyer_email: lunchBuyerEmail.trim() || null,
+          status: "paid",
+          subtotal: totalDollars,
+          discount_amount: 0,
+          discount_note: "Walk-in lunch sale",
+          total: totalDollars,
+          paid_amount: totalDollars,
+          balance: 0,
+          due_date: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (invError) throw invError;
+
+      // 2. Create Invoice Item
+      const { error: itemError } = await supabase
+        .from("invoice_items")
+        .insert({
+          invoice_id: inv.id,
+          type: "lunch_single",
+          description: `Walk-in Lunch × ${lunchQty} — ${lunchBuyerName.trim()}`,
+          quantity: lunchQty,
+          unit_price: singlePrice / 100,
+          amount: totalDollars,
+        });
+
+      if (itemError) console.error("Item insert error:", itemError);
+
+      // 3. Create Payment
+      const { error: payError } = await supabase
+        .from("payments")
+        .insert({
+          invoice_id: inv.id,
+          student_id: null,
+          amount: totalDollars,
+          method: lunchMethod,
+          notes: `Walk-in lunch: ${lunchBuyerName.trim()}${lunchBuyerEmail.trim() ? ` (${lunchBuyerEmail.trim()})` : ""}`,
+          received_by: (await supabase.auth.getUser()).data.user?.id,
+        });
+
+      if (payError) console.error("Payment insert error:", payError);
+
+      notifySuccess(
+        `Lunch sale recorded: ${lunchQty}× for ${lunchBuyerName.trim()} — ${usd(totalCents)}`,
+      );
+
+      // Reset form
+      setLunchBuyerName("");
+      setLunchBuyerEmail("");
+      setLunchQty(1);
+      setLunchMethod("none");
+
+      // Refresh data
+      refetchInvoices();
+      refetchPayments();
+    } catch (err: any) {
+      console.error("Walk-in lunch sale error:", err);
+      notifyError("Failed to process lunch sale: " + (err.message || err));
+    } finally {
+      setLunchProcessing(false);
     }
   };
 
@@ -1778,6 +1880,7 @@ const PaymentsPage = React.memo(() => {
             >
               <Tab label="Overview" />
               <Tab label="Pay Invoice" />
+              <Tab label="Lunch Sale" />
               <Tab label="Student Logs" />
               <Tab label="Global History" />
             </Tabs>
@@ -2210,7 +2313,194 @@ const PaymentsPage = React.memo(() => {
               </Stack>
             )}
 
+            {/* -------- Quick Lunch Sale (Walk-in) -------- */}
             {activeTab === 2 && (
+              <Stack
+                spacing={3}
+                component={motion.div}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <Paper sx={{ p: 3, borderRadius: 2 }} variant="outlined">
+                  <Stack spacing={2}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <LunchIcon color="primary" />
+                      <Typography variant="h6">Quick Lunch Sale</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Record a lunch payment for walk-in buyers (non-students).
+                      Price: {usd(Number(pricing.lunch?.single || 500))} per
+                      lunch.
+                    </Typography>
+
+                    <Divider />
+
+                    <TextField
+                      label="Buyer Name"
+                      value={lunchBuyerName}
+                      onChange={(e) => setLunchBuyerName(e.target.value)}
+                      fullWidth
+                      required
+                      placeholder="e.g. John Doe"
+                    />
+
+                    <TextField
+                      label="Email (optional)"
+                      value={lunchBuyerEmail}
+                      onChange={(e) => setLunchBuyerEmail(e.target.value)}
+                      fullWidth
+                      type="email"
+                      placeholder="e.g. john@example.com"
+                    />
+
+                    <TextField
+                      label="Quantity"
+                      type="number"
+                      value={lunchQty}
+                      onChange={(e) =>
+                        setLunchQty(Math.max(1, parseInt(e.target.value) || 1))
+                      }
+                      inputProps={{ min: 1 }}
+                      fullWidth
+                    />
+
+                    <Box>
+                      <Typography
+                        variant="subtitle2"
+                        gutterBottom
+                        color="text.secondary"
+                      >
+                        Payment Method
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        flexWrap="wrap"
+                        rowGap={1}
+                      >
+                        {(
+                          [
+                            { val: "cash" as const, label: "Cash", icon: <AttachMoneyIcon /> },
+                            { val: "zelle" as const, label: "Zelle", icon: <ReceiptIcon /> },
+                            { val: "check" as const, label: "Check", icon: <ConfirmationNumberIcon /> },
+                            { val: "card" as const, label: "Credit/Debit Card", icon: <ReceiptIcon /> },
+                          ] as const
+                        ).map((m) => (
+                          <Chip
+                            key={m.val}
+                            icon={m.icon}
+                            label={m.label}
+                            onClick={() => setLunchMethod(m.val)}
+                            color={lunchMethod === m.val ? "primary" : "default"}
+                            variant={
+                              lunchMethod === m.val ? "filled" : "outlined"
+                            }
+                            sx={{ fontWeight: 600 }}
+                          />
+                        ))}
+                      </Stack>
+                    </Box>
+
+                    <Divider />
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="h6">Total</Typography>
+                      <Typography variant="h5" fontWeight={700} color="primary">
+                        {usd(
+                          lunchQty * Number(pricing.lunch?.single || 500),
+                        )}
+                      </Typography>
+                    </Stack>
+
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={
+                        lunchProcessing ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          <LunchIcon />
+                        )
+                      }
+                      onClick={handleLunchSale}
+                      disabled={
+                        lunchProcessing ||
+                        !lunchBuyerName.trim() ||
+                        lunchMethod === "none"
+                      }
+                      sx={{ height: 50, fontSize: "1.1rem" }}
+                    >
+                      {lunchProcessing
+                        ? "Processing..."
+                        : `Record Lunch Sale — ${usd(lunchQty * Number(pricing.lunch?.single || 500))}`}
+                    </Button>
+                  </Stack>
+                </Paper>
+
+                {/* Recent Walk-in Lunch Sales */}
+                <Paper sx={{ p: 2, borderRadius: 2 }} variant="outlined">
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                    Recent Walk-in Lunch Sales
+                  </Typography>
+                  {allInvoices
+                    ?.filter(
+                      (inv) =>
+                        inv.discountNote === "Walk-in lunch sale" ||
+                        inv.lines?.some((l) =>
+                          l.academy
+                            ?.toLowerCase()
+                            .includes("walk-in lunch"),
+                        ),
+                    )
+                    .slice(0, 20)
+                    .map((inv) => (
+                      <Paper
+                        key={inv.id}
+                        sx={{
+                          p: 1.5,
+                          mb: 1,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                        variant="outlined"
+                      >
+                        <Box>
+                          <Typography variant="subtitle2">
+                            {inv.studentName || "Walk-in"}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {inv.createdAt
+                              ? new Date(
+                                  inv.createdAt.seconds
+                                    ? inv.createdAt.seconds * 1000
+                                    : inv.createdAt,
+                                ).toLocaleDateString()
+                              : "—"}{" "}
+                            • {inv.status}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {usd(inv.total)}
+                        </Typography>
+                      </Paper>
+                    )) || (
+                    <Typography variant="caption" color="text.secondary">
+                      No walk-in sales yet.
+                    </Typography>
+                  )}
+                </Paper>
+              </Stack>
+            )}
+
+            {activeTab === 3 && (
               <List>
                 {studentPayments.map((p) => (
                   <ListItem
@@ -2256,7 +2546,7 @@ const PaymentsPage = React.memo(() => {
               </List>
             )}
 
-            {activeTab === 3 && (
+            {activeTab === 4 && (
               <Stack
                 spacing={2}
                 component={motion.div}
