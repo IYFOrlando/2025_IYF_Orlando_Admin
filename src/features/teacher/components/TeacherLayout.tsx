@@ -39,8 +39,7 @@ const DRAWER_WIDTH = 280;
 // Teacher-specific navigation items
 const teacherItems = [
   { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
-  // Teachers view "Registrations" as "My Students"
-  { to: "/registrations", label: "My Students", icon: <Users size={20} /> },
+  { to: "/my-students", label: "My Students", icon: <Users size={20} /> },
   {
     to: "/attendance",
     label: "Attendance",

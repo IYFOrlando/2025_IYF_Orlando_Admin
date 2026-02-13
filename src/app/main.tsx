@@ -32,6 +32,7 @@ import VolunteerRegistrationPage from '../features/volunteers/pages/VolunteerReg
 import InvoiceDebugPage from '../pages/InvoiceDebugPage'
 import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
 import TeacherPlannerPage from '../features/teacher/pages/TeacherPlannerPage'
+import TeacherStudentsPage from '../features/teacher/pages/TeacherStudentsPage'
 import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
 import AnalyticsPage from '../features/analytics/pages/AnalyticsPage'
 import GlobalSearchPage from '../features/search/pages/GlobalSearchPage'
@@ -68,6 +69,7 @@ const router = createBrowserRouter([
       { path: 'volunteers', element: <VolunteersPage /> },
       { path: 'emails', element: <EmailDatabasePage /> },
       { path: 'planner', element: <TeacherPlannerPage /> },
+      { path: 'my-students', element: <TeacherStudentsPage /> },
       { path: 'global-search', element: <GlobalSearchPage /> },
       
       // Debug tools
