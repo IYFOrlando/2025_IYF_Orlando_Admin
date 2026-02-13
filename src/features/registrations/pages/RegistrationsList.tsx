@@ -23,7 +23,7 @@ import { useRegistrationsExpectedTotals } from "../hooks/useRegistrationExpected
 import { useSupabaseRegistrations } from "../hooks/useSupabaseRegistrations";
 import { useSupabaseInvoices } from "../../payments/hooks/useSupabaseInvoices";
 import { useSupabasePayments } from "../../payments/hooks/useSupabasePayments";
-import { latestInvoicePerStudent } from "../../payments/utils";
+// latestInvoicePerStudent no longer used – we aggregate ALL invoices per student
 import { deleteStudentData } from "../../../lib/supabaseRegistrations";
 import type { Registration } from "../types";
 import { usd } from "../../../lib/query";
@@ -120,33 +120,48 @@ const RegistrationsList = React.memo(function RegistrationsList({
   const { data: payments, refetch: refetchPayments } = useSupabasePayments();
 
   // --- Invoice Aggregation (Supabase-based, replaces Firebase onSnapshot) ---
+  // Aggregates ALL invoices per student (not just latest) so totals are accurate
   const byStudent = React.useMemo(() => {
     const agg = new Map<string, BillingAgg>();
     if (!invoices) return agg;
 
-    // Use only the latest invoice per student to avoid double-counting
-    const latest = latestInvoicePerStudent(invoices);
-
-    for (const inv of latest) {
+    for (const inv of invoices) {
       const id = String(inv.studentId || "");
       if (!id) continue;
+      if ((inv.status as string) === "void") continue; // skip voided
 
       const total = Number(inv.total || 0);
       const paid = Number(inv.paid || 0);
-      const balance = Math.max(total - paid, 0);
 
-      let status: "unpaid" | "partial" | "paid" | "exonerated" = "unpaid";
-      if (inv.status === "exonerated") {
-        status = "exonerated";
-      } else if (paid <= 0) {
-        status = "unpaid";
-      } else if (balance > 0) {
-        status = "partial";
+      const existing = agg.get(id);
+      if (existing) {
+        existing.total += total;
+        existing.paid += paid;
+        existing.balance = Math.max(existing.total - existing.paid, 0);
+        // Recalculate status from aggregated values
+        if (inv.status === "exonerated" && existing.status !== "paid") {
+          existing.status = "exonerated";
+        } else if (existing.paid <= 0) {
+          existing.status = "unpaid";
+        } else if (existing.balance > 0) {
+          existing.status = "partial";
+        } else {
+          existing.status = "paid";
+        }
       } else {
-        status = "paid";
+        const balance = Math.max(total - paid, 0);
+        let status: "unpaid" | "partial" | "paid" | "exonerated" = "unpaid";
+        if (inv.status === "exonerated") {
+          status = "exonerated";
+        } else if (paid <= 0) {
+          status = "unpaid";
+        } else if (balance > 0) {
+          status = "partial";
+        } else {
+          status = "paid";
+        }
+        agg.set(id, { total, paid, balance, status });
       }
-
-      agg.set(id, { total, paid, balance, status });
     }
     return agg;
   }, [invoices]);
