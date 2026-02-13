@@ -63,7 +63,7 @@ export type Invoice = {
   paid: number
   balance: number
   status: 'unpaid' | 'partial' | 'paid' | 'exonerated'
-  method?: 'cash' | 'zelle' | null
+  method?: 'cash' | 'zelle' | 'check' | 'card' | null
   createdAt: any // Firebase Timestamp or Date
   updatedAt: any // Firebase Timestamp or Date
 }
@@ -73,6 +73,6 @@ export type Payment = {
   invoiceId: string
   studentId: string
   amount: number
-  method: 'cash' | 'zelle'
+  method: 'cash' | 'zelle' | 'check' | 'card'
   createdAt: any
 }

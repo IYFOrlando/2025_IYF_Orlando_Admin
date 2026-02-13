@@ -8,7 +8,7 @@ export const CreatePaymentSchema = z.object({
   amount: z.number()
     .int("Amount must be in cents (integer)")
     .positive("Payment amount must be positive"),
-  method: z.enum(['cash', 'zelle', 'check', 'discount', 'refund']),
+  method: z.enum(['cash', 'zelle', 'check', 'card', 'discount', 'refund']),
   notes: z.string().optional()
 });
 
@@ -18,7 +18,7 @@ export const DistributePaymentSchema = z.object({
   totalAmount: z.number()
     .int("Amount must be in cents")
     .positive("Total payment amount must be positive"),
-  method: z.enum(['cash', 'zelle', 'check'])
+  method: z.enum(['cash', 'zelle', 'check', 'card'])
 });
 
 // Infer TS types from the schema so we don't have to duplicate them

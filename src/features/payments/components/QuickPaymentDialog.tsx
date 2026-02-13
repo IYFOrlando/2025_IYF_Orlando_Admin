@@ -7,7 +7,9 @@ import {
 } from '@mui/material'
 import {
   AttachMoney as AttachMoneyIcon,
-  LocalOffer as LocalOfferIcon
+  LocalOffer as LocalOfferIcon,
+  ConfirmationNumber as ConfirmationNumberIcon,
+  Receipt as ReceiptIcon
 } from '@mui/icons-material'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import { toCents } from '../../../lib/money'
@@ -41,7 +43,7 @@ export default function QuickPaymentDialog({
 
   // Payment Form State
   const [payAmount, setPayAmount] = React.useState<number|string>('')
-  const [method, setMethod] = React.useState<'cash'|'zelle'|'none'>('none')
+  const [method, setMethod] = React.useState<'cash'|'zelle'|'check'|'card'|'none'>('none')
 
   // Fetch Invoices from Supabase
   const fetchInvoices = React.useCallback(async () => {
@@ -171,7 +173,7 @@ export default function QuickPaymentDialog({
 
                  <Box>
                     <Typography variant="subtitle2" gutterBottom>Payment Method</Typography>
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={1}>
                         <Chip 
                             icon={<AttachMoneyIcon />} 
                             label="Cash" 
@@ -187,6 +189,22 @@ export default function QuickPaymentDialog({
                             color={method === 'zelle' ? 'info' : 'default'} 
                             variant={method === 'zelle' ? 'filled' : 'outlined'}
                             onClick={() => setMethod('zelle')} 
+                        />
+                        <Chip 
+                            icon={<ConfirmationNumberIcon />} 
+                            label="Check" 
+                            clickable 
+                            color={method === 'check' ? 'secondary' : 'default'} 
+                            variant={method === 'check' ? 'filled' : 'outlined'}
+                            onClick={() => setMethod('check')} 
+                        />
+                        <Chip 
+                            icon={<ReceiptIcon />} 
+                            label="Credit/Debit Card" 
+                            clickable 
+                            color={method === 'card' ? 'primary' : 'default'} 
+                            variant={method === 'card' ? 'filled' : 'outlined'}
+                            onClick={() => setMethod('card')} 
                         />
                     </Stack>
                  </Box>

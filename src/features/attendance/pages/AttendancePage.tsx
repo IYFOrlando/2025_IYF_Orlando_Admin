@@ -202,20 +202,41 @@ export default function AttendancePage() {
   const currentAcademyId = academyIdMap[academy];
 
   // Levels available for the currently selected academy
+  // Teachers only see their assigned levels; admins see all
   const currentAcademyLevels = React.useMemo(() => {
     if (!currentAcademyId) return [];
-    // For Korean, collect from ALL Korean academy IDs
+
+    // 1. Collect ALL levels for this academy from the DB
+    let allLevels: string[] = [];
     if (academy === KOREAN && koreanAcademyIds.length > 0) {
-      const all: string[] = [];
       koreanAcademyIds.forEach(kid => {
         (academyLevelsMap[kid] || []).forEach(l => {
-          if (!all.includes(l)) all.push(l);
+          if (!allLevels.includes(l)) allLevels.push(l);
         });
       });
-      return all;
+    } else {
+      allLevels = academyLevelsMap[currentAcademyId] || [];
     }
-    return academyLevelsMap[currentAcademyId] || [];
-  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap]);
+
+    // 2. If teacher, restrict to only their assigned levels
+    if (isTeacher && teacherProfile) {
+      const teacherAssigned = teacherProfile.academies
+        .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
+        .map(a => a.level as string);
+
+      // If the teacher has specific level assignments, filter
+      if (teacherAssigned.length > 0) {
+        return allLevels.filter(l =>
+          teacherAssigned.some(tl =>
+            normalizeLevel(tl) === normalizeLevel(l) || tl === l
+          )
+        );
+      }
+      // If no specific levels assigned (teaches whole academy), show all
+    }
+
+    return allLevels;
+  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap, isTeacher, teacherProfile]);
 
   const academyHasLevels = currentAcademyLevels.length > 0;
 
@@ -232,8 +253,33 @@ export default function AttendancePage() {
     }
   }, [isTeacher, teacherProfile, academy, academyHasLevels, level]);
 
+  // Build a set of allowed levels for roster filtering
+  // Teachers: only their assigned levels; Admins: all levels or selected level
+  const allowedLevels = React.useMemo<string[] | null>(() => {
+    // If a specific level is selected, use that
+    if (level && academyHasLevels) {
+      return [level, normalizeLevel(level)];
+    }
+    // If teacher with specific level assignments but no level selected yet,
+    // restrict to their assigned levels
+    if (isTeacher && teacherProfile && academyHasLevels) {
+      const assigned = teacherProfile.academies
+        .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
+        .map(a => a.level as string);
+      if (assigned.length > 0) {
+        // Include both raw and normalized forms for matching
+        const set = new Set<string>();
+        assigned.forEach(l => { set.add(l); set.add(normalizeLevel(l)); });
+        return Array.from(set);
+      }
+    }
+    // null = no filtering (show all)
+    return null;
+  }, [level, academyHasLevels, isTeacher, teacherProfile, academy]);
+
   // Roster for selected class (Dynamic & Normalized)
   // Filters by level for ANY academy that has levels (Korean, Taekwondo, etc.)
+  // Teachers are restricted to only their assigned levels
   const roster = React.useMemo(() => {
     if (!academy) return [];
     const list: { id: string; name: string }[] = [];
@@ -259,9 +305,10 @@ export default function AttendancePage() {
       }
 
       if (studentLevels.size > 0) {
-        // If a level is selected AND this academy has levels, filter by it
-        if (level && academyHasLevels) {
-          if (studentLevels.has(level) || studentLevels.has(normalizeLevel(level))) {
+        // If we have allowed levels (selected or teacher-restricted), filter by them
+        if (allowedLevels) {
+          const match = allowedLevels.some(al => studentLevels.has(al) || studentLevels.has(normalizeLevel(al)));
+          if (match) {
             const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
             list.push({ id: r.id, name: fullName });
           }
@@ -275,7 +322,7 @@ export default function AttendancePage() {
     // unique + sorted
     const m = new Map(list.map((s) => [s.id, s]));
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [regs, academy, level, academyHasLevels]);
+  }, [regs, academy, allowedLevels]);
 
   // Fetch Levels Map for ID lookup (must be declared before loadClassForDate)
   const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(

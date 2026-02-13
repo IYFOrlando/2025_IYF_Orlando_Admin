@@ -323,7 +323,7 @@ const PaymentsPage = React.memo(() => {
 
   // Payment State
   const [method, setMethod] = React.useState<
-    "cash" | "zelle" | "check" | "discount" | "refund" | "none"
+    "cash" | "zelle" | "check" | "card" | "discount" | "refund" | "none"
   >("none");
   const [payAmount, setPayAmount] = React.useState<number>(0);
   const [paymentNotes, setPaymentNotes] = React.useState<string>("");
@@ -2061,6 +2061,15 @@ const PaymentsPage = React.memo(() => {
                         color={method === "check" ? "secondary" : "default"}
                         onClick={() => setMethod("check")}
                         variant={method === "check" ? "filled" : "outlined"}
+                      />
+                      {/* Credit/Debit Card */}
+                      <Chip
+                        icon={<ReceiptIcon />}
+                        label="Credit/Debit Card"
+                        clickable
+                        color={method === "card" ? "primary" : "default"}
+                        onClick={() => setMethod("card")}
+                        variant={method === "card" ? "filled" : "outlined"}
                       />
                       {/* Discount */}
                       <Chip

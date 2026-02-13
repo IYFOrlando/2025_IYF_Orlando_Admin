@@ -182,11 +182,12 @@ export const KOREAN_LEVELS = [
   'Korean Conversation'
 ] as const
 
-// Payment Methods (only methods we actually accept)
+// Payment Methods
 export const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
   { value: 'zelle', label: 'Zelle' },
   { value: 'check', label: 'Check' },
+  { value: 'card', label: 'Credit/Debit Card' },
   { value: 'none', label: 'None' }
 ] as const
 
