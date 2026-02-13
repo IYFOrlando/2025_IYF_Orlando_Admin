@@ -1,21 +1,28 @@
 -- ========================================
--- Fix Taekwondo enrollments: assign level_id based on schedule_option
--- 
--- Problem: TKD has 2 schedules (e.g., "9:20 AM - 10:20 AM" and "10:30 AM - 11:30 AM")
--- stored as levels in the levels table. But enrollments were created with level_id = NULL
--- because the registration form stored the schedule in schedule_option instead of matching
--- it to a level_id.
+-- Fix Taekwondo enrollments: show current state and available levels
 --
--- This migration matches existing schedule_option values to the correct level_id.
+-- The enrollments table does NOT have a schedule_option column.
+-- TKD students currently have level_id = NULL.
+-- This script helps identify the situation and provides manual fix options.
 -- ========================================
 
--- 1. First, check current state
+-- 1. Show Taekwondo levels available (these represent the 2 schedules)
+SELECT 
+    l.id AS level_id,
+    l.name AS level_name,
+    l.schedule,
+    a.name AS academy
+FROM levels l
+JOIN academies a ON a.id = l.academy_id
+WHERE a.name ILIKE '%Taekwondo%'
+ORDER BY l.display_order;
+
+-- 2. Show TKD students currently without a level assigned
 SELECT 
     e.id AS enrollment_id,
     s.first_name || ' ' || s.last_name AS student_name,
     a.name AS academy,
     l.name AS current_level,
-    e.schedule_option,
     e.level_id
 FROM enrollments e
 JOIN students s ON s.id = e.student_id
@@ -24,40 +31,33 @@ LEFT JOIN levels l ON l.id = e.level_id
 WHERE a.name ILIKE '%Taekwondo%'
 ORDER BY s.last_name;
 
--- 2. Update enrollments: match schedule_option to levels.schedule
-UPDATE enrollments e
-SET level_id = lv.id
-FROM academies a, levels lv
-WHERE e.academy_id = a.id
-  AND lv.academy_id = a.id
-  AND a.name ILIKE '%Taekwondo%'
-  AND e.level_id IS NULL
-  AND e.schedule_option IS NOT NULL
-  AND e.schedule_option = lv.schedule;
+-- ========================================
+-- 3. MANUAL FIX: Assign students to the correct TKD schedule
+-- 
+-- Replace <LEVEL_ID_OPTION_1> and <LEVEL_ID_OPTION_2> with the actual 
+-- level IDs from query #1 above.
+--
+-- Then list the enrollment IDs from query #2 for each schedule group.
+-- ========================================
 
--- 3. Verify the fix
-SELECT 
-    e.id AS enrollment_id,
-    s.first_name || ' ' || s.last_name AS student_name,
-    a.name AS academy,
-    l.name AS level_name,
-    l.schedule AS level_schedule,
-    e.schedule_option
-FROM enrollments e
-JOIN students s ON s.id = e.student_id
-JOIN academies a ON a.id = e.academy_id
-LEFT JOIN levels l ON l.id = e.level_id
-WHERE a.name ILIKE '%Taekwondo%'
-ORDER BY l.name, s.last_name;
+-- Example: Assign students to Option 1 (9:20 AM - 10:20 AM)
+-- UPDATE enrollments SET level_id = '<LEVEL_ID_OPTION_1>'
+-- WHERE id IN ('enrollment_id_1', 'enrollment_id_2', ...);
 
--- 4. Summary: count students per schedule
-SELECT 
-    l.name AS level_name,
-    l.schedule,
-    COUNT(*) AS student_count
-FROM enrollments e
-JOIN academies a ON a.id = e.academy_id
-LEFT JOIN levels l ON l.id = e.level_id
-WHERE a.name ILIKE '%Taekwondo%'
-GROUP BY l.name, l.schedule
-ORDER BY l.name;
+-- Example: Assign students to Option 2 (10:30 AM - 11:30 AM)  
+-- UPDATE enrollments SET level_id = '<LEVEL_ID_OPTION_2>'
+-- WHERE id IN ('enrollment_id_3', 'enrollment_id_4', ...);
+
+-- ========================================
+-- 4. After manual assignment, verify:
+-- ========================================
+-- SELECT 
+--     l.name AS level_name,
+--     l.schedule,
+--     COUNT(*) AS student_count
+-- FROM enrollments e
+-- JOIN academies a ON a.id = e.academy_id
+-- LEFT JOIN levels l ON l.id = e.level_id
+-- WHERE a.name ILIKE '%Taekwondo%'
+-- GROUP BY l.name, l.schedule
+-- ORDER BY l.name;
