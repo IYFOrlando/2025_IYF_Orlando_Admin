@@ -16,7 +16,7 @@ import {
   Paper,
   Alert,
 } from "@mui/material";
-import { useRegistrations } from "../../registrations/hooks/useRegistrations";
+import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { format } from "date-fns";
 
 import { normalizeAcademy } from "../../../lib/normalization";
@@ -39,7 +39,7 @@ export default function InvalidAcademiesReportPage() {
     data: registrations,
     loading: regLoading,
     error: regError,
-  } = useRegistrations();
+  } = useSupabaseRegistrations();
   const {
     academies,
     loading: academiesLoading,
@@ -61,7 +61,7 @@ export default function InvalidAcademiesReportPage() {
 
     registrations.forEach((reg) => {
       const createdAt =
-        reg.createdAt?.toDate?.() || new Date(reg.createdAt || Date.now());
+        typeof reg.createdAt === 'string' ? new Date(reg.createdAt) : new Date(reg.createdAt || Date.now());
       const dateDisplay = format(createdAt, "MMM dd, yyyy");
 
       const checkAcademy = (

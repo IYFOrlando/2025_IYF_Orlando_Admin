@@ -7,9 +7,9 @@ import {
   TrendingUp, TrendingDown, Users, DollarSign, Calendar,
   CheckCircle, AlertCircle, School
 } from 'lucide-react'
-import { useRegistrations } from '../../registrations/hooks/useRegistrations'
-import { useInvoices } from '../../payments/hooks/useInvoices'
-import { usePayments } from '../../payments/hooks/usePayments'
+import { useSupabaseRegistrations } from '../../registrations/hooks/useSupabaseRegistrations'
+import { useSupabaseInvoices } from '../../payments/hooks/useSupabaseInvoices'
+import { useSupabasePayments } from '../../payments/hooks/useSupabasePayments'
 import { latestInvoicePerStudent } from '../../payments/utils'
 import { usd } from '../../../lib/query'
 import { displayYMD } from '../../../lib/date'
@@ -84,9 +84,9 @@ const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }: any) =
 )
 
 export default function DailyReportsPage() {
-  const { data: registrations = [] } = useRegistrations()
-  const { data: allInvoices = [] } = useInvoices()
-  const { data: payments = [] } = usePayments()
+  const { data: registrations = [] } = useSupabaseRegistrations()
+  const { data: allInvoices = [] } = useSupabaseInvoices()
+  const { data: payments = [] } = useSupabasePayments()
   
   const latestInvoices = React.useMemo(() => latestInvoicePerStudent(allInvoices), [allInvoices])
 
