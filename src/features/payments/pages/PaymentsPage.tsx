@@ -661,20 +661,21 @@ const PaymentsPage = React.memo(() => {
   const recordPayment = async () => {
     if (!student || (!applyToAllInvoices && !selectedInvoiceId)) return;
 
+    // payAmount is already in CENTS (TextField onChange multiplies user input × 100)
+    const amtCents = payAmount;
+
     const basicValidation = CreatePaymentSchema.pick({
       method: true,
       amount: true,
     }).safeParse({
       method: method === "none" ? "cash" : method,
-      amount: toCents(payAmount),
+      amount: amtCents,
     });
 
-    if (method === "none" || payAmount <= 0)
+    if (method === "none" || amtCents <= 0)
       return notifyError("Invalid payment details");
     if (!basicValidation.success)
       return notifyError(basicValidation.error.issues[0].message);
-
-    const amtCents = toCents(payAmount);
 
     try {
       if (applyToAllInvoices) {
@@ -1842,7 +1843,7 @@ const PaymentsPage = React.memo(() => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedInvoiceId(inv.id);
-                                setPayAmount(inv.balance / 100); // cents -> dollars
+                                setPayAmount(inv.balance); // already in cents, field divides by 100 for display
                                 setActiveTab(1); // Switch to Pay tab
                               }}
                             >
