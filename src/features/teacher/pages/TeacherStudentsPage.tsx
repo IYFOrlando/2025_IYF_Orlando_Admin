@@ -19,8 +19,9 @@ import { Users, Search } from "lucide-react";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import type { Registration } from "../../registrations/types";
-import { normalizeAcademy } from "../../../lib/normalization";
+import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import { computeAge } from "../../../lib/validations";
+import { supabase } from "../../../lib/supabase";
 import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { GlassCard } from "../../../components/GlassCard";
@@ -52,17 +53,78 @@ export default function TeacherStudentsPage() {
   const [activeTab, setActiveTab] = React.useState(0);
   const [search, setSearch] = React.useState("");
 
+  // Fetch levels per academy ID to resolve sub-academy assignments
+  const [academyLevelsMap, setAcademyLevelsMap] = React.useState<Record<string, string[]>>({});
+
+  React.useEffect(() => {
+    const fetchLevels = async () => {
+      const { data } = await supabase
+        .from("levels")
+        .select("name, academy_id, schedule")
+        .order("display_order", { ascending: true });
+      if (data) {
+        const map: Record<string, string[]> = {};
+        data.forEach((l: any) => {
+          if (!map[l.academy_id]) map[l.academy_id] = [];
+          if (!map[l.academy_id].includes(l.name)) {
+            map[l.academy_id].push(l.name);
+          }
+        });
+        setAcademyLevelsMap(map);
+      }
+    };
+    fetchLevels();
+  }, []);
+
   // Group students by teacher's academy/level assignments
+  // Handles sub-academies: when level is null, resolves levels from the specific academyId
   const classGroups = React.useMemo<ClassGroup[]>(() => {
     if (!teacherProfile || !allRegs.length) return [];
 
-    const groups: ClassGroup[] = teacherProfile.academies.map((a) => ({
-      key: `${a.academyName}::${a.level || "all"}`,
-      label: a.level ? `${a.academyName} — ${a.level}` : a.academyName,
-      academyName: normalizeAcademy(a.academyName),
-      level: a.level || null,
-      students: [],
-    }));
+    // Resolve each teacher assignment into groups with proper level info
+    const groups: ClassGroup[] = [];
+
+    teacherProfile.academies.forEach((a) => {
+      if (a.level) {
+        // Teacher explicitly assigned to a specific level
+        groups.push({
+          key: `${a.academyName}::${a.level}`,
+          label: `${normalizeAcademy(a.academyName)} — ${a.level}`,
+          academyName: normalizeAcademy(a.academyName),
+          level: a.level,
+          students: [],
+        });
+      } else {
+        // Teacher assigned to entire (sub-)academy
+        // Look up what levels belong to this specific academyId
+        const subLevels = academyLevelsMap[a.academyId] || [];
+        if (subLevels.length > 0) {
+          // Create one group per level in this sub-academy
+          subLevels.forEach(lvl => {
+            const key = `${a.academyName}::${lvl}`;
+            // Avoid duplicate groups (if another assignment already covers this level)
+            if (!groups.some(g => g.key === key)) {
+              groups.push({
+                key,
+                label: `${normalizeAcademy(a.academyName)} — ${lvl}`,
+                academyName: normalizeAcademy(a.academyName),
+                level: lvl,
+                students: [],
+              });
+            }
+          });
+        } else {
+          // Academy has no levels at all - show as single group
+          groups.push({
+            key: `${a.academyName}::all`,
+            label: a.academyName,
+            academyName: normalizeAcademy(a.academyName),
+            level: null,
+            students: [],
+          });
+        }
+      }
+    });
 
     allRegs.forEach((reg: Registration) => {
       if (!reg.selectedAcademies || !Array.isArray(reg.selectedAcademies)) return;
@@ -72,8 +134,13 @@ export default function TeacherStudentsPage() {
 
         groups.forEach((group) => {
           if (saAcademy !== group.academyName) return;
-          if (group.level && sa.level && group.level !== sa.level) return;
-          if (group.level && !sa.level) return; // teacher has level, student doesn't
+          if (group.level) {
+            // Group has a specific level - match student level
+            const studentLevel = normalizeLevel(sa.level || "");
+            const groupLevel = normalizeLevel(group.level);
+            if (studentLevel !== groupLevel && sa.level !== group.level) return;
+          }
+          // group.level is null → no levels, accept all students
 
           // Avoid duplicates
           if (group.students.some((s) => s.id === reg.id)) return;
@@ -101,7 +168,7 @@ export default function TeacherStudentsPage() {
     });
 
     return groups;
-  }, [allRegs, teacherProfile]);
+  }, [allRegs, teacherProfile, academyLevelsMap]);
 
   // Current group based on active tab
   const currentGroup = classGroups[activeTab] || null;

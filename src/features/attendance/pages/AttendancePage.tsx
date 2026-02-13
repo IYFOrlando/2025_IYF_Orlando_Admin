@@ -201,6 +201,44 @@ export default function AttendancePage() {
 
   const currentAcademyId = academyIdMap[academy];
 
+  // Helper: resolve ALL levels a teacher can access for the current normalized academy.
+  // Handles two cases:
+  //   a) Teacher assigned to a specific LEVEL (level is set) → use that level
+  //   b) Teacher assigned to a sub-academy (level is null, e.g. "Korean Conversation")
+  //      → look up what levels belong to THAT academyId in academyLevelsMap
+  const resolvedTeacherLevels = React.useMemo<string[]>(() => {
+    if (!isTeacher || !teacherProfile) return [];
+
+    const matching = teacherProfile.academies
+      .filter(a => normalizeAcademy(a.academyName) === academy);
+
+    if (matching.length === 0) return [];
+
+    const resolved = new Set<string>();
+    let hasFullAcademyAccess = false;
+
+    matching.forEach(entry => {
+      if (entry.level) {
+        // Case a: explicitly assigned to a specific level
+        resolved.add(entry.level);
+      } else {
+        // Case b: assigned to entire (sub-)academy → look up its levels
+        const subLevels = academyLevelsMap[entry.academyId] || [];
+        if (subLevels.length > 0) {
+          subLevels.forEach(l => resolved.add(l));
+        } else {
+          // Academy has no levels at all → full access
+          hasFullAcademyAccess = true;
+        }
+      }
+    });
+
+    // If teacher has full access to an academy without levels, return empty (no restriction)
+    if (hasFullAcademyAccess && resolved.size === 0) return [];
+
+    return Array.from(resolved);
+  }, [isTeacher, teacherProfile, academy, academyLevelsMap]);
+
   // Levels available for the currently selected academy
   // Teachers only see their assigned levels; admins see all
   const currentAcademyLevels = React.useMemo(() => {
@@ -218,64 +256,46 @@ export default function AttendancePage() {
       allLevels = academyLevelsMap[currentAcademyId] || [];
     }
 
-    // 2. If teacher, restrict to only their assigned levels
-    if (isTeacher && teacherProfile) {
-      const teacherAssigned = teacherProfile.academies
-        .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
-        .map(a => a.level as string);
-
-      // If the teacher has specific level assignments, filter
-      if (teacherAssigned.length > 0) {
-        return allLevels.filter(l =>
-          teacherAssigned.some(tl =>
-            normalizeLevel(tl) === normalizeLevel(l) || tl === l
-          )
-        );
-      }
-      // If no specific levels assigned (teaches whole academy), show all
+    // 2. If teacher, restrict to only their resolved levels
+    if (isTeacher && resolvedTeacherLevels.length > 0) {
+      return allLevels.filter(l =>
+        resolvedTeacherLevels.some(tl =>
+          normalizeLevel(tl) === normalizeLevel(l) || tl === l
+        )
+      );
     }
 
     return allLevels;
-  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap, isTeacher, teacherProfile]);
+  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap, isTeacher, resolvedTeacherLevels]);
 
   const academyHasLevels = currentAcademyLevels.length > 0;
 
-  // Auto-select level for teachers with specific level assignments
+  // Auto-select level for teachers when they only have one level
   React.useEffect(() => {
     if (!isTeacher || !teacherProfile || !academy || !academyHasLevels) return;
-    // Find teacher's assigned levels for this academy
-    const teacherLevels = teacherProfile.academies
-      .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
-      .map(a => a.level as string);
-    // If teacher has exactly one level for this academy, auto-select it
-    if (teacherLevels.length === 1 && !level) {
-      setLevel(teacherLevels[0]);
+    // If teacher has exactly one level available, auto-select it
+    if (currentAcademyLevels.length === 1 && !level) {
+      setLevel(currentAcademyLevels[0]);
     }
-  }, [isTeacher, teacherProfile, academy, academyHasLevels, level]);
+  }, [isTeacher, teacherProfile, academy, academyHasLevels, currentAcademyLevels, level]);
 
   // Build a set of allowed levels for roster filtering
-  // Teachers: only their assigned levels; Admins: all levels or selected level
+  // Teachers: only their resolved levels; Admins: all levels or selected level
   const allowedLevels = React.useMemo<string[] | null>(() => {
     // If a specific level is selected, use that
     if (level && academyHasLevels) {
       return [level, normalizeLevel(level)];
     }
-    // If teacher with specific level assignments but no level selected yet,
-    // restrict to their assigned levels
-    if (isTeacher && teacherProfile && academyHasLevels) {
-      const assigned = teacherProfile.academies
-        .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
-        .map(a => a.level as string);
-      if (assigned.length > 0) {
-        // Include both raw and normalized forms for matching
-        const set = new Set<string>();
-        assigned.forEach(l => { set.add(l); set.add(normalizeLevel(l)); });
-        return Array.from(set);
-      }
+    // If teacher with resolved level assignments but no level selected yet,
+    // restrict to their levels
+    if (isTeacher && resolvedTeacherLevels.length > 0 && academyHasLevels) {
+      const set = new Set<string>();
+      resolvedTeacherLevels.forEach(l => { set.add(l); set.add(normalizeLevel(l)); });
+      return Array.from(set);
     }
     // null = no filtering (show all)
     return null;
-  }, [level, academyHasLevels, isTeacher, teacherProfile, academy]);
+  }, [level, academyHasLevels, isTeacher, resolvedTeacherLevels]);
 
   // Roster for selected class (Dynamic & Normalized)
   // Filters by level for ANY academy that has levels (Korean, Taekwondo, etc.)
@@ -860,9 +880,15 @@ export default function AttendancePage() {
                       helperText={!level ? "Select a level to filter students" : ""}
                     >
                       {currentAcademyLevels.map((l) => {
-                        // Find schedule info for display
-                        const scheduleKey = `${currentAcademyId}:${l}`;
-                        const sched = levelScheduleMap[scheduleKey];
+                        // Find schedule info - search across all relevant academy IDs
+                        const searchIds = academy === KOREAN && koreanAcademyIds.length > 0
+                          ? koreanAcademyIds
+                          : [currentAcademyId];
+                        let sched: string | undefined;
+                        for (const aid of searchIds) {
+                          sched = levelScheduleMap[`${aid}:${l}`];
+                          if (sched) break;
+                        }
                         return (
                           <MenuItem key={l} value={l}>
                             {l}{sched ? ` — ${sched}` : ""}
