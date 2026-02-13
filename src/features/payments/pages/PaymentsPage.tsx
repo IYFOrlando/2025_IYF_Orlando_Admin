@@ -247,7 +247,7 @@ const PaymentsPage = React.memo(() => {
   const pricing: PricingDoc = React.useMemo(
     () => ({
       academyPrices: academyPricesFromSpring,
-      lunch: settingsPricing.lunch || { semester: 4000, single: 400 },
+      lunch: settingsPricing.lunch || { semester: 5000, single: 500 },
       items: settingsPricing.items || [],
       currency: "USD",
     }),
