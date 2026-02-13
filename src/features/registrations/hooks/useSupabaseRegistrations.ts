@@ -39,7 +39,7 @@ export function useSupabaseRegistrations() {
                 referral_source
             ),
             academy:academies (name),
-            level:levels (name)
+            level:levels (name, schedule)
         `,
         )
         .eq("semester_id", semester.id);
@@ -96,6 +96,7 @@ export function useSupabaseRegistrations() {
         regEntry.selectedAcademies.push({
           academy: enroll.academy?.name || "Unknown",
           level: enroll.level?.name || null,
+          schedule: enroll.level?.schedule || null,
           status: enroll.status,
         });
       });
