@@ -17,7 +17,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { displayYMD } from "../../../lib/date";
 import { normalizeAcademy } from "../../../lib/normalization";
-import { deduplicateRegistrations } from "../../../lib/registrations";
+
 import { motion } from "framer-motion";
 import {
   Download,
@@ -118,12 +118,10 @@ function AdminDashboard() {
 
   // ... existing calculation logic ...
   const { totals, academyRows } = React.useMemo(() => {
-    // 1. Registration Stats
+    // 1. Registration Stats (Supabase hook already groups by student.id)
     const academies = new Map<string, number>();
 
-    const uniqueRegs = deduplicateRegistrations(registrations);
-
-    for (const r of uniqueRegs) {
+    for (const r of registrations) {
       // Academies
       if (
         (r as any).selectedAcademies &&
@@ -160,7 +158,7 @@ function AdminDashboard() {
     // Calculate today's registrations lightly
     let registrationsToday = 0;
     const todayStr = displayYMD(new Date());
-    for (const r of uniqueRegs) {
+    for (const r of registrations) {
       if (r.createdAt && displayYMD(r.createdAt) === todayStr) {
         registrationsToday++;
       }
@@ -168,7 +166,7 @@ function AdminDashboard() {
 
     return {
       totals: {
-        registrations: uniqueRegs.length,
+        registrations: registrations.length,
         totalAcademies,
         registrationsToday,
       },

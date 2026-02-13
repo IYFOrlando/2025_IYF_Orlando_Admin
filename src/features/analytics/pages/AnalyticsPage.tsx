@@ -16,7 +16,6 @@ import { GlassCard } from "../../../components/GlassCard";
 import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
-import { deduplicateRegistrations } from "../../../lib/registrations";
 import { displayYMD } from "../../../lib/date";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import {
@@ -63,13 +62,12 @@ export default function AnalyticsPage() {
 
   const { totals, academyRows, koreanLevelRows, dailyStats } =
     React.useMemo(() => {
-      // 1. Registration Stats (deduplicated to match Dashboard)
-      const uniqueRegs = deduplicateRegistrations(registrations);
+      // 1. Registration Stats (Supabase hook already groups by student.id)
       const academies = new Map<string, number>();
       const koreanLevels = new Map<string, number>();
       const dailyCounts = new Map<string, number>();
 
-      for (const r of uniqueRegs) {
+      for (const r of registrations) {
         // Daily Trend
         if (r.createdAt) {
           // Supabase returns standard ISO strings usually, displayYMD handles string/Date
@@ -136,7 +134,7 @@ export default function AnalyticsPage() {
 
       return {
         totals: {
-          registrations: uniqueRegs.length, // Unique Students (deduplicated)
+          registrations: registrations.length, // Unique Students (already grouped by student.id in hook)
           totalAcademies,
           registrationsToday,
         },
