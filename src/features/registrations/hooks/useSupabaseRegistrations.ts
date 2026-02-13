@@ -12,16 +12,17 @@ export function useSupabaseRegistrations() {
       setLoading(true);
 
       // 1. Get Active Semester
-      const { data: semester, error: semError } = await supabase
+      const { data: semesters, error: semError } = await supabase
         .from("semesters")
         .select("id, name")
         .eq("name", "Spring 2026")
-        .single();
+        .limit(1);
 
       if (semError) {
         console.error("❌ Error fetching semester:", semError);
         throw new Error("Failed to fetch semester");
       }
+      const semester = semesters?.[0];
       if (!semester) throw new Error("Semester not found");
 
       // 2. Fetch Enrollments

@@ -9,9 +9,9 @@ async function getActiveSemesterId() {
     .from("semesters")
     .select("id")
     .eq("name", "Spring 2026")
-    .single();
-  if (error || !data) throw new Error("Active semester not found");
-  return data.id;
+    .limit(1);
+  if (error || !data?.[0]) throw new Error("Active semester not found");
+  return data[0].id;
 }
 
 export function useSupabaseInvoices() {

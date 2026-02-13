@@ -70,12 +70,13 @@ export function useAcademies() {
       setLoading(true);
 
       // 1. Get active semester
-      const { data: semester } = await supabase
+      const { data: semesters } = await supabase
         .from("semesters")
         .select("id")
         .eq("name", "Spring 2026")
-        .single();
+        .limit(1);
 
+      const semester = semesters?.[0];
       if (!semester) throw new Error("Active semester not found");
 
       // 2. Fetch Academies + Levels
@@ -209,12 +210,13 @@ export function useAcademies() {
     async (input: AcademyInput) => {
       try {
         // Get semester
-        const { data: semester } = await supabase
+        const { data: semesters } = await supabase
           .from("semesters")
           .select("id")
           .eq("name", "Spring 2026")
-          .single();
+          .limit(1);
 
+        const semester = semesters?.[0];
         if (!semester) throw new Error("Semester not found");
 
         // Insert Academy

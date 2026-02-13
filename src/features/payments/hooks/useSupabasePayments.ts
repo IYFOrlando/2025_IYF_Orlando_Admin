@@ -12,12 +12,13 @@ export function useSupabasePayments() {
     try {
       setLoading(true);
 
-      const { data: semester } = await supabase
+      const { data: semesters } = await supabase
         .from("semesters")
         .select("id")
         .eq("name", "Spring 2026")
-        .single();
+        .limit(1);
 
+      const semester = semesters?.[0];
       if (!semester) throw new Error("Semester not found");
 
       const { data: paymentsData, error: payError } = await supabase

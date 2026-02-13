@@ -13,12 +13,13 @@ export function useSupabaseAcademies() {
       setLoading(true);
 
       // 1. Get active semester (Spring 2026)
-      const { data: semester } = await supabase
+      const { data: semesters } = await supabase
         .from("semesters")
         .select("id")
         .eq("name", "Spring 2026")
-        .single();
+        .limit(1);
 
+      const semester = semesters?.[0];
       if (!semester) throw new Error("Active semester not found");
 
       // 2. Fetch Academies
