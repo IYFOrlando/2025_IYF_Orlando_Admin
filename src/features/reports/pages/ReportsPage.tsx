@@ -11,6 +11,7 @@ import {
   TrendingUp as TrendingUpIcon,
   Users,
   School,
+  Calendar,
   Download as DownloadIcon,
 } from "lucide-react";
 import {
@@ -44,27 +45,22 @@ import { useSupabasePayments } from "../../payments/hooks/useSupabasePayments";
 
 // --- Types ---
 
+/* TabPanel kept for future use
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
 }
-
-function _TabPanel(props: TabPanelProps) {
+function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
-
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`reports-tabpanel-${index}`}
-      aria-labelledby={`reports-tab-${index}`}
-      {...other}
-    >
+    <div role="tabpanel" hidden={value !== index}
+      id={`reports-tabpanel-${index}`} aria-labelledby={`reports-tab-${index}`} {...other}>
       {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
     </div>
   );
 }
+*/
 
 function computeAge(birthday?: string | null): number | "" {
   if (!birthday) return "";

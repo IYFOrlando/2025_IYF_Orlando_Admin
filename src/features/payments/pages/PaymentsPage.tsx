@@ -242,7 +242,6 @@ const PaymentsPage = React.memo(() => {
   // Get lunch prices from settings/pricing (Supabase)
   const {
     data: settingsPricing,
-    savePricing,
   } = usePricingSettings(); // Supabase
 
   // Combine both sources
@@ -334,11 +333,7 @@ const PaymentsPage = React.memo(() => {
   const [applyToAllInvoices, setApplyToAllInvoices] =
     React.useState<boolean>(false);
 
-  // Admin Dialogs
-  const [_openPricing, setOpenPricing] = React.useState(false);
-  const [editMap, setEditMap] = React.useState<Record<string, number>>({});
-  const [editLunchSem, setEditLunchSem] = React.useState<number>(0);
-  const [editLunchSingle, setEditLunchSingle] = React.useState<number>(0);
+  // Admin Dialogs (pricing editor removed – managed in settings now)
 
   // UI State
   const [activeTab, setActiveTab] = React.useState(0);
@@ -1227,25 +1222,6 @@ const PaymentsPage = React.memo(() => {
     }
 
     doc.save(`Invoice_${inv.studentName}_${inv.id}.pdf`);
-  };
-
-  const _savePricingNow = async () => {
-    // Convert from dollars to cents for storage
-    const pricesInCents: Record<string, number> = {};
-    Object.keys(editMap).forEach((key) => {
-      pricesInCents[key] = Math.round((editMap[key] || 0) * 100);
-    });
-
-    await savePricing({
-      academyPrices: pricesInCents,
-      items: pricing.items || [],
-      lunch: {
-        semester: Math.round(editLunchSem * 100),
-        single: Math.round(editLunchSingle * 100),
-      },
-    });
-    setOpenPricing(false);
-    notifySuccess("Pricing updated");
   };
 
   // --- Render ---
