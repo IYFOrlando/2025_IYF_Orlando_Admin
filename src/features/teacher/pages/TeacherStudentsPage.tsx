@@ -3,14 +3,19 @@ import {
   Box,
   Chip,
   Typography,
+  TextField,
+  Tab,
+  Tabs,
+  CardContent,
+  Stack,
+  InputAdornment,
 } from "@mui/material";
 import {
   DataGrid,
-  GridToolbar,
   type GridColDef,
   gridClasses,
 } from "@mui/x-data-grid";
-import { Users } from "lucide-react";
+import { Users, Search } from "lucide-react";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import type { Registration } from "../../registrations/types";
@@ -20,7 +25,7 @@ import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { GlassCard } from "../../../components/GlassCard";
 
-// ---------- Row type ----------
+// ---------- Types ----------
 type StudentRow = {
   id: string;
   rowNum: number;
@@ -31,71 +36,103 @@ type StudentRow = {
   gender: string;
   age: string;
   city: string;
-  academies: string;
+};
+
+type ClassGroup = {
+  key: string;
+  label: string;
+  academyName: string;
+  level: string | null;
+  students: StudentRow[];
 };
 
 export default function TeacherStudentsPage() {
   const { data: allRegs } = useSupabaseRegistrations();
   const { teacherProfile } = useTeacherContext();
+  const [activeTab, setActiveTab] = React.useState(0);
+  const [search, setSearch] = React.useState("");
 
-  // Filter registrations to only those in the teacher's assigned academies
-  const myStudents = React.useMemo<StudentRow[]>(() => {
+  // Group students by teacher's academy/level assignments
+  const classGroups = React.useMemo<ClassGroup[]>(() => {
     if (!teacherProfile || !allRegs.length) return [];
 
-    const myAcademies = teacherProfile.academies.map((a) => ({
-      name: normalizeAcademy(a.academyName),
+    const groups: ClassGroup[] = teacherProfile.academies.map((a) => ({
+      key: `${a.academyName}::${a.level || "all"}`,
+      label: a.level ? `${a.academyName} — ${a.level}` : a.academyName,
+      academyName: normalizeAcademy(a.academyName),
       level: a.level || null,
+      students: [],
     }));
 
-    const rows: StudentRow[] = [];
-    let idx = 0;
-
     allRegs.forEach((reg: Registration) => {
-      // Check if student belongs to any of my academies
-      const matchedAcademies: string[] = [];
+      if (!reg.selectedAcademies || !Array.isArray(reg.selectedAcademies)) return;
 
-      if (reg.selectedAcademies && Array.isArray(reg.selectedAcademies)) {
-        reg.selectedAcademies.forEach((sa) => {
-          const saAcademy = normalizeAcademy(sa.academy || "");
-          const match = myAcademies.some((ma) => {
-            if (saAcademy !== ma.name) return false;
-            // If teacher is assigned to a specific level, only show matching students
-            if (ma.level && sa.level && ma.level !== sa.level) return false;
-            return true;
+      reg.selectedAcademies.forEach((sa) => {
+        const saAcademy = normalizeAcademy(sa.academy || "");
+
+        groups.forEach((group) => {
+          if (saAcademy !== group.academyName) return;
+          if (group.level && sa.level && group.level !== sa.level) return;
+          if (group.level && !sa.level) return; // teacher has level, student doesn't
+
+          // Avoid duplicates
+          if (group.students.some((s) => s.id === reg.id)) return;
+
+          const ageVal = reg.birthday ? computeAge(reg.birthday) : "";
+          group.students.push({
+            id: reg.id,
+            rowNum: 0,
+            firstName: reg.firstName || "",
+            lastName: reg.lastName || "",
+            email: reg.email || "",
+            phone: reg.cellNumber || "",
+            gender: reg.gender || "",
+            age: ageVal !== undefined && ageVal !== null ? String(ageVal) : "",
+            city: reg.city || "",
           });
-          if (match) {
-            const label = sa.level ? `${sa.academy} (${sa.level})` : sa.academy || "";
-            if (!matchedAcademies.includes(label)) matchedAcademies.push(label);
-          }
         });
-      }
-
-      if (matchedAcademies.length > 0) {
-        idx++;
-        const ageVal = reg.birthday ? computeAge(reg.birthday) : "";
-        rows.push({
-          id: reg.id,
-          rowNum: idx,
-          firstName: reg.firstName || "",
-          lastName: reg.lastName || "",
-          email: reg.email || "",
-          phone: reg.cellNumber || "",
-          gender: reg.gender || "",
-          age: ageVal !== undefined && ageVal !== null ? String(ageVal) : "",
-          city: reg.city || "",
-          academies: matchedAcademies.join(", "),
-        });
-      }
+      });
     });
 
-    return rows.sort((a, b) => a.lastName.localeCompare(b.lastName));
+    // Sort students in each group and number them
+    groups.forEach((g) => {
+      g.students.sort((a, b) => a.lastName.localeCompare(b.lastName));
+      g.students.forEach((s, i) => (s.rowNum = i + 1));
+    });
+
+    return groups;
   }, [allRegs, teacherProfile]);
 
-  // Re-number after sort
+  // Current group based on active tab
+  const currentGroup = classGroups[activeTab] || null;
+
+  // Filter by search
+  const filteredStudents = React.useMemo(() => {
+    if (!currentGroup) return [];
+    if (!search.trim()) return currentGroup.students;
+    const q = search.toLowerCase();
+    return currentGroup.students.filter(
+      (s) =>
+        s.firstName.toLowerCase().includes(q) ||
+        s.lastName.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.phone.includes(q) ||
+        s.city.toLowerCase().includes(q),
+    );
+  }, [currentGroup, search]);
+
+  // Re-number after filter
   const numberedRows = React.useMemo(
-    () => myStudents.map((r, i) => ({ ...r, rowNum: i + 1 })),
-    [myStudents],
+    () => filteredStudents.map((r, i) => ({ ...r, rowNum: i + 1 })),
+    [filteredStudents],
   );
+
+  // Total students across all groups (unique)
+  const totalStudents = React.useMemo(() => {
+    const ids = new Set<string>();
+    classGroups.forEach((g) => g.students.forEach((s) => ids.add(s.id)));
+    return ids.size;
+  }, [classGroups]);
 
   // ---------- Columns ----------
   const columns = React.useMemo<GridColDef[]>(
@@ -103,33 +140,17 @@ export default function TeacherStudentsPage() {
       {
         field: "rowNum",
         headerName: "#",
-        width: 60,
+        width: 55,
         sortable: false,
         filterable: false,
       },
       { field: "firstName", headerName: "First Name", minWidth: 130, flex: 1 },
       { field: "lastName", headerName: "Last Name", minWidth: 130, flex: 1 },
-      { field: "email", headerName: "Email", minWidth: 200, flex: 1.2 },
+      { field: "email", headerName: "Email", minWidth: 200, flex: 1.3 },
       { field: "phone", headerName: "Phone", minWidth: 130, flex: 0.8 },
-      { field: "gender", headerName: "Gender", width: 90 },
-      { field: "age", headerName: "Age", width: 70 },
+      { field: "gender", headerName: "Gender", width: 85 },
+      { field: "age", headerName: "Age", width: 65 },
       { field: "city", headerName: "City", minWidth: 120, flex: 0.8 },
-      {
-        field: "academies",
-        headerName: "Academies",
-        minWidth: 200,
-        flex: 1.5,
-        renderCell: (params) => {
-          const items = (params.value as string || "").split(", ").filter(Boolean);
-          return (
-            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", py: 0.5 }}>
-              {items.map((a, i) => (
-                <Chip key={i} label={a} size="small" variant="outlined" color="primary" />
-              ))}
-            </Box>
-          );
-        },
-      },
     ],
     [],
   );
@@ -139,72 +160,126 @@ export default function TeacherStudentsPage() {
       <PageHeader
         icon={<Users size={40} />}
         title="My Students"
-        subtitle={`${numberedRows.length} students in your classes`}
+        subtitle={`${totalStudents} students across ${classGroups.length} class${classGroups.length !== 1 ? "es" : ""}`}
         {...PageHeaderColors.students}
       />
 
-      <GlassCard>
-        <Box sx={{ p: { xs: 1, md: 2 } }}>
-          {/* Summary chips */}
-          <Box sx={{ mb: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Chip
-              label={`${numberedRows.length} Students`}
-              color="primary"
-              variant="outlined"
-              sx={{ fontWeight: 600 }}
-            />
-            {teacherProfile?.academies.map((a, i) => (
-              <Chip
-                key={i}
-                label={a.level ? `${a.academyName} — ${a.level}` : a.academyName}
-                size="small"
-                sx={{
-                  bgcolor: "rgba(14, 165, 233, 0.08)",
-                  fontWeight: 500,
-                }}
-              />
-            ))}
-          </Box>
-
-          <Box sx={{ height: 600, width: "100%" }}>
-            <DataGrid
-              rows={numberedRows}
-              columns={columns}
-              getRowId={(r) => r.id}
-              slots={{ toolbar: GridToolbar }}
-              slotProps={{
-                toolbar: {
-                  showQuickFilter: true,
-                  quickFilterProps: { debounceMs: 300 },
-                },
+      {classGroups.length === 0 ? (
+        <GlassCard>
+          <CardContent>
+            <Typography color="text.secondary" textAlign="center" py={6}>
+              No classes assigned yet. Contact admin if this is an error.
+            </Typography>
+          </CardContent>
+        </GlassCard>
+      ) : (
+        <>
+          {/* Class Tabs */}
+          <Box sx={{ mb: 2 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_, v) => {
+                setActiveTab(v);
+                setSearch("");
               }}
-              disableRowSelectionOnClick
-              initialState={{
-                pagination: { paginationModel: { pageSize: 25 } },
-              }}
-              pageSizeOptions={[25, 50, 100]}
+              variant="scrollable"
+              scrollButtons="auto"
               sx={{
-                border: "none",
-                [`& .${gridClasses.cell}`]: {
-                  borderBottom: "1px solid rgba(224, 224, 224, 0.4)",
-                },
-                [`& .${gridClasses.columnHeaders}`]: {
-                  bgcolor: "rgba(14, 165, 233, 0.06)",
-                  fontWeight: 700,
-                },
-                [`& .${gridClasses.toolbarContainer}`]: {
-                  p: 2,
-                  gap: 1,
+                "& .MuiTab-root": {
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  minHeight: 48,
                 },
               }}
-            />
+            >
+              {classGroups.map((g, i) => (
+                <Tab
+                  key={g.key}
+                  label={
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <span>{g.label}</span>
+                      <Chip
+                        label={g.students.length}
+                        size="small"
+                        color={activeTab === i ? "primary" : "default"}
+                        sx={{ height: 22, fontSize: 12, fontWeight: 700 }}
+                      />
+                    </Stack>
+                  }
+                />
+              ))}
+            </Tabs>
           </Box>
 
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-            This is a read-only view of students enrolled in your classes. Contact admin for changes.
-          </Typography>
-        </Box>
-      </GlassCard>
+          {/* Student Table */}
+          <GlassCard>
+            <Box sx={{ p: { xs: 1, md: 2 } }}>
+              {/* Search & Summary */}
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                alignItems={{ sm: "center" }}
+                sx={{ mb: 2 }}
+              >
+                <TextField
+                  placeholder="Search students..."
+                  size="small"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  sx={{ minWidth: 280 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search size={18} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <Box sx={{ flexGrow: 1 }} />
+                <Chip
+                  label={`${numberedRows.length} student${numberedRows.length !== 1 ? "s" : ""}`}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ fontWeight: 600 }}
+                />
+              </Stack>
+
+              <Box sx={{ height: 520, width: "100%" }}>
+                <DataGrid
+                  rows={numberedRows}
+                  columns={columns}
+                  getRowId={(r) => r.id}
+                  disableRowSelectionOnClick
+                  disableColumnMenu
+                  initialState={{
+                    pagination: { paginationModel: { pageSize: 25 } },
+                  }}
+                  pageSizeOptions={[25, 50, 100]}
+                  sx={{
+                    border: "none",
+                    [`& .${gridClasses.cell}`]: {
+                      borderBottom: "1px solid rgba(224, 224, 224, 0.4)",
+                    },
+                    [`& .${gridClasses.columnHeaders}`]: {
+                      bgcolor: "rgba(14, 165, 233, 0.06)",
+                      fontWeight: 700,
+                    },
+                  }}
+                />
+              </Box>
+
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 1, display: "block" }}
+              >
+                Read-only view. Contact admin for any changes.
+              </Typography>
+            </Box>
+          </GlassCard>
+        </>
+      )}
     </Box>
   );
 }
