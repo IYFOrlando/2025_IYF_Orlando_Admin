@@ -333,7 +333,10 @@ const PaymentsPage = React.memo(() => {
   const [applyToAllInvoices, setApplyToAllInvoices] =
     React.useState<boolean>(false);
 
-  // Admin Dialogs (pricing editor removed – managed in settings now)
+  // Admin Dialogs (pricing editor display removed – setters still used in useEffect)
+  const [, setEditMap] = React.useState<Record<string, number>>({});
+  const [, setEditLunchSem] = React.useState<number>(0);
+  const [, setEditLunchSingle] = React.useState<number>(0);
 
   // UI State
   const [activeTab, setActiveTab] = React.useState(0);
