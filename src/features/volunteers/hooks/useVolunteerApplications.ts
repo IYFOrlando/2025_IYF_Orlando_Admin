@@ -1,9 +1,6 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { supabase } from '../../../lib/supabase'
 import { logger } from '../../../lib/logger'
-import { isFirebasePermissionError } from '../../../lib/errors'
-import { VOLUNTEER_APPLICATIONS_COLLECTION } from '../../../lib/config'
 import { generateVolunteerCode } from '../../../lib/volunteerCodes'
 import type { VolunteerApplication, VolunteerStatus } from '../types'
 
@@ -12,114 +9,111 @@ export function useVolunteerApplications() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<Error | null>(null)
 
-  React.useEffect(() => {
-    const q = query(
-      collection(db, VOLUNTEER_APPLICATIONS_COLLECTION),
-      orderBy('createdAt', 'desc')
-    )
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const { data: rows, error: fetchError } = await supabase
+        .from('volunteer_applications')
+        .select('*')
+        .order('createdAt', { ascending: false })
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const applications = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as VolunteerApplication[]
-        setData(applications)
-        setLoading(false)
-        setError(null)
-      },
-      (err) => {
-        // Handle permissions error gracefully
-        if (isFirebasePermissionError(err)) {
-          // User doesn't have permissions to read volunteer applications - use empty array
-          setData([])
-          setError(null)
-          setLoading(false)
-          return
-        }
-        
-        // For other errors, still log but don't show to user unless critical
-        logger.error('Error fetching volunteer applications', err)
-        setError(err)
-        setLoading(false)
-      }
-    )
+      if (fetchError) throw fetchError
 
-    return () => unsubscribe()
+      setData((rows || []).map(r => ({ id: r.id, ...r } as VolunteerApplication)))
+      setError(null)
+    } catch (err: any) {
+      logger.error('Error fetching volunteer applications', err)
+      setError(err)
+      setData([])
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  React.useEffect(() => { fetchData() }, [fetchData])
 
   const createVolunteer = React.useCallback(async (volunteerData: Omit<VolunteerApplication, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      // Generate volunteer code if not provided
       const volunteerCode = volunteerData.volunteerCode || generateVolunteerCode(6)
-      
-      const docRef = await addDoc(collection(db, VOLUNTEER_APPLICATIONS_COLLECTION), {
-        ...volunteerData,
-        volunteerCode,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      })
-      return docRef.id
+      const now = new Date().toISOString()
+
+      const { data: row, error } = await supabase
+        .from('volunteer_applications')
+        .insert({
+          ...volunteerData,
+          volunteerCode,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .select('id')
+        .single()
+
+      if (error) throw error
+      await fetchData()
+      return row.id
     } catch (err) {
       logger.error('Error creating volunteer application', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
   const updateVolunteer = React.useCallback(async (id: string, updates: Partial<VolunteerApplication>) => {
     try {
-      const docRef = doc(db, VOLUNTEER_APPLICATIONS_COLLECTION, id)
-      await updateDoc(docRef, {
-        ...updates,
-        updatedAt: serverTimestamp()
-      })
+      const { error } = await supabase
+        .from('volunteer_applications')
+        .update({ ...updates, updatedAt: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+      await fetchData()
       return true
     } catch (err) {
       logger.error('Error updating volunteer application', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
   const updateStatus = React.useCallback(async (
-    id: string, 
-    status: VolunteerStatus, 
+    id: string,
+    status: VolunteerStatus,
     notes?: string,
     updatedBy?: string
   ) => {
     try {
-      const docRef = doc(db, VOLUNTEER_APPLICATIONS_COLLECTION, id)
-      await updateDoc(docRef, {
-        status,
-        notes: notes || null,
-        updatedAt: serverTimestamp(),
-        updatedBy: updatedBy || null
-      })
+      const { error } = await supabase
+        .from('volunteer_applications')
+        .update({
+          status,
+          notes: notes || null,
+          updatedBy: updatedBy || null,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', id)
+
+      if (error) throw error
+      await fetchData()
       return true
     } catch (err) {
       logger.error('Error updating volunteer application status', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
   const deleteVolunteer = React.useCallback(async (id: string) => {
     try {
-      const docRef = doc(db, VOLUNTEER_APPLICATIONS_COLLECTION, id)
-      await deleteDoc(docRef)
+      const { error } = await supabase
+        .from('volunteer_applications')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      await fetchData()
       return true
     } catch (err) {
       logger.error('Error deleting volunteer application', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
-  return {
-    data,
-    loading,
-    error,
-    createVolunteer,
-    updateVolunteer,
-    updateStatus,
-    deleteVolunteer
-  }
+  return { data, loading, error, createVolunteer, updateVolunteer, updateStatus, deleteVolunteer }
 }

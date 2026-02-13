@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore'
-
 export type UserRole = 'admin' | 'teacher' | 'viewer' | 'unauthorized'
 
 export interface TeacherData {
@@ -42,7 +40,7 @@ export interface TeacherActivity {
   level?: string
   studentId?: string
   studentName?: string
-  date: Timestamp 
+  date: any       // ISO string from Supabase or legacy Firebase Timestamp
   details?: any
-  createdAt: Timestamp 
+  createdAt: any  // ISO string from Supabase or legacy Firebase Timestamp
 }

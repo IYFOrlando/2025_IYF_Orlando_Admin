@@ -1,25 +1,16 @@
 import * as React from 'react'
-import { collection, onSnapshot, query } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { supabase } from '../../../lib/supabase'
 import { logger } from '../../../lib/logger'
-import { isFirebasePermissionError } from '../../../lib/errors'
-import { VOLUNTEER_COMMITMENTS_COLLECTION } from '../../../lib/config'
 
 export interface VolunteerCommitment {
   id: string
   volunteerId?: string
   volunteerName?: string
   volunteerEmail?: string
-  email?: string  // The actual field name in the database
+  email?: string
   commitmentResponse: string
-  createdAt?: {
-    seconds: number
-    nanoseconds: number
-  }
-  updatedAt?: {
-    seconds: number
-    nanoseconds: number
-  }
+  createdAt?: any
+  updatedAt?: any
 }
 
 export function useVolunteerCommitments() {
@@ -28,39 +19,25 @@ export function useVolunteerCommitments() {
   const [error, setError] = React.useState<Error | null>(null)
 
   React.useEffect(() => {
-    const q = query(
-      collection(db, VOLUNTEER_COMMITMENTS_COLLECTION)
-    )
+    const fetch = async () => {
+      try {
+        const { data: rows, error: fetchError } = await supabase
+          .from('volunteer_commitments')
+          .select('*')
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const commitments = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as VolunteerCommitment[]
-        setData(commitments)
-        setLoading(false)
+        if (fetchError) throw fetchError
+
+        setData((rows || []).map(r => ({ id: r.id, ...r } as VolunteerCommitment)))
         setError(null)
-      },
-      (err) => {
-        // Handle permissions error gracefully
-        if (isFirebasePermissionError(err)) {
-          // User doesn't have permissions to read volunteer commitments - use empty array
-          setData([])
-          setError(null)
-          setLoading(false)
-          return
-        }
-        
-        // For other errors, still log but don't show to user unless critical
+      } catch (err: any) {
         logger.error('Error fetching volunteer commitments', err)
         setError(err)
+        setData([])
+      } finally {
         setLoading(false)
       }
-    )
-
-    return () => unsubscribe()
+    }
+    fetch()
   }, [])
 
   const getCommitmentByVolunteerId = React.useCallback((volunteerId: string) => {
@@ -68,16 +45,10 @@ export function useVolunteerCommitments() {
   }, [data])
 
   const getCommitmentByVolunteerEmail = React.useCallback((volunteerEmail: string) => {
-    return data.find(commitment => 
+    return data.find(commitment =>
       commitment.email === volunteerEmail || commitment.volunteerEmail === volunteerEmail
     )
   }, [data])
 
-  return {
-    data,
-    loading,
-    error,
-    getCommitmentByVolunteerId,
-    getCommitmentByVolunteerEmail
-  }
+  return { data, loading, error, getCommitmentByVolunteerId, getCommitmentByVolunteerEmail }
 }

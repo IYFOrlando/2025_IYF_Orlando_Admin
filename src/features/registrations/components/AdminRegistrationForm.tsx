@@ -4,15 +4,15 @@ import {
   MenuItem, Button, Typography, Box, Stack, CircularProgress
 } from '@mui/material'
 import { Trash2, Plus } from 'lucide-react'
-import { db } from '../../../lib/firebase'
-import { REG_COLLECTION } from '../../../lib/config'
-import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
-import { doc, updateDoc, addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore'
 import { Alert as SAlert } from '../../../lib/alerts'
 import { computeAge } from '../../../lib/validations'
 import type { Registration, SelectedAcademy } from '../types'
 import { TSHIRT_SIZES, GENDER_OPTIONS } from '../../../lib/constants'
-import { updateInvoiceForRegistration } from '../../../lib/autoInvoice'
+import {
+  getAcademyConfig,
+  createRegistration,
+  updateRegistration,
+} from '../../../lib/supabaseRegistrations'
 
 // State List
 const STATES = [
@@ -30,7 +30,7 @@ const STATES = [
 type Props = {
   open: boolean
   onClose: () => void
-  docId?: string // If present, edit mode. If not, create mode.
+  docId?: string // If present, edit mode (student UUID). If not, create mode.
   initial?: Registration // Pre-filled data for edits
   onSuccess?: () => void
 }
@@ -52,34 +52,28 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
   const [availableAcademies, setAvailableAcademies] = React.useState<string[]>([])
   const [academyLevels, setAcademyLevels] = React.useState<Record<string, string[]>>({})
   const [loadingConfig, setLoadingConfig] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
 
-  // Fetch Academy Config on Open
+  // Fetch Academy Config on Open (from Supabase)
   React.useEffect(() => {
     if (open) {
       setLoadingConfig(true)
       const fetchConfig = async () => {
         try {
-          const colName = COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring'
-          const snap = await getDocs(collection(db, colName))
+          const config = await getAcademyConfig()
           
-          const academies: string[] = []
+          const academies: string[] = config.map(a => a.name)
           const levels: Record<string, string[]> = {}
-
-          snap.forEach(doc => {
-            const data = doc.data()
-            if (data.name) {
-              academies.push(data.name)
-              if (data.hasLevels && Array.isArray(data.levels)) {
-                // levels is array of objects {name, schedule, ...}
-                levels[data.name] = data.levels.map((l: any) => l.name)
-              }
+          config.forEach(a => {
+            if (a.levels.length > 0) {
+              levels[a.name] = a.levels.map(l => l.name)
             }
           })
           
           setAvailableAcademies(academies.sort())
           setAcademyLevels(levels)
         } catch (e) {
-          console.error("Failed to load academy config", e)
+          console.error("Failed to load academy config from Supabase", e)
         } finally {
           setLoadingConfig(false)
         }
@@ -122,8 +116,7 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
       if (list[index]) {
         list[index] = { ...list[index], [field]: value }
          
-        // If academy changes, clear level if the new academy doesn't have the old level options
-        // or just clear it deeply to be safe.
+        // If academy changes, clear level
         if (field === 'academy') {
            list[index].level = '' 
         }
@@ -139,14 +132,15 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
 
   const save = async () => {
     try {
+      setSaving(true)
+
       // Validate
       if(!form.firstName || !form.lastName) throw new Error('First and Last Name required')
 
-      const payload: any = {
+      const formData = {
         firstName: form.firstName || '',
         lastName: form.lastName || '',
         birthday: form.birthday || '',
-        age: computeAge(form.birthday) || 0,
         gender: form.gender || '',
         cellNumber: form.cellNumber || '',
         email: form.email || '',
@@ -157,47 +151,28 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
         tShirtSize: form.tShirtSize || '',
         guardianName: form.guardianName || '',
         guardianPhone: form.guardianPhone || '',
-        // Store updated structure
-        selectedAcademies: form.selectedAcademies || [],
-        // Legacy Compatibility: Restore firstPeriod/secondPeriod for Invoice View
-        firstPeriod: (form.selectedAcademies && form.selectedAcademies[0]) ? {
-          academy: form.selectedAcademies[0].academy,
-          level: form.selectedAcademies[0].level
-        } : null,
-        secondPeriod: (form.selectedAcademies && form.selectedAcademies[1]) ? {
-          academy: form.selectedAcademies[1].academy,
-          level: form.selectedAcademies[1].level
-        } : null,
-        updatedAt: serverTimestamp()
+        selectedAcademies: (form.selectedAcademies || []).map(a => ({
+          academy: a.academy || '',
+          level: a.level || '',
+        })),
       }
 
-      let finalId = docId
       if (isEdit && docId) {
-        await updateDoc(doc(db, REG_COLLECTION, docId), payload)
+        await updateRegistration(docId, formData)
         SAlert.fire({ title: 'Updated', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false })
       } else {
-        payload.createdAt = serverTimestamp()
-        const res = await addDoc(collection(db, REG_COLLECTION), payload)
-        finalId = res.id
+        await createRegistration(formData)
         SAlert.fire({ title: 'Created', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false })
-      }
-
-      // Sync Invoice
-      if (finalId) {
-         // reconstruct full object for the helper
-         const regForInv = { ...payload, id: finalId } as Registration
-         // Run in background to not block UI? Or await? Await is safer to ensure consistency.
-         await updateInvoiceForRegistration(regForInv)
       }
       
       if(onSuccess) onSuccess()
       onClose()
     } catch (e:any) {
       SAlert.fire({ title: 'Save failed', text: e?.message, icon: 'error' })
+    } finally {
+      setSaving(false)
     }
   }
-
-
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
@@ -247,7 +222,7 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
           <Grid item xs={12} md={6}><TextField label="Guardian Phone" value={form.guardianPhone} onChange={(e)=>setField('guardianPhone', e.target.value)} fullWidth size="small" /></Grid>
 
           {/* Section: Academies */}
-          <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">ACADEMY_SELECTION</Typography></Grid>
+          <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">ACADEMY SELECTION</Typography></Grid>
           
           {/* Dynamic Academy List */}
           <Grid item xs={12}>
@@ -318,8 +293,10 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
         </Grid>
       </DialogContent>
       <DialogActions sx={{ p: 2, borderTop: '1px solid #eee' }}>
-        <Button onClick={onClose} color="inherit">Cancel</Button>
-        <Button onClick={save} variant="contained" disableElevation>Save Registration</Button>
+        <Button onClick={onClose} color="inherit" disabled={saving}>Cancel</Button>
+        <Button onClick={save} variant="contained" disableElevation disabled={saving}>
+          {saving ? 'Saving...' : 'Save Registration'}
+        </Button>
       </DialogActions>
     </Dialog>
   )

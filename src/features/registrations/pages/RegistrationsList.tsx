@@ -17,34 +17,17 @@ import {
   type GridColDef,
   gridClasses,
 } from "@mui/x-data-grid";
-import {
-  collection,
-  onSnapshot,
-  doc,
-  query,
-  where,
-  getDocs,
-  writeBatch,
-} from "firebase/firestore";
-import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../context/AuthContext";
-import {
-  REG_COLLECTION,
-  INV_COLLECTION,
-  PAY_COLLECTION,
-} from "../../../lib/config";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { useRegistrationsExpectedTotals } from "../hooks/useRegistrationExpectedTotal";
 import { useSupabaseRegistrations } from "../hooks/useSupabaseRegistrations";
 import { useSupabaseInvoices } from "../../payments/hooks/useSupabaseInvoices";
 import { useSupabasePayments } from "../../payments/hooks/useSupabasePayments";
 import { latestInvoicePerStudent } from "../../payments/utils";
-import { COLLECTIONS_CONFIG } from "../../../config/shared.js";
+import { deleteStudentData } from "../../../lib/supabaseRegistrations";
 import type { Registration } from "../types";
-import type { Invoice } from "../../payments/types";
 import { usd } from "../../../lib/query";
 import {
-  Alert as SAlert,
   confirmDelete,
   notifyError,
   notifySuccess,
@@ -67,61 +50,6 @@ type BillingAgg = {
 };
 const isValidDate = (d: unknown): d is Date =>
   d instanceof Date && !isNaN(d.getTime());
-
-/**
- * CRITICAL: Use only the LATEST invoice per student to avoid double-counting.
- * Older invoices remain in DB as history but should not affect current status.
- * This ensures consistency with Dashboard calculations and prevents showing incorrect "Unpaid" status
- * when payments have been recorded.
- */
-function useInvoiceAggByStudent() {
-  const [map, setMap] = React.useState<Map<string, BillingAgg>>(new Map());
-  React.useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, COLLECTIONS_CONFIG.academyInvoices),
-      (snap) => {
-        // Get all invoices
-        const allInvoices: Invoice[] = snap.docs.map((d) => {
-          const data = d.data() as Invoice;
-          return {
-            ...data,
-            id: d.id, // Ensure document ID takes precedence
-          } as Invoice;
-        });
-
-        // Use only the latest invoice per student (same logic as Dashboard)
-        const latest = latestInvoicePerStudent(allInvoices);
-
-        // Build aggregation map using only latest invoices
-        const agg = new Map<string, BillingAgg>();
-        for (const inv of latest) {
-          const id = String(inv.studentId || "");
-          if (!id) continue;
-
-          const total = Number(inv.total || 0);
-          const paid = Number(inv.paid || 0);
-          const balance = Math.max(total - paid, 0);
-
-          let status: "unpaid" | "partial" | "paid" | "exonerated" = "unpaid";
-          if (inv.status === "exonerated") {
-            status = "exonerated";
-          } else if (paid <= 0) {
-            status = "unpaid";
-          } else if (balance > 0) {
-            status = "partial";
-          } else {
-            status = "paid";
-          }
-
-          agg.set(id, { total, paid, balance, status });
-        }
-        setMap(agg);
-      },
-    );
-    return () => unsub();
-  }, []);
-  return map;
-}
 
 // --- Animations ---
 const containerVariants = {
@@ -185,10 +113,43 @@ const RegistrationsList = React.memo(function RegistrationsList({
   );
 
   const effectiveIsAdmin = isAdmin || forceIsAdmin || contextIsAdmin;
-  const { data, loading } = useSupabaseRegistrations();
-  const { data: invoices } = useSupabaseInvoices();
-  const { data: payments } = useSupabasePayments();
-  const byStudent = useInvoiceAggByStudent();
+
+  // --- Supabase Data Hooks ---
+  const { data, loading, refetch: refetchRegistrations } = useSupabaseRegistrations();
+  const { data: invoices, refetch: refetchInvoices } = useSupabaseInvoices();
+  const { data: payments, refetch: refetchPayments } = useSupabasePayments();
+
+  // --- Invoice Aggregation (Supabase-based, replaces Firebase onSnapshot) ---
+  const byStudent = React.useMemo(() => {
+    const agg = new Map<string, BillingAgg>();
+    if (!invoices) return agg;
+
+    // Use only the latest invoice per student to avoid double-counting
+    const latest = latestInvoicePerStudent(invoices);
+
+    for (const inv of latest) {
+      const id = String(inv.studentId || "");
+      if (!id) continue;
+
+      const total = Number(inv.total || 0);
+      const paid = Number(inv.paid || 0);
+      const balance = Math.max(total - paid, 0);
+
+      let status: "unpaid" | "partial" | "paid" | "exonerated" = "unpaid";
+      if (inv.status === "exonerated") {
+        status = "exonerated";
+      } else if (paid <= 0) {
+        status = "unpaid";
+      } else if (balance > 0) {
+        status = "partial";
+      } else {
+        status = "paid";
+      }
+
+      agg.set(id, { total, paid, balance, status });
+    }
+    return agg;
+  }, [invoices]);
 
   // Mobile check
   const theme = useTheme();
@@ -272,6 +233,13 @@ const RegistrationsList = React.memo(function RegistrationsList({
     setFormOpen(true);
   };
 
+  // Refetch all data after mutations
+  const handleRefreshAll = React.useCallback(() => {
+    refetchRegistrations();
+    refetchInvoices();
+    refetchPayments();
+  }, [refetchRegistrations, refetchInvoices, refetchPayments]);
+
   // Export Logic Map
   const paymentDataMap = React.useMemo(() => {
     const map = new Map<string, any>();
@@ -306,62 +274,30 @@ const RegistrationsList = React.memo(function RegistrationsList({
   }, [invoices, payments]);
 
   /**
-   * Helper to delete a student and all their related data (Invoices, Payments)
+   * Delete a student and all related data via Supabase
    */
-  const deleteStudentData = async (studentId: string) => {
-    // 1. Delete Invoices
-    const invQuery = query(
-      collection(db, INV_COLLECTION),
-      where("studentId", "==", studentId),
-    );
-    const invSnap = await getDocs(invQuery);
-    const batch = writeBatch(db);
-
-    invSnap.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    // 2. Delete Payments
-    const payQuery = query(
-      collection(db, PAY_COLLECTION),
-      where("studentId", "==", studentId),
-    );
-    const paySnap = await getDocs(payQuery);
-
-    paySnap.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    // 3. Delete Student
-    const studentRef = doc(db, REG_COLLECTION, studentId);
-    batch.delete(studentRef);
-
-    await batch.commit();
+  const handleDeleteStudent = async (studentId: string) => {
+    await deleteStudentData(studentId);
   };
 
   // --- Actions ---
   const handleBulkDelete = async () => {
     if (!effectiveIsAdmin) return;
     if (!selection.length)
-      return SAlert.fire({
-        title: "Nothing selected",
-        icon: "info",
-        timer: 1200,
-        showConfirmButton: false,
-      });
+      return notifyError("Nothing selected");
     const res = await confirmDelete(
       "Delete selected?",
       `You are about to delete ${selection.length} registration(s).`,
     );
     if (!res.isConfirmed) return;
     try {
-      // Use cascading delete for each selected student
-      await Promise.all(selection.map((id) => deleteStudentData(String(id))));
+      await Promise.all(selection.map((id) => handleDeleteStudent(String(id))));
       notifySuccess(
         "Deleted",
         `${selection.length} registration(s) and related data removed`,
       );
       setSelection([]);
+      handleRefreshAll();
     } catch (e: any) {
       notifyError("Delete failed", e?.message);
     }
@@ -392,10 +328,10 @@ const RegistrationsList = React.memo(function RegistrationsList({
           City: row.city || "",
           State: row.state || "",
           Zip: row.zipCode || "",
-          Created: row.createdAt?.seconds
-            ? new Date(row.createdAt.seconds * 1000).toLocaleString()
-            : isValidDate(new Date(row.createdAt))
-              ? new Date(row.createdAt).toLocaleString()
+          Created: typeof row.createdAt === 'string'
+            ? new Date(row.createdAt).toLocaleString()
+            : row.createdAt?.seconds
+              ? new Date(row.createdAt.seconds * 1000).toLocaleString()
               : "",
           Fee: usd(pData.totalFee),
           Paid: usd(pData.paid),
@@ -551,10 +487,12 @@ const RegistrationsList = React.memo(function RegistrationsList({
         valueGetter: (p) => {
           const val = p.row.createdAt;
           if (!val) return "";
-          // Handle Firestore Timestamp or Date or millis
-          const date = val.seconds
-            ? new Date(val.seconds * 1000)
-            : new Date(val);
+          // Handle string ISO dates (Supabase) or Firestore Timestamps
+          const date = typeof val === 'string'
+            ? new Date(val)
+            : val.seconds
+              ? new Date(val.seconds * 1000)
+              : new Date(val);
           return isValidDate(date) ? date : "";
         },
         renderCell: (p) => {
@@ -814,12 +752,13 @@ const RegistrationsList = React.memo(function RegistrationsList({
         </Box>
       </GlassCard>
 
-      {/* Replaced old EditRegistrationDialog with AdminRegistrationForm */}
+      {/* Admin Registration Form (Create/Edit) */}
       <AdminRegistrationForm
         open={formOpen}
         onClose={() => setFormOpen(false)}
         docId={editingId}
         initial={initialData}
+        onSuccess={handleRefreshAll}
       />
 
       <RegistrationDrawer
@@ -839,25 +778,26 @@ const RegistrationsList = React.memo(function RegistrationsList({
         onDelete={async () => {
           if (selectedReg) {
             setDrawerOpen(false);
-            // ... (delete logic reuse would be better but keeping it simple)
             const res = await confirmDelete(
               "Delete registration?",
               `Remove ${selectedReg.firstName} ${selectedReg.lastName}?`,
             );
             if (res.isConfirmed) {
               try {
-                await deleteStudentData(selectedReg.id);
+                await handleDeleteStudent(selectedReg.id);
                 notifySuccess(
                   "Deleted",
                   "Registration and related data removed",
                 );
                 setSelectedReg(null);
+                handleRefreshAll();
               } catch (e: any) {
                 notifyError("Error", e?.message);
               }
             }
           }
         }}
+        onPaymentSuccess={handleRefreshAll}
       />
     </Box>
   );

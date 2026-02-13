@@ -70,7 +70,7 @@ export function useSupabaseRegistrations() {
             address: student.address?.street || "",
             city: student.address?.city || "",
             state: student.address?.state || "",
-            zip: student.address?.zip || "",
+            zipCode: student.address?.zip || "",
             notes: student.notes,
             createdAt: enroll.created_at, // Use the enrollment date roughly
 
@@ -114,5 +114,5 @@ export function useSupabaseRegistrations() {
     fetchRegistrations();
   }, [fetchRegistrations]);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch: fetchRegistrations };
 }

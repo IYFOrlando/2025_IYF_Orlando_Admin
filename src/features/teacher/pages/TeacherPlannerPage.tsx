@@ -13,15 +13,10 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
-import { db } from '../../../lib/firebase'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { GlassCard } from '../../../components/GlassCard'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
 import { useTeacherPlan, type Task, type TeacherEvent } from '../hooks/useTeacherPlan'
-import { 
-  doc, updateDoc, getDoc, setDoc, 
-  arrayRemove, arrayUnion, serverTimestamp 
-} from 'firebase/firestore'
 
 // DayCell removed in favor of FullCalendar
 
@@ -37,7 +32,8 @@ export default function TeacherPlannerPage() {
   const { 
     plan, allPlans, loading,
     addTask, toggleTask, updateTask, deleteTask,
-    addEvent, updateEvent, deleteEvent
+    addEvent, updateEvent, deleteEvent,
+    moveEventToDate, updateEventTime,
   } = useTeacherPlan(selectedDate)
 
   // Inputs
@@ -89,52 +85,15 @@ export default function TeacherPlannerPage() {
     const oldDate = oldEvent.extendedProps.date
     const newDate = format(event.start, 'MM-dd-yyyy')
     const eventId = event.id
-
-    if (oldDate === newDate) {
-      // Just time changed
-      const oldDocId = `${teacherProfile?.email}_${oldDate}`
-      const newTime = format(event.start, 'HH:mm')
-      const targetDoc = allPlans.find(p => p.date === oldDate)
-      if (!targetDoc) return
-      const updatedEvents = targetDoc.events.map(e => 
-        e.id === eventId ? { ...e, time: newTime } : e
-      )
-      await updateDoc(doc(db, 'teacher_plans', oldDocId), { events: updatedEvents })
-      return
-    }
-
-    // Date changed: Move between documents
-    const oldDocId = `${teacherProfile?.email}_${oldDate}`
-    const newDocId = `${teacherProfile?.email}_${newDate}`
-    
-    const eventData = oldEvent.extendedProps
-    const eventToMove: TeacherEvent = { 
-      id: eventId, 
-      title: event.title, 
-      time: format(event.start, 'HH:mm') 
-    }
+    const newTime = format(event.start, 'HH:mm')
 
     try {
-      // Remove from old
-      await updateDoc(doc(db, 'teacher_plans', oldDocId), {
-        events: arrayRemove({ id: eventData.id, title: eventData.title, time: eventData.time })
-      })
-
-      // Add to new
-      const newDocSnap = await getDoc(doc(db, 'teacher_plans', newDocId))
-      if (newDocSnap.exists()) {
-        await updateDoc(doc(db, 'teacher_plans', newDocId), {
-          events: arrayUnion(eventToMove),
-          updatedAt: serverTimestamp()
-        })
+      if (oldDate === newDate) {
+        // Just time changed on the same day
+        await updateEventTime(eventId, oldDate, newTime)
       } else {
-        await setDoc(doc(db, 'teacher_plans', newDocId), {
-          date: newDate,
-          teacherEmail: teacherProfile?.email,
-          tasks: [],
-          events: [eventToMove],
-          updatedAt: serverTimestamp()
-        })
+        // Date changed: move between days
+        await moveEventToDate(eventId, oldDate, newDate, newTime)
       }
       notifySuccess('Event moved')
     } catch (e) {

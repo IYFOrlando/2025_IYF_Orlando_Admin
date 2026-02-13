@@ -1,7 +1,17 @@
 import { useSupabaseAcademies } from "../../academies/hooks/useSupabaseAcademies";
 import { normalizeAcademy } from "../../../lib/normalization";
 import { useCallback, useMemo } from "react";
-import type { Instructor } from "./useInstructors";
+
+export type Instructor = {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  academy: string
+  level?: string | null
+  credentials?: string
+  updatedAt?: any
+}
 
 export function useSupabaseInstructors() {
   const { academies, loading, error } = useSupabaseAcademies();

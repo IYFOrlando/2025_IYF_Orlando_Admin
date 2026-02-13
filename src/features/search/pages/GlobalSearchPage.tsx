@@ -6,56 +6,117 @@ import {
   TableCell, TableHead, TableRow, Paper
 } from '@mui/material'
 import { Search, ChevronDown } from 'lucide-react'
-import { collection, getDocs, type DocumentData } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
-import { COLLECTIONS_CONFIG } from '../../../config/shared'
+import { supabase } from '../../../lib/supabase'
 import { PageHeader } from '../../../components/PageHeader'
 
-// Define search targets
-const SEARCH_TARGETS = [
-  // --- Main Registrations (Config vs Screenshot variations) ---
-  { id: 'spring2026_config', name: 'Spring 2026 (Config)', collection: COLLECTIONS_CONFIG.springAcademy2026, type: 'academy' },
-  { id: 'spring2026_db', name: 'Spring 2026 (DB)', collection: 'spring_academy_2026', type: 'academy' },
-  { id: 'fall2026', name: 'Fall 2026', collection: 'fall_academy_2026', type: 'academy' },
-  { id: 'registrations_legacy', name: 'Registrations (Legacy)', collection: 'registrations', type: 'academy' },
+// Supabase tables to search
+const SUPABASE_TARGETS = [
+  { id: 'students', name: 'Students', table: 'students' },
+  { id: 'profiles', name: 'Profiles (Staff/Teachers)', table: 'profiles' },
+  { id: 'invoices', name: 'Invoices', table: 'invoices' },
+  { id: 'payments', name: 'Payments', table: 'payments' },
+  { id: 'enrollments', name: 'Enrollments', table: 'enrollments' },
+] as const
 
-  // --- Volunteers ---
-  { id: 'volunteers', name: 'Volunteers', collection: 'volunteer_applications', type: 'volunteer' }, // Matches config usually
-  { id: 'events', name: 'Event Volunteers', collection: 'volunteer_hours', type: 'other' },
+type SearchResult = Record<string, any>
 
-  // --- Special Events (The missing ones) ---
-  { id: 'cooking_reg', name: 'Cooking Class (DB)', collection: 'cooking_class_registration', type: 'other' },
-  { id: 'cooking_config', name: 'Cooking Class (Config)', collection: COLLECTIONS_CONFIG.cookingClass, type: 'other' },
-  
-  { id: 'korea_reg', name: 'Trip to Korea (DB)', collection: 'trip_to_korea_registration', type: 'other' },
-  { id: 'korea_config', name: 'Trip to Korea (Config)', collection: COLLECTIONS_CONFIG.tripToKorea, type: 'other' },
+async function searchStudents(term: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from('students')
+    .select('*')
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`)
+    .limit(100)
+  if (error) throw error
+  return (data || []).map(d => ({ ...d, _name: `${d.first_name} ${d.last_name}`, _email: d.email, _phone: d.phone }))
+}
 
-  { id: 'kdrama_reg', name: 'K-Drama (DB)', collection: 'k_drama_with_friends_registration', type: 'other' },
-  { id: 'kdrama_config', name: 'K-Drama (Config)', collection: COLLECTIONS_CONFIG.kdrama, type: 'other' },
+async function searchProfiles(term: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`)
+    .limit(100)
+  if (error) throw error
+  return (data || []).map(d => ({ ...d, _name: d.full_name, _email: d.email, _phone: d.phone }))
+}
 
-  { id: 'dallas', name: 'Dallas Camp', collection: 'dallas_camp_registration', type: 'other' },
-  { id: 'squid', name: 'Squid Game Survival', collection: 'squid_game_survival_registration', type: 'other' },
+async function searchInvoices(term: string): Promise<SearchResult[]> {
+  // Search invoices by joining students
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*, student:students(first_name, last_name, email)')
+    .limit(200)
+  if (error) throw error
+  // Client-side filter on student names
+  const lower = term.toLowerCase()
+  return (data || []).filter(inv => {
+    const student = inv.student as any
+    if (!student) return false
+    const name = `${student.first_name} ${student.last_name}`.toLowerCase()
+    return name.includes(lower) || (student.email || '').toLowerCase().includes(lower)
+  }).map(d => {
+    const student = d.student as any
+    return { ...d, _name: student ? `${student.first_name} ${student.last_name}` : '', _email: student?.email, student: undefined }
+  })
+}
 
-  // --- Communications & Other ---
-  { id: 'subscribers', name: 'Subscribers (DB)', collection: 'subscribers', type: 'other' },
-  { id: 'newsletter', name: 'Newsletter (Config)', collection: COLLECTIONS_CONFIG.newsletter, type: 'other' },
-  
-  { id: 'contact_db', name: 'Contact Form (DB)', collection: 'contact-form', type: 'other' },
-  { id: 'contact_config', name: 'Contact (Config)', collection: COLLECTIONS_CONFIG.contact, type: 'other' },
+async function searchPayments(term: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*, invoice:invoices(student:students(first_name, last_name, email))')
+    .limit(200)
+  if (error) throw error
+  const lower = term.toLowerCase()
+  return (data || []).filter(p => {
+    const student = (p.invoice as any)?.student
+    if (!student) return false
+    const name = `${student.first_name} ${student.last_name}`.toLowerCase()
+    return name.includes(lower) || (student.email || '').toLowerCase().includes(lower)
+  }).map(d => {
+    const student = (d.invoice as any)?.student
+    return { ...d, _name: student ? `${student.first_name} ${student.last_name}` : '', _email: student?.email, invoice: undefined }
+  })
+}
 
-  { id: 'teachers', name: 'Teachers', collection: 'teachers', type: 'other' },
-  { id: 'teachersIndex', name: 'Teachers Index', collection: 'teachers_index', type: 'other' },
-  
-  // --- Financials (Check for person data) ---
-  { id: 'invoices', name: 'Academy Invoices', collection: '2026_spring_academy_invoices_2026', type: 'other' },
-  { id: 'payments', name: 'Academy Payments', collection: 'academy_payments_2026', type: 'other' },
-]
+async function searchEnrollments(term: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('*, student:students(first_name, last_name, email), academy:academies(name), level:levels(name)')
+    .limit(200)
+  if (error) throw error
+  const lower = term.toLowerCase()
+  return (data || []).filter(e => {
+    const student = e.student as any
+    if (!student) return false
+    const name = `${student.first_name} ${student.last_name}`.toLowerCase()
+    const acName = ((e.academy as any)?.name || '').toLowerCase()
+    return name.includes(lower) || (student.email || '').toLowerCase().includes(lower) || acName.includes(lower)
+  }).map(d => {
+    const student = d.student as any
+    return { 
+      ...d, 
+      _name: student ? `${student.first_name} ${student.last_name}` : '',
+      _email: student?.email,
+      _academy: (d.academy as any)?.name,
+      _level: (d.level as any)?.name,
+      student: undefined, academy: undefined, level: undefined 
+    }
+  })
+}
+
+const SEARCH_FNS: Record<string, (t: string) => Promise<SearchResult[]>> = {
+  students: searchStudents,
+  profiles: searchProfiles,
+  invoices: searchInvoices,
+  payments: searchPayments,
+  enrollments: searchEnrollments,
+}
 
 export default function GlobalSearchPage() {
   const [term, setTerm] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const [searched, setSearched] = React.useState(false)
-  const [results, setResults] = React.useState<Record<string, DocumentData[]>>({})
+  const [results, setResults] = React.useState<Record<string, SearchResult[]>>({})
 
   const handleSearch = async () => {
     if (!term.trim()) return
@@ -63,35 +124,15 @@ export default function GlobalSearchPage() {
     setSearched(false)
     setResults({})
 
-    const searchTerm = term.trim().toLowerCase()
-    const newResults: Record<string, DocumentData[]> = {}
+    const searchTerm = term.trim()
+    const newResults: Record<string, SearchResult[]> = {}
 
     try {
-      // We can't do full text search easily in Firestore without Algolia/etc.
-      // So we'll fetch all and filter client side for this admin tool 
-      // OR do specific queries if we know the fields. 
-      // Given the urgency/size, fetching collections and filtering is safer to find partial matches
-      // but risky if collections are huge. 
-      // Let's try to query by common fields if possible, or fallback to client filter for smaller collections.
-      
-      // For this specific 'Danna Uhr' case, user wants to find her anywhere. 
-      // We will run parallel queries for common name fields.
-      
-      const promises = SEARCH_TARGETS.map(async (target) => {
+      const promises = SUPABASE_TARGETS.map(async (target) => {
         try {
-          const colRef = collection(db, target.collection)
-          
-          // Strategy: Fetch all (cap at 1000 maybe?) and filter. 
-          // This is inefficient for PROD with millions of rows but fine for this admin tool context (~1000s records)
-          const snap = await getDocs(colRef)
-          
-          const matches = snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .filter((d: any) => {
-              const str = JSON.stringify(d).toLowerCase()
-              return str.includes(searchTerm)
-            })
-          
+          const fn = SEARCH_FNS[target.id]
+          if (!fn) return
+          const matches = await fn(searchTerm)
           if (matches.length > 0) {
             newResults[target.id] = matches
           }
@@ -114,7 +155,7 @@ export default function GlobalSearchPage() {
     <Box sx={{ pb: 4 }}>
       <PageHeader 
         title="Global Search" 
-        subtitle="Search across all database collections"
+        subtitle="Search across all Supabase tables"
         icon={<Search size={32} />}
         color="#673ab7"
       />
@@ -141,7 +182,7 @@ export default function GlobalSearchPage() {
             </Button>
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Searches in: {SEARCH_TARGETS.map(t => t.name).join(', ')}
+            Searches in: {SUPABASE_TARGETS.map(t => t.name).join(', ')}
           </Typography>
         </CardContent>
       </Card>
@@ -149,9 +190,9 @@ export default function GlobalSearchPage() {
       {searched && (
         <Stack spacing={2}>
           {Object.keys(results).length === 0 ? (
-            <Alert severity="warning">No results found for "{term}" across any checked collection.</Alert>
+            <Alert severity="warning">No results found for &quot;{term}&quot; across any table.</Alert>
           ) : (
-            SEARCH_TARGETS.map(target => {
+            SUPABASE_TARGETS.map(target => {
               const items = results[target.id]
               if (!items) return null
 
@@ -175,17 +216,18 @@ export default function GlobalSearchPage() {
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {items.map((item: any) => (
-                              <TableRow key={item.id} hover>
-                                <TableCell sx={{ fontFamily: 'monospace' }}>{item.id}</TableCell>
+                            {items.map((item: any, idx: number) => (
+                              <TableRow key={item.id || idx} hover>
+                                <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>{item.id}</TableCell>
                                 <TableCell>
-                                  {/* Try to show name/email if they exist */}
                                   <Stack spacing={0.5}>
-                                    {item.firstName && <Typography variant="body2">Name: <b>{item.firstName} {item.lastName}</b></Typography>}
-                                    {item.name && <Typography variant="body2">Name: <b>{item.name}</b></Typography>}
-                                    {item.email && <Typography variant="body2">Email: {item.email}</Typography>}
-                                    {item.phone && <Typography variant="body2">Phone: {item.phone}</Typography>}
-                                    {item.cellNumber && <Typography variant="body2">Cell: {item.cellNumber}</Typography>}
+                                    {item._name && <Typography variant="body2">Name: <b>{item._name}</b></Typography>}
+                                    {item._email && <Typography variant="body2">Email: {item._email}</Typography>}
+                                    {item._phone && <Typography variant="body2">Phone: {item._phone}</Typography>}
+                                    {item._academy && <Typography variant="body2">Academy: {item._academy}</Typography>}
+                                    {item._level && <Typography variant="body2">Level: {item._level}</Typography>}
+                                    {item.amount != null && <Typography variant="body2">Amount: ${(item.amount / 100).toFixed(2)}</Typography>}
+                                    {item.status && <Typography variant="body2">Status: {item.status}</Typography>}
                                   </Stack>
                                 </TableCell>
                                 <TableCell>

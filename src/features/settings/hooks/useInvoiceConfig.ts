@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { supabase } from '../../../lib/supabase'
 
 export interface InvoiceConfig {
   organizationName: string
@@ -23,40 +22,37 @@ const DEFAULT_CONFIG: InvoiceConfig = {
 }
 
 /**
- * Hook to get invoice configuration from Firestore
- * Falls back to defaults if document doesn't exist
- * Syncs in real-time with Firestore changes
+ * Hook to get invoice configuration
+ * Tries to load from Supabase app_settings, falls back to defaults
  */
 export function useInvoiceConfig() {
   const [config, setConfig] = useState<InvoiceConfig>(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const docRef = doc(db, 'settings', 'invoice_config')
-    
-    const unsubscribe = onSnapshot(
-      docRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data() as InvoiceConfig
-          setConfig({ ...DEFAULT_CONFIG, ...data })
+    const fetchConfig = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'invoice_config')
+          .limit(1)
+
+        if (!error && data && data.length > 0 && data[0].value) {
+          setConfig({ ...DEFAULT_CONFIG, ...data[0].value })
         } else {
-          // Log warning only in dev to avoid noise
-          if (import.meta.env.DEV) {
-             console.warn('Invoice config document not found, using defaults')
-          }
+          // Use defaults - this is expected if table doesn't exist
           setConfig(DEFAULT_CONFIG)
         }
-        setLoading(false)
-      },
-      (error) => {
-        console.error('Error loading invoice config', error)
+      } catch {
+        // Silently fall back to defaults
         setConfig(DEFAULT_CONFIG)
+      } finally {
         setLoading(false)
       }
-    )
+    }
 
-    return () => unsubscribe()
+    fetchConfig()
   }, [])
 
   return { config, loading }

@@ -1,12 +1,10 @@
 import * as React from 'react'
-import { collection, getDocs, query, orderBy } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
-import { COLLECTIONS_CONFIG } from '../../../config/shared.js'
+import { getAcademyPriceMap } from '../../../lib/supabaseRegistrations'
 import type { Registration } from '../types'
 
 const norm = (s?: string) => (s || '').trim().toLowerCase()
 
-/** Find price key for an academy name; registration may use "Kids" while Firestore has "Kids Academy". */
+/** Find price key for an academy name; registration may use "Kids" while DB has "Kids Academy". */
 function resolvePriceKey(academyName: string, priceMap: Record<string, number>): string | null {
   const n = norm(academyName)
   if (!n || n === 'n/a') return null
@@ -19,8 +17,8 @@ function resolvePriceKey(academyName: string, priceMap: Record<string, number>):
 }
 
 /**
- * Expected total in CENTS from registration's academies × Firestore prices.
- * Single source of truth: academies_2026_spring (same as autoInvoice).
+ * Expected total in CENTS from registration's academies × Supabase prices.
+ * Single source of truth: Supabase academies table.
  * Handles name variants (e.g. "Kids" → "Kids Academy").
  */
 export function useRegistrationExpectedTotal(registration: Registration | null): {
@@ -31,18 +29,8 @@ export function useRegistrationExpectedTotal(registration: Registration | null):
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
-    const coll = COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring'
-    getDocs(query(collection(db, coll), orderBy('order', 'asc')))
-      .then((snap) => {
-        const map: Record<string, number> = {}
-        snap.docs.forEach((d) => {
-          const a = d.data()
-          if (a?.name && typeof a.price === 'number') {
-            map[norm(a.name)] = Math.round(a.price * 100) // store cents
-          }
-        })
-        setPriceMap(map)
-      })
+    getAcademyPriceMap()
+      .then((map) => setPriceMap(map))
       .catch(() => setPriceMap({}))
       .finally(() => setLoading(false))
   }, [])
@@ -77,18 +65,8 @@ export function useRegistrationsExpectedTotals(registrations: Registration[]): {
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
-    const coll = COLLECTIONS_CONFIG.academies2026Spring || 'academies_2026_spring'
-    getDocs(query(collection(db, coll), orderBy('order', 'asc')))
-      .then((snap) => {
-        const map: Record<string, number> = {}
-        snap.docs.forEach((d) => {
-          const a = d.data()
-          if (a?.name && typeof a.price === 'number') {
-            map[norm(a.name)] = Math.round(a.price * 100)
-          }
-        })
-        setPriceMap(map)
-      })
+    getAcademyPriceMap()
+      .then((map) => setPriceMap(map))
       .catch(() => setPriceMap({}))
       .finally(() => setLoading(false))
   }, [])

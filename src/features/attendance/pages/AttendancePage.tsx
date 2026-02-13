@@ -46,6 +46,7 @@ const KOREAN_LEVELS = [
   "Alphabet",
   "Beginner",
   "Intermediate",
+  "Conversation",
   "K-Movie Conversation",
 ] as const;
 
@@ -206,18 +207,29 @@ export default function AttendancePage() {
   const [academyIdMap, setAcademyIdMap] = React.useState<
     Record<string, string>
   >({});
+  // Store ALL Korean academy IDs to handle multiple Korean variants
+  const [koreanAcademyIds, setKoreanAcademyIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    // Build a map of Academy Name -> ID from teacherProfile or registrations?
-    // Actually registrations don't have academy IDs usually, just names.
-    // But teacherProfile has `academyId`.
-    // If admin, we might need to fetch `academies` table to get IDs.
     const fetchAcademyIds = async () => {
       const { data } = await supabase.from("academies").select("id, name");
       if (data) {
         const map: Record<string, string> = {};
-        data.forEach((a: any) => (map[normalizeAcademy(a.name)] = a.id));
+        const koreanIds: string[] = [];
+        data.forEach((a: any) => {
+          const normalized = normalizeAcademy(a.name);
+          if (normalized === KOREAN) {
+            koreanIds.push(a.id);
+            // Prefer the exact "Korean Language" academy as primary ID
+            if (a.name.trim() === "Korean Language" || !map[normalized]) {
+              map[normalized] = a.id;
+            }
+          } else {
+            map[normalized] = a.id;
+          }
+        });
         setAcademyIdMap(map);
+        setKoreanAcademyIds(koreanIds);
       }
     };
     fetchAcademyIds();
@@ -240,11 +252,16 @@ export default function AttendancePage() {
     const fetchHistory = async () => {
       if (!currentAcademyId) return;
 
-      // 1. Get all sessions for this academy
+      // 1. Get all sessions for this academy (use all Korean IDs for Korean)
+      const isKorean = academy === KOREAN;
+      const queryIds = isKorean && koreanAcademyIds.length > 0
+        ? koreanAcademyIds
+        : [currentAcademyId];
+
       const { data: sessions } = await supabase
         .from("attendance_sessions")
         .select("id")
-        .eq("academy_id", currentAcademyId);
+        .in("academy_id", queryIds);
 
       if (!sessions || sessions.length === 0) {
         setStudentStats({});
@@ -278,7 +295,7 @@ export default function AttendancePage() {
     };
 
     fetchHistory();
-  }, [currentAcademyId]); // Re-fetch when academy changes
+  }, [currentAcademyId, academy, koreanAcademyIds]); // Re-fetch when academy changes
 
   const loadClassForDate = React.useCallback(async () => {
     try {
@@ -290,27 +307,41 @@ export default function AttendancePage() {
         return;
       }
 
-      // 1. Get Session for Date + Academy
-      // Note: Level is also important for Unique constraint!
-      // If we differ by level (e.g. Korean), we need level_id too?
-      // Currently `attendance_sessions` has `level_id`.
-      // Getting level_id from name is tricky without a map.
-      // Let's assume for now we filter by academy_id, and if Korean, we might need more logic.
-      // Ideally we fetch levels map too.
+      const isKorean = academy === KOREAN;
 
+      // Build query with proper academy and level filtering
       let query = supabase
         .from("attendance_sessions")
         .select("id, notes, teacher_id")
-        .eq("date", date)
-        .eq("academy_id", currentAcademyId);
+        .eq("date", date);
 
-      // If level is handled, we'd add .eq('level_id', getLevelId(level))
-      // For now, let's fetch the session that matches best?
-      // Or just fetch all sessions for that academy/date and match locally if multiple?
+      if (isKorean && koreanAcademyIds.length > 0) {
+        // For Korean: query across ALL Korean academy IDs (handles variants)
+        query = query.in("academy_id", koreanAcademyIds);
+
+        // Filter by level_id if a specific level is selected
+        if (level) {
+          let targetLevelId: string | null = null;
+          // Search across all Korean academy IDs for the matching level
+          for (const kid of koreanAcademyIds) {
+            const lid =
+              levelIdMap[`${kid}:${normalizeLevel(level)}`] ||
+              levelIdMap[`${kid}:${level}`];
+            if (lid) {
+              targetLevelId = lid;
+              break;
+            }
+          }
+          if (targetLevelId) {
+            query = query.eq("level_id", targetLevelId);
+          }
+        }
+      } else {
+        query = query.eq("academy_id", currentAcademyId);
+      }
 
       const { data: sessions } = await query;
       const session = sessions && sessions.length > 0 ? sessions[0] : null;
-      // TODO: Handle level distinction correctly if multiple sessions exist for same academy/date (diff levels)
 
       const existingRecords: Record<string, any> = {};
 
@@ -332,13 +363,13 @@ export default function AttendancePage() {
 
       const base: Row[] = roster.map((s) => {
         const ex = existingRecords[s.id];
-        const percent = studentStats[s.id]; // stats from broader history
+        const percent = studentStats[s.id];
 
         return {
           id: s.id,
           registrationId: s.id,
           studentName: s.name,
-          present: ex ? ex.status === "present" : true, // Default to present if new? Or false? UI defaults to true usually
+          present: ex ? ex.status === "present" : true,
           reason: ex?.reason || "",
           percent,
           recordId: ex?.id,
@@ -352,7 +383,7 @@ export default function AttendancePage() {
       setError(e.message || "Unknown error");
       setLoading(false);
     }
-  }, [academy, currentAcademyId, date, roster, studentStats]);
+  }, [academy, currentAcademyId, date, roster, studentStats, koreanAcademyIds, level, levelIdMap]);
 
   React.useEffect(() => {
     void loadClassForDate();
@@ -487,35 +518,44 @@ export default function AttendancePage() {
     // Validate Level Requirement for Korean
     const isKorean = academy === KOREAN;
     let targetLevelId: string | null = null;
+    // For Korean, we may need to use a different academy_id than the primary one
+    let saveAcademyId = currentAcademyId;
 
     if (isKorean) {
       if (!level || level === "All") {
-        // Assuming 'All' might be a default
         return SAlert.fire({
           title: "Level Required",
           text: "Please select a specific level (Alphabet, Beginner, etc.) to save attendance for Korean Language.",
           icon: "warning",
         });
       }
-      // Find level ID
-      targetLevelId =
-        levelIdMap[`${currentAcademyId}:${normalizeLevel(level)}`] ||
-        levelIdMap[`${currentAcademyId}:${level}`] ||
-        null;
+      // Search across ALL Korean academy IDs for the matching level
+      const searchIds = koreanAcademyIds.length > 0 ? koreanAcademyIds : [currentAcademyId];
+      for (const kid of searchIds) {
+        const lid =
+          levelIdMap[`${kid}:${normalizeLevel(level)}`] ||
+          levelIdMap[`${kid}:${level}`];
+        if (lid) {
+          targetLevelId = lid;
+          saveAcademyId = kid; // Use the academy that owns this level
+          break;
+        }
+      }
 
       if (!targetLevelId) {
-        // Fallback: try to fetch it if map is stale?
-        // Or error.
-        console.warn("Level ID not found in map for", level);
-        // Attempt direct fetch?
+        console.warn("Level ID not found in map for", level, "- trying direct fetch");
+        // Fallback: direct query across all Korean academies
         const { data } = await supabase
           .from("levels")
-          .select("id")
-          .eq("academy_id", currentAcademyId)
+          .select("id, academy_id")
+          .in("academy_id", searchIds)
           .ilike("name", level)
+          .limit(1)
           .single();
-        if (data) targetLevelId = data.id;
-        else {
+        if (data) {
+          targetLevelId = data.id;
+          saveAcademyId = data.academy_id;
+        } else {
           return SAlert.fire({
             title: "Error",
             text: "Invalid Level ID. Please contact support.",
@@ -536,7 +576,7 @@ export default function AttendancePage() {
 
     const success = await saveAttendance(
       date,
-      currentAcademyId,
+      saveAcademyId, // Use correct academy (may differ from primary for Korean levels)
       targetLevelId,
       teacherProfile?.id || null, // Pass teacher ID
       teacherNote,

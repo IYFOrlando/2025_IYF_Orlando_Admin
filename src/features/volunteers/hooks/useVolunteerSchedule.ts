@@ -1,9 +1,6 @@
 import * as React from 'react'
-import { collection, onSnapshot, query, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { supabase } from '../../../lib/supabase'
 import { logger } from '../../../lib/logger'
-import { isFirebasePermissionError } from '../../../lib/errors'
-import { VOLUNTEER_SCHEDULE_COLLECTION } from '../../../lib/config'
 import type { VolunteerSchedule } from '../types'
 
 export function useVolunteerSchedule() {
@@ -11,127 +8,93 @@ export function useVolunteerSchedule() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<Error | null>(null)
 
-  React.useEffect(() => {
-    const q = query(
-      collection(db, VOLUNTEER_SCHEDULE_COLLECTION)
-      // Removed orderBy to avoid potential issues with missing createdAt field
-    )
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const { data: rows, error: fetchError } = await supabase
+        .from('volunteer_schedule')
+        .select('*')
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        logger.debug('useVolunteerSchedule: Data updated', { snapshotSize: snapshot.size })
-        const schedule = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as VolunteerSchedule[]
-        logger.debug('useVolunteerSchedule: Processed schedule data', { items: schedule.length })
-        setData(schedule)
-        setLoading(false)
-        setError(null)
-      },
-      (err) => {
-        // Handle permissions error gracefully
-        if (isFirebasePermissionError(err)) {
-          // User doesn't have permissions to read volunteer schedule - use empty array
-          setData([])
-          setError(null)
-          setLoading(false)
-          return
-        }
-        
-        // For other errors, still log but don't show to user unless critical
-        logger.error('Error fetching volunteer schedule', err)
-        setError(err)
-        setLoading(false)
-      }
-    )
+      if (fetchError) throw fetchError
 
-    return () => unsubscribe()
+      setData((rows || []).map(r => ({ id: r.id, ...r } as VolunteerSchedule)))
+      setError(null)
+    } catch (err: any) {
+      logger.error('Error fetching volunteer schedule', err)
+      setError(err)
+      setData([])
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  React.useEffect(() => { fetchData() }, [fetchData])
 
   const getScheduleStats = React.useCallback(() => {
     const total = data.length
     const confirmed = data.filter(slot => slot.status === 'confirmed' || slot.status === 'completed').length
     const pending = data.filter(slot => slot.status === 'scheduled').length
     const cancelled = data.filter(slot => slot.status === 'cancelled').length
-
-    return {
-      total,
-      confirmed,
-      pending,
-      cancelled
-    }
+    return { total, confirmed, pending, cancelled }
   }, [data])
 
   const getScheduleByDate = React.useCallback(() => {
-    const grouped = data.reduce((acc, slot) => {
+    return data.reduce((acc, slot) => {
       if (slot.date) {
         const date = new Date(slot.date).toLocaleDateString()
-        if (!acc[date]) {
-          acc[date] = []
-        }
+        if (!acc[date]) acc[date] = []
         acc[date].push(slot)
       }
       return acc
     }, {} as Record<string, VolunteerSchedule[]>)
-
-    return grouped
   }, [data])
 
-  const getPreEventSchedule = React.useCallback(() => {
-    // Since there's only one event (Taste of Korea Pre-Event), return all data
-    return data
-  }, [data])
+  const getPreEventSchedule = React.useCallback(() => data, [data])
 
   const deleteSchedule = React.useCallback(async (id: string) => {
     try {
-      const docRef = doc(db, VOLUNTEER_SCHEDULE_COLLECTION, id)
-      await deleteDoc(docRef)
+      const { error } = await supabase
+        .from('volunteer_schedule')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+      await fetchData()
       return true
     } catch (err) {
       logger.error('Error deleting volunteer schedule', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
   const updateSchedule = React.useCallback(async (id: string, updates: Partial<VolunteerSchedule>) => {
     try {
-      const docRef = doc(db, VOLUNTEER_SCHEDULE_COLLECTION, id)
-      await updateDoc(docRef, {
-        ...updates,
-        updatedAt: serverTimestamp()
-      })
+      const { error } = await supabase
+        .from('volunteer_schedule')
+        .update({ ...updates, updatedAt: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+      await fetchData()
       return true
     } catch (err) {
       logger.error('Error updating volunteer schedule', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
   const cancelSchedule = React.useCallback(async (id: string) => {
     try {
-      const docRef = doc(db, VOLUNTEER_SCHEDULE_COLLECTION, id)
-      await updateDoc(docRef, {
-        status: 'cancelled',
-        updatedAt: serverTimestamp()
-      })
+      const { error } = await supabase
+        .from('volunteer_schedule')
+        .update({ status: 'cancelled', updatedAt: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+      await fetchData()
       return true
     } catch (err) {
       logger.error('Error cancelling volunteer schedule', err)
       throw err
     }
-  }, [])
+  }, [fetchData])
 
-  return {
-    data,
-    loading,
-    error,
-    getScheduleStats,
-    getScheduleByDate,
-    getPreEventSchedule,
-    deleteSchedule,
-    updateSchedule,
-    cancelSchedule
-  }
+  return { data, loading, error, getScheduleStats, getScheduleByDate, getPreEventSchedule, deleteSchedule, updateSchedule, cancelSchedule }
 }

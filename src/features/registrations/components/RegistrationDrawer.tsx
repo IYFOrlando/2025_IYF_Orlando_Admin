@@ -9,7 +9,7 @@ import type { Registration } from '../types'
 import { computeAge } from '../../../lib/validations'
 import { usd } from '../../../lib/query'
 import { useRegistrationExpectedTotal } from '../hooks/useRegistrationExpectedTotal'
-import { updateInvoiceForRegistration } from '../../../lib/autoInvoice'
+import { ensureStudentInvoice } from '../../../lib/supabaseRegistrations'
 
 import QuickPaymentDialog from '../../payments/components/QuickPaymentDialog'
 
@@ -21,6 +21,7 @@ interface RegistrationDrawerProps {
   onEdit?: () => void
   onDelete?: () => void
   isAdmin?: boolean
+  onPaymentSuccess?: () => void
 }
 
 export default function RegistrationDrawer({
@@ -30,7 +31,8 @@ export default function RegistrationDrawer({
   billingInfo,
   onEdit,
   onDelete,
-  isAdmin = false
+  isAdmin = false,
+  onPaymentSuccess
 }: RegistrationDrawerProps) {
   const navigate = useNavigate()
   const [payOpen, setPayOpen] = React.useState(false)
@@ -51,6 +53,15 @@ export default function RegistrationDrawer({
   const totalCents = expectedLoading ? (billingInfo?.total ?? 0) : expectedTotalCents
   const balanceCents = Math.max(0, totalCents - paidCents)
   const status = balanceCents <= 0 ? 'paid' : paidCents > 0 ? 'partial' : 'unpaid'
+
+  // Create missing invoice handler using Supabase
+  const handleCreateMissingInvoice = async () => {
+    const selectedAcademies = (registration.selectedAcademies || []).map(a => ({
+      academy: a.academy || '',
+      level: a.level || undefined,
+    }))
+    await ensureStudentInvoice(registration.id, selectedAcademies)
+  }
 
   return (
     <>
@@ -254,9 +265,11 @@ export default function RegistrationDrawer({
 
           {/* Registration Date */}
           <Typography variant="caption" color="text.secondary">
-            Registered: {registration.createdAt?.seconds 
-              ? new Date(registration.createdAt.seconds * 1000).toLocaleString()
-              : 'Unknown Date'}
+            Registered: {typeof registration.createdAt === 'string'
+              ? new Date(registration.createdAt).toLocaleString()
+              : registration.createdAt?.seconds 
+                ? new Date(registration.createdAt.seconds * 1000).toLocaleString()
+                : 'Unknown Date'}
           </Typography>
         </Box>
 
@@ -291,7 +304,8 @@ export default function RegistrationDrawer({
       studentId={registration.id} 
       studentName={fullName} 
       totalBalanceDueCents={balanceCents}
-      onCreateMissingInvoice={registration ? () => updateInvoiceForRegistration(registration) : undefined}
+      onCreateMissingInvoice={handleCreateMissingInvoice}
+      onPaymentSuccess={onPaymentSuccess}
     />
     </>
   )

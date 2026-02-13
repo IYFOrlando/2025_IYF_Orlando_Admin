@@ -1,12 +1,15 @@
-import type { Timestamp } from 'firebase/firestore'
-
+/**
+ * Date utility – works with JS Dates, ISO strings, and legacy Firebase Timestamps
+ * (duck-typed via `.toDate()` method check – no firebase import needed).
+ */
 export function toDate(v: any): Date | null {
   if (!v) return null
   if (v instanceof Date) return v
-  if ((v as Timestamp)?.toDate) return (v as Timestamp).toDate()
+  if (typeof v?.toDate === 'function') return v.toDate()
   const d = new Date(v)
   return isNaN(d.getTime()) ? null : d
 }
+
 export function displayYMD(v: any): string {
   const d = toDate(v)
   if (!d) return ''
