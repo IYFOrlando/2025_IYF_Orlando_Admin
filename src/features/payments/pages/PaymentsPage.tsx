@@ -407,7 +407,11 @@ const PaymentsPage = React.memo(() => {
     setStudentInvoices(studentInvs);
     setStudentPayments(studentPays);
 
-    if (!selectedInvoiceId && studentInvs.length) {
+    // Auto-select the unpaid invoice with highest balance (prefer unpaid/partial over paid)
+    const unpaidInv = studentInvs.find((i) => i.balance > 0);
+    if (unpaidInv) {
+      setSelectedInvoiceId(unpaidInv.id);
+    } else if (!selectedInvoiceId && studentInvs.length) {
       setSelectedInvoiceId(studentInvs[0].id);
     }
   }, [student?.id, allInvoices, allPayments]); // Removed selectedInvoiceId dependency to avoid reset loops
@@ -1828,6 +1832,23 @@ const PaymentsPage = React.memo(() => {
                           >
                             Email
                           </Button>
+
+                          {inv.balance > 0 && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              startIcon={<AttachMoneyIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedInvoiceId(inv.id);
+                                setPayAmount(inv.balance / 100); // cents -> dollars
+                                setActiveTab(1); // Switch to Pay tab
+                              }}
+                            >
+                              Pay
+                            </Button>
+                          )}
 
                           {inv.paid > 0 && (
                             <Button
