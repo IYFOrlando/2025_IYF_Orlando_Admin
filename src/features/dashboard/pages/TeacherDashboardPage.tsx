@@ -291,7 +291,11 @@ export default function TeacherDashboardPage() {
                 "&:hover": { transform: "translateY(-4px)" },
                 cursor: "pointer",
               }}
-              onClick={() => navigate(`/attendance?class=${cls.academyId}`)}
+              onClick={() => {
+                const params = new URLSearchParams({ class: cls.academyId });
+                if (cls.level) params.set("level", cls.level);
+                navigate(`/attendance?${params.toString()}`);
+              }}
             >
               <CardContent sx={{ p: 3 }}>
                 <Stack
@@ -320,7 +324,7 @@ export default function TeacherDashboardPage() {
                       >
                         <Users size={16} />
                         <Typography variant="body2" fontWeight={500}>
-                          {/* TODO: specific count per class */} Student Roster
+                          Student Roster
                         </Typography>
                       </Box>
                       <Box
@@ -364,7 +368,9 @@ export default function TeacherDashboardPage() {
                     startIcon={<CheckCircle size={18} />}
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate("/attendance");
+                      const params = new URLSearchParams({ class: cls.academyId });
+                      if (cls.level) params.set("level", cls.level);
+                      navigate(`/attendance?${params.toString()}`);
                     }}
                     sx={{ borderRadius: 2 }}
                   >

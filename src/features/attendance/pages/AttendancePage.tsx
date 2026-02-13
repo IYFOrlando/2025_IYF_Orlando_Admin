@@ -22,6 +22,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import CloseIcon from "@mui/icons-material/Close";
 import ChecklistIcon from "@mui/icons-material/Checklist";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -57,6 +60,9 @@ type Row = {
 };
 
 export default function AttendancePage() {
+  const [searchParams] = useSearchParams();
+  const urlLevel = searchParams.get("level");
+
   const { data: allRegs } = useSupabaseRegistrations();
   const regs = allRegs; // Supabase hook already groups by student.id
   const { getInstructorByAcademy } = useInstructors();
@@ -101,8 +107,15 @@ export default function AttendancePage() {
     setDate(val);
   };
 
+  // Navigate date by N days
+  const shiftDate = (days: number) => {
+    const d = new Date(date + "T12:00:00");
+    d.setDate(d.getDate() + days);
+    setDate(d.toISOString().slice(0, 10));
+  };
+
   const [academy, setAcademy] = React.useState<string>("");
-  const [level, setLevel] = React.useState<string>("");
+  const [level, setLevel] = React.useState<string>(urlLevel || "");
   const [teacherName, setTeacherName] = React.useState<string>("");
   const [teacherNote, setTeacherNote] = React.useState<string>("");
 
@@ -151,10 +164,23 @@ export default function AttendancePage() {
     }
   }, [isTeacher, academies, academy]);
 
+  // Auto-select level for teachers with specific level assignments
+  React.useEffect(() => {
+    if (!isTeacher || !teacherProfile || !academy || !academyHasLevels) return;
+    // Find teacher's assigned levels for this academy
+    const teacherLevels = teacherProfile.academies
+      .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
+      .map(a => a.level as string);
+    // If teacher has exactly one level for this academy, auto-select it
+    if (teacherLevels.length === 1 && !level) {
+      setLevel(teacherLevels[0]);
+    }
+  }, [isTeacher, teacherProfile, academy, academyHasLevels, level]);
+
   // Roster for selected class (Dynamic & Normalized)
+  // Filters by level for ANY academy that has levels (Korean, Taekwondo, etc.)
   const roster = React.useMemo(() => {
     if (!academy) return [];
-    const isK = academy === KOREAN;
     const list: { id: string; name: string }[] = [];
 
     regs.forEach((r: Registration) => {
@@ -178,8 +204,9 @@ export default function AttendancePage() {
       }
 
       if (studentLevels.size > 0) {
-        if (isK && level) {
-          if (studentLevels.has(level)) {
+        // If a level is selected AND this academy has levels, filter by it
+        if (level && academyHasLevels) {
+          if (studentLevels.has(level) || studentLevels.has(normalizeLevel(level))) {
             const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
             list.push({ id: r.id, name: fullName });
           }
@@ -193,7 +220,7 @@ export default function AttendancePage() {
     // unique + sorted
     const m = new Map(list.map((s) => [s.id, s]));
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [regs, academy, level]);
+  }, [regs, academy, level, academyHasLevels]);
 
   // Helper to fetch Academy ID (since we only have name in state)
   // We need this for Supabase queries
@@ -202,8 +229,8 @@ export default function AttendancePage() {
   >({});
   // Store ALL Korean academy IDs to handle multiple Korean variants
   const [koreanAcademyIds, setKoreanAcademyIds] = React.useState<string[]>([]);
-  // Dynamic Korean levels fetched from Supabase (replaces hardcoded list)
-  const [koreanLevels, setKoreanLevels] = React.useState<string[]>([]);
+  // Dynamic levels per academy: academyId -> level names
+  const [academyLevelsMap, setAcademyLevelsMap] = React.useState<Record<string, string[]>>({});
 
   React.useEffect(() => {
     const fetchAcademyIds = async () => {
@@ -231,6 +258,24 @@ export default function AttendancePage() {
   }, []);
 
   const currentAcademyId = academyIdMap[academy];
+
+  // Levels available for the currently selected academy
+  const currentAcademyLevels = React.useMemo(() => {
+    if (!currentAcademyId) return [];
+    // For Korean, collect from ALL Korean academy IDs
+    if (academy === KOREAN && koreanAcademyIds.length > 0) {
+      const all: string[] = [];
+      koreanAcademyIds.forEach(kid => {
+        (academyLevelsMap[kid] || []).forEach(l => {
+          if (!all.includes(l)) all.push(l);
+        });
+      });
+      return all;
+    }
+    return academyLevelsMap[currentAcademyId] || [];
+  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap]);
+
+  const academyHasLevels = currentAcademyLevels.length > 0;
 
   // Fetch Levels Map for ID lookup (must be declared before loadClassForDate)
   const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(
@@ -318,26 +363,28 @@ export default function AttendancePage() {
       if (isKorean && koreanAcademyIds.length > 0) {
         // For Korean: query across ALL Korean academy IDs (handles variants)
         query = query.in("academy_id", koreanAcademyIds);
-
-        // Filter by level_id if a specific level is selected
-        if (level) {
-          let targetLevelId: string | null = null;
-          // Search across all Korean academy IDs for the matching level
-          for (const kid of koreanAcademyIds) {
-            const lid =
-              levelIdMap[`${kid}:${normalizeLevel(level)}`] ||
-              levelIdMap[`${kid}:${level}`];
-            if (lid) {
-              targetLevelId = lid;
-              break;
-            }
-          }
-          if (targetLevelId) {
-            query = query.eq("level_id", targetLevelId);
-          }
-        }
       } else {
         query = query.eq("academy_id", currentAcademyId);
+      }
+
+      // Filter by level_id if a specific level is selected (for ANY academy)
+      if (level && academyHasLevels) {
+        let targetLevelId: string | null = null;
+        const searchIds = isKorean && koreanAcademyIds.length > 0
+          ? koreanAcademyIds
+          : [currentAcademyId];
+        for (const aid of searchIds) {
+          const lid =
+            levelIdMap[`${aid}:${normalizeLevel(level)}`] ||
+            levelIdMap[`${aid}:${level}`];
+          if (lid) {
+            targetLevelId = lid;
+            break;
+          }
+        }
+        if (targetLevelId) {
+          query = query.eq("level_id", targetLevelId);
+        }
       }
 
       const { data: sessions } = await query;
@@ -383,7 +430,7 @@ export default function AttendancePage() {
       setError(e.message || "Unknown error");
       setLoading(false);
     }
-  }, [academy, currentAcademyId, date, roster, studentStats, koreanAcademyIds, level, levelIdMap]);
+  }, [academy, currentAcademyId, date, roster, studentStats, koreanAcademyIds, level, levelIdMap, academyHasLevels]);
 
   React.useEffect(() => {
     void loadClassForDate();
@@ -472,28 +519,38 @@ export default function AttendancePage() {
       prev.map((r) => ({ ...r, present: val, reason: val ? "" : r.reason })),
     );
 
+  // Schedule display info per level (levelName -> schedule)
+  const [levelScheduleMap, setLevelScheduleMap] = React.useState<Record<string, string>>({});
+
   React.useEffect(() => {
     const fetchLevels = async () => {
       const { data } = await supabase
         .from("levels")
-        .select("id, name, academy_id")
+        .select("id, name, academy_id, schedule")
         .order("display_order", { ascending: true });
       if (data) {
         const map: Record<string, string> = {};
-        const kLevels: string[] = [];
-        const kIdSet = new Set(koreanAcademyIds);
+        const levelsPerAcademy: Record<string, string[]> = {};
+        const scheduleMap: Record<string, string> = {};
 
         data.forEach((l: any) => {
           map[`${l.academy_id}:${normalizeLevel(l.name)}`] = l.id;
           map[`${l.academy_id}:${l.name}`] = l.id;
 
-          // Collect Korean level names dynamically
-          if (kIdSet.has(l.academy_id) && !kLevels.includes(l.name)) {
-            kLevels.push(l.name);
+          // Build levels per academy
+          if (!levelsPerAcademy[l.academy_id]) levelsPerAcademy[l.academy_id] = [];
+          if (!levelsPerAcademy[l.academy_id].includes(l.name)) {
+            levelsPerAcademy[l.academy_id].push(l.name);
+          }
+
+          // Store schedule info for display
+          if (l.schedule) {
+            scheduleMap[`${l.academy_id}:${l.name}`] = l.schedule;
           }
         });
         setLevelIdMap(map);
-        setKoreanLevels(kLevels);
+        setAcademyLevelsMap(levelsPerAcademy);
+        setLevelScheduleMap(scheduleMap);
       }
     };
     fetchLevels();
@@ -511,36 +568,36 @@ export default function AttendancePage() {
     if (!academy || !currentAcademyId)
       return SAlert.fire({ title: "Select an academy", icon: "warning" });
 
-    // Validate Level Requirement for Korean
+    // Validate Level Requirement for academies with levels
     const isKorean = academy === KOREAN;
     let targetLevelId: string | null = null;
-    // For Korean, we may need to use a different academy_id than the primary one
     let saveAcademyId = currentAcademyId;
 
-    if (isKorean) {
+    if (academyHasLevels) {
       if (!level || level === "All") {
         return SAlert.fire({
           title: "Level Required",
-          text: "Please select a specific level (Alphabet, Beginner, etc.) to save attendance for Korean Language.",
+          text: `Please select a specific level to save attendance for ${academy}.`,
           icon: "warning",
         });
       }
-      // Search across ALL Korean academy IDs for the matching level
-      const searchIds = koreanAcademyIds.length > 0 ? koreanAcademyIds : [currentAcademyId];
-      for (const kid of searchIds) {
+      // Search across relevant academy IDs for the matching level
+      const searchIds = isKorean && koreanAcademyIds.length > 0
+        ? koreanAcademyIds
+        : [currentAcademyId];
+      for (const aid of searchIds) {
         const lid =
-          levelIdMap[`${kid}:${normalizeLevel(level)}`] ||
-          levelIdMap[`${kid}:${level}`];
+          levelIdMap[`${aid}:${normalizeLevel(level)}`] ||
+          levelIdMap[`${aid}:${level}`];
         if (lid) {
           targetLevelId = lid;
-          saveAcademyId = kid; // Use the academy that owns this level
+          saveAcademyId = aid;
           break;
         }
       }
 
       if (!targetLevelId) {
         console.warn("Level ID not found in map for", level, "- trying direct fetch");
-        // Fallback: direct query across all Korean academies
         const { data } = await supabase
           .from("levels")
           .select("id, academy_id")
@@ -554,7 +611,7 @@ export default function AttendancePage() {
         } else {
           return SAlert.fire({
             title: "Error",
-            text: "Invalid Level ID. Please contact support.",
+            text: "Level not found. Please contact support.",
             icon: "error",
           });
         }
@@ -690,27 +747,48 @@ export default function AttendancePage() {
                 />
                 Filters & Settings
               </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={3}>
-                  <TextField
-                    label="Date"
-                    type="date"
-                    InputLabelProps={{ shrink: true }}
-                    value={date}
-                    onChange={handleDateChange}
-                    fullWidth
-                    size="small"
-                    helperText="Select any date"
-                  />
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Tooltip title="Previous week">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => shiftDate(-7)}
+                        sx={{ minWidth: 36, px: 0 }}
+                      >
+                        <ChevronLeftIcon />
+                      </Button>
+                    </Tooltip>
+                    <TextField
+                      label="Date"
+                      type="date"
+                      InputLabelProps={{ shrink: true }}
+                      value={date}
+                      onChange={handleDateChange}
+                      fullWidth
+                      size="small"
+                      helperText="Navigate weeks or pick any date"
+                    />
+                    <Tooltip title="Next week">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => shiftDate(7)}
+                        sx={{ minWidth: 36, px: 0 }}
+                      >
+                        <ChevronRightIcon />
+                      </Button>
+                    </Tooltip>
+                  </Stack>
                 </Grid>
-                {/* Period Dropped */}
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} md={academyHasLevels ? 4 : 8}>
                   <Autocomplete
                     options={academies}
                     value={academy || null}
                     onChange={(_, v) => {
                       setAcademy(v || "");
-                      if ((v || "") !== KOREAN) setLevel("");
+                      setLevel(""); // Reset level when academy changes
                     }}
                     renderInput={(p) => (
                       <TextField
@@ -723,21 +801,27 @@ export default function AttendancePage() {
                     fullWidth
                   />
                 </Grid>
-                {academy === KOREAN && (
+                {academyHasLevels && (
                   <Grid item xs={12} md={4}>
                     <TextField
                       select
-                      label="Korean Level"
+                      label="Level / Schedule"
                       value={level}
                       onChange={(e) => setLevel(e.target.value)}
                       fullWidth
                       size="small"
+                      helperText={!level ? "Select a level to filter students" : ""}
                     >
-                      {koreanLevels.map((l) => (
-                        <MenuItem key={l} value={l}>
-                          {l}
-                        </MenuItem>
-                      ))}
+                      {currentAcademyLevels.map((l) => {
+                        // Find schedule info for display
+                        const scheduleKey = `${currentAcademyId}:${l}`;
+                        const sched = levelScheduleMap[scheduleKey];
+                        return (
+                          <MenuItem key={l} value={l}>
+                            {l}{sched ? ` — ${sched}` : ""}
+                          </MenuItem>
+                        );
+                      })}
                     </TextField>
                   </Grid>
                 )}
