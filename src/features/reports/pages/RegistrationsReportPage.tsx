@@ -15,8 +15,7 @@ import {
   TableRow,
   Paper,
 } from "@mui/material";
-import { useRegistrations } from "../../registrations/hooks/useRegistrations";
-import { deduplicateRegistrations } from "../../../lib/registrations";
+import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { normalizeAcademy } from "../../../lib/normalization";
 import { format } from "date-fns";
 
@@ -33,7 +32,7 @@ type AcademyStats = {
 };
 
 export default function RegistrationsReportPage() {
-  const { data: registrations, loading, error } = useRegistrations();
+  const { data: registrations, loading, error } = useSupabaseRegistrations();
 
   const stats = React.useMemo(() => {
     if (!registrations)
@@ -43,11 +42,9 @@ export default function RegistrationsReportPage() {
     const dailyMap = new Map<string, DailyStats>();
     const academyMap = new Map<string, AcademyStats>();
 
-    const uniqueRegs = deduplicateRegistrations(registrations);
-
-    uniqueRegs.forEach((reg) => {
+    registrations.forEach((reg) => {
       const createdAt =
-        reg.createdAt?.toDate?.() || new Date(reg.createdAt || Date.now());
+        typeof reg.createdAt === 'string' ? new Date(reg.createdAt) : new Date(reg.createdAt || Date.now());
       const dateKey = format(createdAt, "yyyy-MM-dd");
       const dateDisplay = format(createdAt, "MMM dd, yyyy");
 
