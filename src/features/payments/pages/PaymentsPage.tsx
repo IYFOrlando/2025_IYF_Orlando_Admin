@@ -1877,12 +1877,23 @@ const PaymentsPage = React.memo(() => {
               sx={{ mb: 2 }}
               variant="scrollable"
               scrollButtons="auto"
+              TabIndicatorProps={{ sx: { height: 3 } }}
             >
-              <Tab label="Overview" />
-              <Tab label="Pay Invoice" />
-              <Tab label="Lunch Sale" />
-              <Tab label="Student Logs" />
-              <Tab label="Global History" />
+              <Tab label="Overview" sx={{ minWidth: 0, px: 1.5 }} />
+              <Tab label="Pay" sx={{ minWidth: 0, px: 1.5 }} />
+              <Tab
+                icon={<LunchIcon sx={{ fontSize: 18 }} />}
+                iconPosition="start"
+                label="Lunch"
+                sx={{
+                  minWidth: 0,
+                  px: 1.5,
+                  color: "warning.main",
+                  "&.Mui-selected": { color: "warning.dark" },
+                }}
+              />
+              <Tab label="Logs" sx={{ minWidth: 0, px: 1.5 }} />
+              <Tab label="History" sx={{ minWidth: 0, px: 1.5 }} />
             </Tabs>
 
             {activeTab === 0 && (
