@@ -613,18 +613,22 @@ const PaymentsPage = React.memo(() => {
   // Actions
   const createInvoice = async (mode: "normal" | "lunchOnly" = "normal") => {
     if (!student) return;
-    if (studentInvoices.length > 0) {
+
+    // Block duplicate academy invoices, but always allow lunch-only
+    if (mode === "normal" && studentInvoices.length > 0) {
       return notifyError(
         "Este alumno ya tiene factura. Usa la factura existente en la lista o edítala desde Registrations.",
       );
     }
+
     const effLines = mode === "lunchOnly" ? [] : lines;
     const effSub = effLines.reduce((s, l) => s + l.amount, 0);
-    const effDisc = Math.min(discountAmount, effSub);
-    const effTotal = Math.max(effSub - effDisc, 0) + lunchAmount;
+    const effDisc = mode === "lunchOnly" ? 0 : Math.min(discountAmount, effSub);
+    const lunchTotal = mode === "lunchOnly" ? lunchAmount : lunchAmount;
+    const effTotal = Math.max(effSub - effDisc, 0) + lunchTotal;
 
-    if (!effLines.length && !lunchAmount)
-      return notifyError("Nothing to invoice");
+    if (!effLines.length && !lunchTotal)
+      return notifyError("Select a lunch option to create a lunch invoice");
 
     const docData = {
       studentId: student.id,
@@ -1711,7 +1715,7 @@ const PaymentsPage = React.memo(() => {
                 <Button
                   variant="outlined"
                   onClick={() => createInvoice("lunchOnly")}
-                  disabled={!student}
+                  disabled={!student || !lunchAmount}
                 >
                   Lunch Only
                 </Button>
