@@ -42,7 +42,6 @@ import {
   Mail as MailIcon,
   Undo as UndoIcon,
   Visibility as VisibilityIcon,
-  CreditCard as CreditCardIcon,
   ConfirmationNumber as ConfirmationNumberIcon,
   Percent as PercentIcon,
 } from "@mui/icons-material";
@@ -324,7 +323,7 @@ const PaymentsPage = React.memo(() => {
 
   // Payment State
   const [method, setMethod] = React.useState<
-    "cash" | "zelle" | "check" | "card" | "discount" | "refund" | "none"
+    "cash" | "zelle" | "check" | "discount" | "refund" | "none"
   >("none");
   const [payAmount, setPayAmount] = React.useState<number>(0);
   const [paymentNotes, setPaymentNotes] = React.useState<string>("");
@@ -2053,15 +2052,6 @@ const PaymentsPage = React.memo(() => {
                         color={method === "zelle" ? "info" : "default"}
                         onClick={() => setMethod("zelle")}
                         variant={method === "zelle" ? "filled" : "outlined"}
-                      />
-                      {/* Card */}
-                      <Chip
-                        icon={<CreditCardIcon />}
-                        label="Card"
-                        clickable
-                        color={method === "card" ? "primary" : "default"}
-                        onClick={() => setMethod("card")}
-                        variant={method === "card" ? "filled" : "outlined"}
                       />
                       {/* Check */}
                       <Chip
