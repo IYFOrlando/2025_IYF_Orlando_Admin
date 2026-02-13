@@ -164,6 +164,61 @@ export default function AttendancePage() {
     }
   }, [isTeacher, academies, academy]);
 
+  // Helper to fetch Academy ID (since we only have name in state)
+  // We need this for Supabase queries
+  const [academyIdMap, setAcademyIdMap] = React.useState<
+    Record<string, string>
+  >({});
+  // Store ALL Korean academy IDs to handle multiple Korean variants
+  const [koreanAcademyIds, setKoreanAcademyIds] = React.useState<string[]>([]);
+  // Dynamic levels per academy: academyId -> level names
+  const [academyLevelsMap, setAcademyLevelsMap] = React.useState<Record<string, string[]>>({});
+
+  React.useEffect(() => {
+    const fetchAcademyIds = async () => {
+      const { data } = await supabase.from("academies").select("id, name");
+      if (data) {
+        const map: Record<string, string> = {};
+        const koreanIds: string[] = [];
+        data.forEach((a: any) => {
+          const normalized = normalizeAcademy(a.name);
+          if (normalized === KOREAN) {
+            koreanIds.push(a.id);
+            // Prefer the exact "Korean Language" academy as primary ID
+            if (a.name.trim() === "Korean Language" || !map[normalized]) {
+              map[normalized] = a.id;
+            }
+          } else {
+            map[normalized] = a.id;
+          }
+        });
+        setAcademyIdMap(map);
+        setKoreanAcademyIds(koreanIds);
+      }
+    };
+    fetchAcademyIds();
+  }, []);
+
+  const currentAcademyId = academyIdMap[academy];
+
+  // Levels available for the currently selected academy
+  const currentAcademyLevels = React.useMemo(() => {
+    if (!currentAcademyId) return [];
+    // For Korean, collect from ALL Korean academy IDs
+    if (academy === KOREAN && koreanAcademyIds.length > 0) {
+      const all: string[] = [];
+      koreanAcademyIds.forEach(kid => {
+        (academyLevelsMap[kid] || []).forEach(l => {
+          if (!all.includes(l)) all.push(l);
+        });
+      });
+      return all;
+    }
+    return academyLevelsMap[currentAcademyId] || [];
+  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap]);
+
+  const academyHasLevels = currentAcademyLevels.length > 0;
+
   // Auto-select level for teachers with specific level assignments
   React.useEffect(() => {
     if (!isTeacher || !teacherProfile || !academy || !academyHasLevels) return;
@@ -221,61 +276,6 @@ export default function AttendancePage() {
     const m = new Map(list.map((s) => [s.id, s]));
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [regs, academy, level, academyHasLevels]);
-
-  // Helper to fetch Academy ID (since we only have name in state)
-  // We need this for Supabase queries
-  const [academyIdMap, setAcademyIdMap] = React.useState<
-    Record<string, string>
-  >({});
-  // Store ALL Korean academy IDs to handle multiple Korean variants
-  const [koreanAcademyIds, setKoreanAcademyIds] = React.useState<string[]>([]);
-  // Dynamic levels per academy: academyId -> level names
-  const [academyLevelsMap, setAcademyLevelsMap] = React.useState<Record<string, string[]>>({});
-
-  React.useEffect(() => {
-    const fetchAcademyIds = async () => {
-      const { data } = await supabase.from("academies").select("id, name");
-      if (data) {
-        const map: Record<string, string> = {};
-        const koreanIds: string[] = [];
-        data.forEach((a: any) => {
-          const normalized = normalizeAcademy(a.name);
-          if (normalized === KOREAN) {
-            koreanIds.push(a.id);
-            // Prefer the exact "Korean Language" academy as primary ID
-            if (a.name.trim() === "Korean Language" || !map[normalized]) {
-              map[normalized] = a.id;
-            }
-          } else {
-            map[normalized] = a.id;
-          }
-        });
-        setAcademyIdMap(map);
-        setKoreanAcademyIds(koreanIds);
-      }
-    };
-    fetchAcademyIds();
-  }, []);
-
-  const currentAcademyId = academyIdMap[academy];
-
-  // Levels available for the currently selected academy
-  const currentAcademyLevels = React.useMemo(() => {
-    if (!currentAcademyId) return [];
-    // For Korean, collect from ALL Korean academy IDs
-    if (academy === KOREAN && koreanAcademyIds.length > 0) {
-      const all: string[] = [];
-      koreanAcademyIds.forEach(kid => {
-        (academyLevelsMap[kid] || []).forEach(l => {
-          if (!all.includes(l)) all.push(l);
-        });
-      });
-      return all;
-    }
-    return academyLevelsMap[currentAcademyId] || [];
-  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap]);
-
-  const academyHasLevels = currentAcademyLevels.length > 0;
 
   // Fetch Levels Map for ID lookup (must be declared before loadClassForDate)
   const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(
