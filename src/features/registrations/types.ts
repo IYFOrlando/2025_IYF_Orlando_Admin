@@ -16,6 +16,7 @@ export type Registration = {
   gender?: string
   confirmEmail?: string
   address?: string
+  addressLine2?: string
   zipCode?: string
   age?: number | string
   firstPeriod?: Period // Legacy: for old registrations
@@ -25,5 +26,10 @@ export type Registration = {
   isDuplicate?: boolean // Mark duplicate registrations
   guardianName?: string
   guardianPhone?: string
+  guardianEmail?: string
   tShirtSize?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  referralSource?: string
+  notes?: string
 }

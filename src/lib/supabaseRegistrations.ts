@@ -71,12 +71,18 @@ export type RegistrationFormData = {
   birthday?: string
   gender?: string
   address?: string
+  addressLine2?: string
   city?: string
   state?: string
   zipCode?: string
   guardianName?: string
   guardianPhone?: string
+  guardianEmail?: string
   tShirtSize?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  referralSource?: string
+  notes?: string
   selectedAcademies?: { academy: string; level?: string }[]
 }
 
@@ -89,23 +95,7 @@ export async function createRegistration(form: RegistrationFormData): Promise<st
   // 1. Create student
   const { data: student, error: studentError } = await supabase
     .from('students')
-    .insert({
-      first_name: form.firstName || '',
-      last_name: form.lastName || '',
-      email: form.email || null,
-      phone: form.cellNumber || null,
-      birth_date: form.birthday || null,
-      gender: form.gender || null,
-      address: {
-        street: form.address || '',
-        city: form.city || '',
-        state: form.state || '',
-        zip: form.zipCode || '',
-      },
-      guardian_name: form.guardianName || null,
-      guardian_phone: form.guardianPhone || null,
-      t_shirt_size: form.tShirtSize || null,
-    })
+    .insert(buildStudentPayload(form))
     .select('id')
     .single()
 
@@ -133,23 +123,7 @@ export async function updateRegistration(studentId: string, form: RegistrationFo
   // 1. Update student record
   const { error: studentError } = await supabase
     .from('students')
-    .update({
-      first_name: form.firstName || '',
-      last_name: form.lastName || '',
-      email: form.email || null,
-      phone: form.cellNumber || null,
-      birth_date: form.birthday || null,
-      gender: form.gender || null,
-      address: {
-        street: form.address || '',
-        city: form.city || '',
-        state: form.state || '',
-        zip: form.zipCode || '',
-      },
-      guardian_name: form.guardianName || null,
-      guardian_phone: form.guardianPhone || null,
-      t_shirt_size: form.tShirtSize || null,
-    })
+    .update(buildStudentPayload(form))
     .eq('id', studentId)
 
   if (studentError) throw studentError
@@ -295,6 +269,33 @@ export async function ensureStudentInvoice(
 }
 
 // --- Internal Helpers ---
+
+/** Build the student row payload from form data. Used by create & update. */
+function buildStudentPayload(form: RegistrationFormData) {
+  return {
+    first_name: form.firstName || '',
+    last_name: form.lastName || '',
+    email: form.email || null,
+    phone: form.cellNumber || null,
+    birth_date: form.birthday || null,
+    gender: form.gender || null,
+    address: {
+      street: form.address || '',
+      line2: form.addressLine2 || '',
+      city: form.city || '',
+      state: form.state || '',
+      zip: form.zipCode || '',
+    },
+    guardian_name: form.guardianName || null,
+    guardian_phone: form.guardianPhone || null,
+    guardian_email: form.guardianEmail || null,
+    t_shirt_size: form.tShirtSize || null,
+    emergency_contact_name: form.emergencyContactName || null,
+    emergency_contact_phone: form.emergencyContactPhone || null,
+    referral_source: form.referralSource || null,
+    notes: form.notes || null,
+  }
+}
 
 function buildEnrollments(
   studentId: string,

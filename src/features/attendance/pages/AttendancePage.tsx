@@ -42,13 +42,6 @@ import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 // deduplicateRegistrations removed - Supabase hook already groups by student.id
 
 const KOREAN = "Korean Language";
-const KOREAN_LEVELS = [
-  "Alphabet",
-  "Beginner",
-  "Intermediate",
-  "Conversation",
-  "K-Movie Conversation",
-] as const;
 
 // Keep in sync with Firestore rules isAdmin() allowlist
 const ADMIN_EMAILS = ["jodlouis.dev@gmail.com", "orlando@iyfusa.org"];
@@ -209,6 +202,8 @@ export default function AttendancePage() {
   >({});
   // Store ALL Korean academy IDs to handle multiple Korean variants
   const [koreanAcademyIds, setKoreanAcademyIds] = React.useState<string[]>([]);
+  // Dynamic Korean levels fetched from Supabase (replaces hardcoded list)
+  const [koreanLevels, setKoreanLevels] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     const fetchAcademyIds = async () => {
@@ -481,27 +476,28 @@ export default function AttendancePage() {
     const fetchLevels = async () => {
       const { data } = await supabase
         .from("levels")
-        .select("id, name, academy_id");
+        .select("id, name, academy_id")
+        .order("display_order", { ascending: true });
       if (data) {
         const map: Record<string, string> = {};
-        // We map "Normalized Academy + Level Name" -> ID?
-        // Or just filtered by current academy ID?
-        // Simpler: Map Level ID by Name if unique per academy.
-        // But map key needs to be unique globally or we filter.
-        // Let's store raw data or map by specific keys.
-        // Actually, we filter by Academy ID in saveAll.
-        // Let's just store all levels and filter locally.
-        // Better: Store Map<AcademyID + LevelName, LevelID>
+        const kLevels: string[] = [];
+        const kIdSet = new Set(koreanAcademyIds);
+
         data.forEach((l: any) => {
           map[`${l.academy_id}:${normalizeLevel(l.name)}`] = l.id;
-          // Also fallback for exact name match?
           map[`${l.academy_id}:${l.name}`] = l.id;
+
+          // Collect Korean level names dynamically
+          if (kIdSet.has(l.academy_id) && !kLevels.includes(l.name)) {
+            kLevels.push(l.name);
+          }
         });
         setLevelIdMap(map);
+        setKoreanLevels(kLevels);
       }
     };
     fetchLevels();
-  }, []);
+  }, [koreanAcademyIds]);
 
   const { saveAttendance, deleteAttendanceRecords } = useSupabaseAttendance();
 
@@ -737,7 +733,7 @@ export default function AttendancePage() {
                       fullWidth
                       size="small"
                     >
-                      {KOREAN_LEVELS.map((l) => (
+                      {koreanLevels.map((l) => (
                         <MenuItem key={l} value={l}>
                           {l}
                         </MenuItem>

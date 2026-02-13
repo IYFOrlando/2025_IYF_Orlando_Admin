@@ -39,9 +39,12 @@ const EMPTY_REG: Registration = {
   id: '',
   firstName: '', lastName: '', birthday: '', gender: '',
   cellNumber: '', email: '', confirmEmail: '',
-  address: '', city: '', state: 'Florida', zipCode: '',
+  address: '', addressLine2: '', city: '', state: 'Florida', zipCode: '',
   selectedAcademies: [],
-  guardianName: '', guardianPhone: '', tShirtSize: ''
+  guardianName: '', guardianPhone: '', guardianEmail: '',
+  tShirtSize: '',
+  emergencyContactName: '', emergencyContactPhone: '',
+  referralSource: '', notes: ''
 }
 
 export default function AdminRegistrationForm({ open, onClose, docId, initial, onSuccess }: Props) {
@@ -145,12 +148,18 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
         cellNumber: form.cellNumber || '',
         email: form.email || '',
         address: form.address || '',
+        addressLine2: form.addressLine2 || '',
         city: form.city || '',
         state: form.state || '',
         zipCode: form.zipCode || '',
         tShirtSize: form.tShirtSize || '',
         guardianName: form.guardianName || '',
         guardianPhone: form.guardianPhone || '',
+        guardianEmail: form.guardianEmail || '',
+        emergencyContactName: form.emergencyContactName || '',
+        emergencyContactPhone: form.emergencyContactPhone || '',
+        referralSource: form.referralSource || '',
+        notes: form.notes || '',
         selectedAcademies: (form.selectedAcademies || []).map(a => ({
           academy: a.academy || '',
           level: a.level || '',
@@ -207,7 +216,8 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
           <Grid item xs={12} md={6}><TextField label="Student Phone" value={form.cellNumber} onChange={(e)=>setField('cellNumber', e.target.value)} fullWidth size="small" /></Grid>
           <Grid item xs={12} md={6}><TextField label="Email" value={form.email} onChange={(e)=>setField('email', e.target.value)} fullWidth size="small" /></Grid>
           
-          <Grid item xs={12}><TextField label="Address" value={form.address} onChange={(e)=>setField('address', e.target.value)} fullWidth size="small" /></Grid>
+          <Grid item xs={12} md={8}><TextField label="Street Address" value={form.address} onChange={(e)=>setField('address', e.target.value)} fullWidth size="small" /></Grid>
+          <Grid item xs={12} md={4}><TextField label="Apt, Suite, Unit" value={form.addressLine2} onChange={(e)=>setField('addressLine2', e.target.value)} fullWidth size="small" placeholder="Optional" /></Grid>
           <Grid item xs={12} md={4}><TextField label="City" value={form.city} onChange={(e)=>setField('city', e.target.value)} fullWidth size="small" /></Grid>
           <Grid item xs={12} md={4}>
             <TextField select label="State" value={form.state} onChange={(e)=>setField('state', e.target.value)} fullWidth size="small">
@@ -218,8 +228,19 @@ export default function AdminRegistrationForm({ open, onClose, docId, initial, o
 
           {/* Section: Guardian */}
           <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">GUARDIAN (For Minors)</Typography></Grid>
-          <Grid item xs={12} md={6}><TextField label="Guardian Name" value={form.guardianName} onChange={(e)=>setField('guardianName', e.target.value)} fullWidth size="small" /></Grid>
-          <Grid item xs={12} md={6}><TextField label="Guardian Phone" value={form.guardianPhone} onChange={(e)=>setField('guardianPhone', e.target.value)} fullWidth size="small" /></Grid>
+          <Grid item xs={12} md={4}><TextField label="Guardian Name" value={form.guardianName} onChange={(e)=>setField('guardianName', e.target.value)} fullWidth size="small" /></Grid>
+          <Grid item xs={12} md={4}><TextField label="Guardian Phone" value={form.guardianPhone} onChange={(e)=>setField('guardianPhone', e.target.value)} fullWidth size="small" /></Grid>
+          <Grid item xs={12} md={4}><TextField label="Guardian Email" value={form.guardianEmail} onChange={(e)=>setField('guardianEmail', e.target.value)} fullWidth size="small" /></Grid>
+
+          {/* Section: Emergency Contact */}
+          <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">EMERGENCY CONTACT</Typography></Grid>
+          <Grid item xs={12} md={6}><TextField label="Emergency Contact Name" value={form.emergencyContactName} onChange={(e)=>setField('emergencyContactName', e.target.value)} fullWidth size="small" /></Grid>
+          <Grid item xs={12} md={6}><TextField label="Emergency Contact Phone" value={form.emergencyContactPhone} onChange={(e)=>setField('emergencyContactPhone', e.target.value)} fullWidth size="small" /></Grid>
+
+          {/* Section: Additional Info */}
+          <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">ADDITIONAL INFORMATION</Typography></Grid>
+          <Grid item xs={12} md={6}><TextField label="Referral Source" value={form.referralSource} onChange={(e)=>setField('referralSource', e.target.value)} fullWidth size="small" placeholder="How did they hear about us?" /></Grid>
+          <Grid item xs={12} md={6}><TextField label="Notes" value={form.notes} onChange={(e)=>setField('notes', e.target.value)} fullWidth size="small" multiline maxRows={3} /></Grid>
 
           {/* Section: Academies */}
           <Grid item xs={12} sx={{ mt: 2 }}><Typography variant="subtitle2" color="primary">ACADEMY SELECTION</Typography></Grid>

@@ -170,7 +170,11 @@ export const ACADEMY_DEFAULT_PRICES = {
   'default': 50
 } as const
 
-// Korean Language Levels
+/**
+ * @deprecated Korean levels are now fetched dynamically from Supabase.
+ * This constant is kept only for backward compatibility.
+ * The actual levels come from the `levels` table for the active semester.
+ */
 export const KOREAN_LEVELS = [
   'Beginner',
   'Intermediate',

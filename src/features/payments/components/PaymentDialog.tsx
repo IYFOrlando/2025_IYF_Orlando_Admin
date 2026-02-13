@@ -5,13 +5,7 @@ import {
 } from '@mui/material'
 import type { PricingItem } from '../types'
 import { Alert as SAlert } from '../../../lib/alerts'
-
-const ACADEMIES = [
-  'Art','DIY','Korean Language','Korean Cooking','Piano','Pickleball',
-  'Senior','Soccer','Stretch and Strengthen','Kids Academy'
-]
-
-const KOREAN_LEVELS = ['Alphabet','Beginner','Intermediate','K-Movie Conversation'] as const
+import { supabase } from '../../../lib/supabase'
 
 type Props = {
   open: boolean
@@ -24,6 +18,40 @@ export default function PricingItemDialog({ open, onClose, initial, onSave }: Pr
   const [form, setForm] = React.useState<PricingItem>(
     initial || { id: '', academy: '', level: null, p1: null, p2: null, enabled: true, notes: '' }
   )
+  const [academyNames, setAcademyNames] = React.useState<string[]>([])
+  const [koreanLevels, setKoreanLevels] = React.useState<string[]>([])
+
+  // Fetch academies and Korean levels from Supabase
+  React.useEffect(() => {
+    if (!open) return
+    const load = async () => {
+      // Get active semester
+      const { data: semesters } = await supabase
+        .from('semesters').select('id').eq('name', 'Spring 2026').limit(1)
+      const semId = semesters?.[0]?.id
+      if (!semId) return
+
+      // Fetch academies for this semester
+      const { data: acData } = await supabase
+        .from('academies').select('id, name').eq('semester_id', semId).eq('is_active', true).order('display_order')
+      if (acData) {
+        setAcademyNames(acData.map(a => a.name))
+
+        // Fetch Korean levels
+        const koreanAc = acData.filter(a => a.name.toLowerCase().includes('korean') && a.name.toLowerCase().includes('language'))
+        if (koreanAc.length > 0) {
+          const koreanIds = koreanAc.map(a => a.id)
+          const { data: lvlData } = await supabase
+            .from('levels').select('name, academy_id').in('academy_id', koreanIds).order('display_order')
+          if (lvlData) {
+            const names = [...new Set(lvlData.map(l => l.name))]
+            setKoreanLevels(names)
+          }
+        }
+      }
+    }
+    load()
+  }, [open])
 
   React.useEffect(() => {
     setForm(initial || { id: '', academy: '', level: null, p1: null, p2: null, enabled: true, notes: '' })
@@ -52,7 +80,7 @@ export default function PricingItemDialog({ open, onClose, initial, onSave }: Pr
               select fullWidth label="Academy" value={form.academy}
               onChange={(e) => setForm((p: PricingItem) => ({ ...p, academy: e.target.value }))}
             >
-              {ACADEMIES.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
+              {academyNames.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
             </TextField>
           </Grid>
 
@@ -62,7 +90,7 @@ export default function PricingItemDialog({ open, onClose, initial, onSave }: Pr
                 select fullWidth label="Korean Level" value={form.level || ''}
                 onChange={(e) => setForm((p: PricingItem) => ({ ...p, level: e.target.value }))}
               >
-                {KOREAN_LEVELS.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                {koreanLevels.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
               </TextField>
             </Grid>
           )}

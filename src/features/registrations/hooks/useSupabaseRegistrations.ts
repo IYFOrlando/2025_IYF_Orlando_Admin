@@ -34,7 +34,9 @@ export function useSupabaseRegistrations() {
             created_at,
             student:students (
                 id, first_name, last_name, email, phone, birth_date, 
-                address, gender, guardian_name, guardian_phone, t_shirt_size, notes
+                address, gender, guardian_name, guardian_phone, guardian_email,
+                t_shirt_size, notes, emergency_contact_name, emergency_contact_phone,
+                referral_source
             ),
             academy:academies (name),
             level:levels (name)
@@ -62,17 +64,22 @@ export function useSupabaseRegistrations() {
             lastName: student.last_name,
             email: student.email,
             cellNumber: student.phone,
-            birthday: student.birth_date, // Format might differ? Date string vs Timestamp
+            birthday: student.birth_date,
             gender: student.gender,
             guardianName: student.guardian_name,
             guardianPhone: student.guardian_phone,
-            shirtSize: student.t_shirt_size,
+            guardianEmail: student.guardian_email,
+            tShirtSize: student.t_shirt_size,
             address: student.address?.street || "",
+            addressLine2: student.address?.line2 || "",
             city: student.address?.city || "",
             state: student.address?.state || "",
             zipCode: student.address?.zip || "",
             notes: student.notes,
-            createdAt: enroll.created_at, // Use the enrollment date roughly
+            emergencyContactName: student.emergency_contact_name,
+            emergencyContactPhone: student.emergency_contact_phone,
+            referralSource: student.referral_source,
+            createdAt: enroll.created_at,
 
             // NEW structure for 2026
             selectedAcademies: [],
