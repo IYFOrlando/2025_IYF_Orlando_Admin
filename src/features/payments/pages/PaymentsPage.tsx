@@ -147,25 +147,41 @@ type StudentOption = { id: string; label: string; reg: Registration };
 
 function paidAcademyKeys(invs: Invoice[]): Set<string> {
   const covered = new Set<string>();
+  // Track if there are any paid invoices without items (legacy/migrated)
+  let hasPaidNoItems = false;
   for (const inv of invs) {
     if (inv.status !== "paid" && inv.status !== "exonerated") continue;
+    if (inv.lines.length === 0) {
+      hasPaidNoItems = true;
+      continue;
+    }
     for (const l of inv.lines) {
       const key = `${norm(l.academy)}|${(l.level || "").toString().trim().toLowerCase()}`;
       covered.add(key);
     }
   }
+  // If there's a paid invoice without items, mark a special flag so callers know
+  if (hasPaidNoItems) covered.add("__ALL_PAID__");
   return covered;
 }
 
 function invoicedAcademyKeys(invs: Invoice[]): Set<string> {
   const covered = new Set<string>();
+  // Track if there are any non-void invoices without items (legacy/migrated)
+  let hasInvoiceNoItems = false;
   for (const inv of invs) {
     if ((inv.status as string) === "void") continue;
+    if (inv.lines.length === 0) {
+      hasInvoiceNoItems = true;
+      continue;
+    }
     for (const l of inv.lines) {
       const key = `${norm(l.academy)}|${(l.level || "").toString().trim().toLowerCase()}`;
       covered.add(key);
     }
   }
+  // If there's an invoice without items, mark a special flag so callers know
+  if (hasInvoiceNoItems) covered.add("__ALL_INVOICED__");
   return covered;
 }
 
@@ -402,6 +418,8 @@ const PaymentsPage = React.memo(() => {
         (ac: { academy?: string; level?: string }, idx: number) => {
           const a = norm(ac?.academy);
           if (!a || a === "n/a") return;
+          // If there's an invoice without items covering everything, skip
+          if (covered.has("__ALL_INVOICED__")) return;
           const key = `${a}|${(ac?.level || "").toString().trim().toLowerCase()}`;
           if (covered.has(key)) return;
           if (filterByAcademy && filterByAcademy !== a) return;
@@ -1324,14 +1342,15 @@ const PaymentsPage = React.memo(() => {
                         const academyName = norm(ac.academy);
 
                         // Find invoices covering this academy
+                        // Include invoices with matching items OR invoices without items (legacy/migrated)
                         const coveringInvoices = studentInvoices.filter(
                           (inv) =>
                             (inv.status as string) !== "void" &&
-                            inv.lines.some(
+                            (inv.lines.some(
                               (l) =>
                                 norm(l.academy) === academyName &&
                                 (!l.level || norm(l.level) === norm(ac.level)),
-                            ),
+                            ) || inv.lines.length === 0),
                         );
 
                         const paidInvoice = coveringInvoices.find(
