@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabase";
-import { normalizeAcademy } from "../../../lib/normalization";
 
 export type AcademyLevel = {
   id?: string;

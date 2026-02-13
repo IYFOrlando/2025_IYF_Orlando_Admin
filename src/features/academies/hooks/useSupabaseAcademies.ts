@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabase";
 import { normalizeAcademy } from "../../../lib/normalization";
-import type { Academy, AcademyInput } from "./useAcademies";
+import type { Academy } from "./useAcademies";
 
 export function useSupabaseAcademies() {
   const [academies, setAcademies] = useState<Academy[]>([]);
@@ -190,6 +190,6 @@ export function useSupabaseAcademies() {
     academies,
     loading,
     error,
-    // refresh: fetchAcademies
+    refresh: fetchAcademies,
   };
 }

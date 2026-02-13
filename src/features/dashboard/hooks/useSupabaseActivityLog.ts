@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase";
-import { useTeacherContext } from "../../auth/context/TeacherContext";
 
 export interface ActivityLogEntry {
   id: string;

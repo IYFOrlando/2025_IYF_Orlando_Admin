@@ -7,13 +7,10 @@ import {
   Grid,
   Button,
 } from "@mui/material";
-import { DataGrid, GridToolbar, type GridColDef } from "@mui/x-data-grid";
 import {
   TrendingUp as TrendingUpIcon,
-  TrendingDown,
   Users,
   School,
-  Calendar,
   Download as DownloadIcon,
 } from "lucide-react";
 import {
@@ -21,7 +18,6 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
@@ -34,7 +30,7 @@ import autoTable from "jspdf-autotable";
 import logoImage from "../../../assets/logo/IYF_logo.png";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import { displayYMD } from "../../../lib/date";
-import { sendEmail } from "../../../lib/emailService";
+import { sendEmail, formatPrice } from "../../../lib/emailService";
 import {
   dailyReportTemplate,
   type DailyReportData,
@@ -44,7 +40,7 @@ import { GlassCard } from "../../../components/GlassCard";
 import { PageHeader } from "../../../components/PageHeader";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { useSupabasePayments } from "../../payments/hooks/useSupabasePayments";
-import { motion } from "framer-motion";
+// import { motion } from "framer-motion";
 
 // --- Types ---
 
@@ -54,7 +50,7 @@ interface TabPanelProps {
   value: number;
 }
 
-function TabPanel(props: TabPanelProps) {
+function _TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
   return (
@@ -88,7 +84,7 @@ const COLORS = [
 export default function ReportsPage() {
   const { data: registrations, loading } = useSupabaseRegistrations();
   const { data: payments, loading: paymentsLoading } = useSupabasePayments();
-  const [dailyReportEmailTo, setDailyReportEmailTo] =
+  const [dailyReportEmailTo, _setDailyReportEmailTo] =
     React.useState("orlando@iyfusa.org");
   const [sendingDailyReportEmail, setSendingDailyReportEmail] =
     React.useState(false);

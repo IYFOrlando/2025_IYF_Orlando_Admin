@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabase";
-import type { Invoice, InvoiceLine } from "../types";
+import type { Invoice } from "../types";
 import { logger } from "../../../lib/logger";
 
 // Helper to get active semester
@@ -99,7 +99,7 @@ export function useSupabaseInvoices() {
           student_id: invoiceData.studentId,
           status: invoiceData.status,
           subtotal: invoiceData.subtotal / 100,
-          discount_amount: invoiceData.discountAmount / 100,
+          discount_amount: (invoiceData.discountAmount ?? 0) / 100,
           discount_note: invoiceData.discountNote,
           total: invoiceData.total / 100,
           paid_amount: invoiceData.paid / 100,

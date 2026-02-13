@@ -10,7 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // Helper to check if connection is working
 export const checkSupabaseConnection = async () => {
   try {
-    const { data, error } = await supabase.from('academies').select('count', { count: 'exact', head: true })
+    const { error } = await supabase.from('academies').select('count', { count: 'exact', head: true })
     if (error) throw error
     return true
   } catch (err) {

@@ -13,7 +13,6 @@ import {
   Autocomplete,
   Grid,
   Typography,
-  useTheme,
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import type { GridColDef } from "@mui/x-data-grid";
@@ -29,8 +28,6 @@ import { useAuth } from "../../../context/AuthContext";
 import {
   Alert as SAlert,
   confirmDelete,
-  notifyError,
-  notifySuccess,
 } from "../../../lib/alerts";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import type { Registration } from "../../registrations/types";
@@ -66,7 +63,7 @@ type Row = {
 };
 
 export default function AttendancePage() {
-  const { data: allRegs, loading: loadingRegs } = useSupabaseRegistrations();
+  const { data: allRegs } = useSupabaseRegistrations();
   const regs = React.useMemo(
     () => deduplicateRegistrations(allRegs),
     [allRegs],
@@ -74,7 +71,7 @@ export default function AttendancePage() {
   const { getInstructorByAcademy } = useInstructors();
 
   // Mobile check
-  const theme = useTheme();
+  // const theme = useTheme();
   // const isMobile = useMediaQuery(theme.breakpoints.down("md")); // Unused currently
 
   // Teacher Context

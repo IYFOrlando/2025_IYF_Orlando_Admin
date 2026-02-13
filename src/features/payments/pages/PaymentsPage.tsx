@@ -12,7 +12,6 @@ import {
   List,
   ListItem,
   IconButton,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -24,7 +23,6 @@ import {
   FormControlLabel,
   useTheme,
   Paper,
-  Alert,
   CircularProgress,
   FormControl,
   InputLabel,
@@ -32,11 +30,9 @@ import {
   MenuItem,
 } from "@mui/material";
 import {
-  Settings as SettingsIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   PictureAsPdf as PictureAsPdfIcon,
-  Add as AddIcon,
   FileDownload as FileDownloadIcon,
   LocalOffer as LocalOfferIcon,
   AttachMoney as AttachMoneyIcon,
@@ -77,8 +73,6 @@ import { logger } from "../../../lib/logger";
 import {
   getDiscountByCode,
   DISCOUNT_CODES,
-  PERIOD_1_ACADEMIES,
-  PERIOD_2_ACADEMIES,
 } from "../../../lib/constants";
 // import { COLLECTIONS_CONFIG } from '../../../config/shared.js' // Removed if not needed
 import jsPDF from "jspdf";
@@ -96,6 +90,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import Swal from "sweetalert2";
 import iyfLogo from "../../../assets/logo/IYF_logo.png";
 import { sendEmail, formatPrice } from "../../../lib/emailService";
 import { CreatePaymentSchema } from "../schemas";
@@ -248,7 +243,6 @@ const PaymentsPage = React.memo(() => {
   const {
     data: settingsPricing,
     savePricing,
-    refreshPricing,
   } = usePricingSettings(); // Supabase
 
   // Combine both sources
@@ -265,9 +259,7 @@ const PaymentsPage = React.memo(() => {
   const {
     data: allInvoices,
     createInvoice: createInv,
-    updateInvoice: updateInv,
     deleteInvoice: delInv,
-    getInvoicesByStudentId,
   } = useSupabaseInvoices(); // Supabase
   const {
     data: allPayments,
@@ -343,12 +335,10 @@ const PaymentsPage = React.memo(() => {
     React.useState<boolean>(false);
 
   // Admin Dialogs
-  const [openPricing, setOpenPricing] = React.useState(false);
+  const [_openPricing, setOpenPricing] = React.useState(false);
   const [editMap, setEditMap] = React.useState<Record<string, number>>({});
   const [editLunchSem, setEditLunchSem] = React.useState<number>(0);
   const [editLunchSingle, setEditLunchSingle] = React.useState<number>(0);
-  const [newAcademy, setNewAcademy] = React.useState("");
-  const [newPrice, setNewPrice] = React.useState<number>(0);
 
   // UI State
   const [activeTab, setActiveTab] = React.useState(0);
@@ -1239,7 +1229,7 @@ const PaymentsPage = React.memo(() => {
     doc.save(`Invoice_${inv.studentName}_${inv.id}.pdf`);
   };
 
-  const savePricingNow = async () => {
+  const _savePricingNow = async () => {
     // Convert from dollars to cents for storage
     const pricesInCents: Record<string, number> = {};
     Object.keys(editMap).forEach((key) => {

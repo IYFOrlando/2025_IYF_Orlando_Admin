@@ -24,14 +24,10 @@ import {
   Users,
   School,
   TrendingUp,
-  DollarSign,
   Clock,
   Plus,
-  CreditCard,
   FileText,
-  AlertCircle,
   CheckCircle,
-  XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

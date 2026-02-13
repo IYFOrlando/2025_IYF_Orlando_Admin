@@ -1,6 +1,5 @@
 import * as React from "react";
 import { supabase } from "../../../lib/supabase";
-import { logger } from "../../../lib/logger";
 import type { PricingDoc } from "../../payments/types";
 
 const SETTINGS_KEY = "pricing";
@@ -12,7 +11,7 @@ export function usePricingSettings() {
     lunch: { semester: 40, single: 4 },
   });
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [_error, _setError] = React.useState<string | null>(null);
 
   const fetchPricing = React.useCallback(async () => {
     try {
@@ -108,5 +107,5 @@ export function usePricingSettings() {
 
   const refreshPricing = fetchPricing;
 
-  return { data, loading, error, savePricing, refreshPricing };
+  return { data, loading, error: _error, savePricing, refreshPricing };
 }

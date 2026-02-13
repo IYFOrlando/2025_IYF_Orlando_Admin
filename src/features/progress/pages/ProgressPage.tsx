@@ -13,7 +13,7 @@ import InsightsIcon from '@mui/icons-material/Insights'
 import SearchIcon from '@mui/icons-material/Search'
 
 import { useAuth } from '../../../context/AuthContext'
-import { Alert as SAlert, confirmDelete, notifyError } from '../../../lib/alerts'
+import { Alert as SAlert, confirmDelete } from '../../../lib/alerts'
 import { GlassCard } from '../../../components/GlassCard'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotifications'

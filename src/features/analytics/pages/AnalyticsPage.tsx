@@ -10,10 +10,7 @@ import {
 import {
   TrendingUp,
   Users,
-  DollarSign,
   BarChart3,
-  Clock,
-  Calendar,
 } from "lucide-react";
 import { GlassCard } from "../../../components/GlassCard";
 import { PageHeader } from "../../../components/PageHeader";
