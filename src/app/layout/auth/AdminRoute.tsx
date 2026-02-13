@@ -4,7 +4,7 @@
  */
 import { Navigate } from "react-router-dom";
 import { useTeacherContext } from "../../../features/auth/context/TeacherContext";
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 
 export default function AdminRoute({ children }: { children: React.ReactNode }) {
   const { role, loading } = useTeacherContext();
