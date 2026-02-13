@@ -1,31 +1,51 @@
-import { Box, Paper, Typography, Button, Stack, useTheme, Avatar } from '@mui/material'
+import { useState } from 'react'
+import { Box, Paper, Typography, Button, Stack, useTheme, Avatar, TextField, Divider, Alert } from '@mui/material'
 import GoogleIcon from '@mui/icons-material/Google'
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
-import { Alert as SAlert } from '../../../lib/alerts' // reuse SweetAlert for errors
+import LoginIcon from '@mui/icons-material/Login'
 import { motion } from 'framer-motion'
 import iyfLogo from '../../../assets/logo/IYF_logo.png'
+import { supabase } from '../../../lib/supabase'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../../context/AuthContext'
 
 export default function LoginPage() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const navigate = useNavigate()
+  const { signInWithGoogle } = useAuth()
+  
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleGoogle = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
     try {
-      const auth = getAuth()
-      const provider = new GoogleAuthProvider()
-      
-      // Check if Firebase is properly configured
-      if (!import.meta.env.VITE_FIREBASE_API_KEY) {
-        throw new Error('Firebase API key not configured. Please check environment variables.')
-      }
-      
-      await signInWithPopup(auth, provider)
-    } catch (e: any) {
-      SAlert.fire({ 
-        title: 'Login failed', 
-        text: e?.message || 'Unknown error occurred', 
-        icon: 'error' 
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       })
+
+      if (error) throw error
+      // Supabase auth state listener in AuthContext will handle redirect
+      navigate('/') 
+    } catch (err: any) {
+      console.error(err)
+      setError(err.message || 'Failed to login')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+        await signInWithGoogle()
+    } catch (err: any) {
+        setError(err.message)
     }
   }
 
@@ -41,56 +61,18 @@ export default function LoginPage() {
         ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' 
         : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
     }}>
-      {/* Background blobs for premium feel */}
+      {/* Background blobs */}
       <Box
         component={motion.div}
-        animate={{
-          scale: [1, 1.2, 1],
-          x: [0, 50, 0],
-          y: [0, -30, 0],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "linear"
-        }}
+        animate={{ scale: [1, 1.2, 1], x: [0, 50, 0], y: [0, -30, 0] }}
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
         sx={{
-          position: 'absolute',
-          top: '10%',
-          left: '15%',
-          width: 500,
-          height: 500,
-          borderRadius: '50%',
+          position: 'absolute', top: '10%', left: '15%', width: 500, height: 500, borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0) 70%)',
-          filter: 'blur(60px)',
-          zIndex: 0
+          filter: 'blur(60px)', zIndex: 0
         }}
       />
-      <Box
-        component={motion.div}
-        animate={{
-          scale: [1.2, 1, 1.2],
-          x: [0, -40, 0],
-          y: [0, 40, 0],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-        sx={{
-          position: 'absolute',
-          bottom: '10%',
-          right: '15%',
-          width: 600,
-          height: 600,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0) 70%)',
-          filter: 'blur(80px)',
-          zIndex: 0
-        }}
-      />
-
+      
       <Box
         component={motion.div}
         initial={{ opacity: 0, y: 30 }}
@@ -120,62 +102,73 @@ export default function LoginPage() {
             >
               <Avatar
                 src={iyfLogo}
-                sx={{
-                  width: 100,
-                  height: 100,
-                  mb: 1,
-                  filter: 'drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1))'
-                }}
+                sx={{ width: 80, height: 80, mb: 1, filter: 'drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1))' }}
               />
             </motion.div>
 
             <Box>
               <Typography variant="h4" fontWeight={900} sx={{ 
-                letterSpacing: -1, 
-                mb: 1,
+                letterSpacing: -1, mb: 1,
                 background: 'linear-gradient(45deg, #0ea5e9 30%, #6366f1 90%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
               }}>
                 Admin Portal
               </Typography>
               <Typography variant="body1" color="text.secondary" fontWeight={500}>
-                IYF Orlando — Academy Management
+                IYF Orlando — Sign In
               </Typography>
             </Box>
 
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 280, opacity: 0.8 }}>
-              Please use your authorized Google account to access the administrative dashboard.
-            </Typography>
+            {error && <Alert severity="error" sx={{ width: '100%' }}>{error}</Alert>}
+
+            <Box component="form" onSubmit={handleLogin} sx={{ width: '100%' }}>
+                <Stack spacing={2}>
+                    <TextField 
+                        label="Email" 
+                        fullWidth 
+                        variant="outlined" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                    <TextField 
+                        label="Password" 
+                        type="password" 
+                        fullWidth 
+                        variant="outlined" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                    <Button
+                        type="submit"
+                        fullWidth
+                        variant="contained"
+                        size="large"
+                        disabled={loading}
+                        startIcon={<LoginIcon />}
+                        sx={{
+                            py: 1.5, borderRadius: 3, textTransform: 'none', fontSize: '1.05rem', fontWeight: 700,
+                            background: 'linear-gradient(45deg, #0ea5e9 30%, #6366f1 90%)',
+                        }}
+                    >
+                        {loading ? 'Signing in...' : 'Sign In'}
+                    </Button>
+                </Stack>
+            </Box>
+
+            <Divider flexItem sx={{ typography: 'body2', color: 'text.secondary' }}>OR</Divider>
 
             <Button
-              onClick={handleGoogle}
+              onClick={handleGoogleLogin}
               fullWidth
               startIcon={<GoogleIcon />}
-              variant="contained"
+              variant="outlined"
               size="large"
-              sx={{
-                py: 1.8,
-                borderRadius: 3,
-                textTransform: 'none',
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                background: 'linear-gradient(45deg, #0ea5e9 30%, #6366f1 90%)',
-                boxShadow: '0 10px 15px -3px rgba(14, 165, 233, 0.3)',
-                transition: 'all 0.3s',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 20px 25px -5px rgba(14, 165, 233, 0.4)',
-                  filter: 'brightness(1.1)'
-                }
-              }}
+              sx={{ py: 1.5, borderRadius: 3, textTransform: 'none' }}
             >
               Sign In with Google
             </Button>
-            
-            <Typography variant="caption" color="text.disabled" sx={{ mt: 2 }}>
-              © {new Date().getFullYear()} International Youth Fellowship
-            </Typography>
           </Stack>
         </Paper>
       </Box>

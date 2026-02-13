@@ -8,14 +8,16 @@ import {
   useTheme,
   Avatar,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { useAuth } from "../../../context/AuthContext";
 import { Alert as SAlert } from "../../../lib/alerts";
 import { motion } from "framer-motion";
 import GoogleIcon from "@mui/icons-material/Google";
 import iyfLogo from "../../../assets/logo/IYF_logo.png";
 
 export default function PublicAccessPage() {
+  const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const theme = useTheme();
@@ -26,9 +28,7 @@ export default function PublicAccessPage() {
     setError("");
 
     try {
-      const auth = getAuth();
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
     } catch (e: any) {
       setError(e?.message || "Google login failed.");
       SAlert.fire({

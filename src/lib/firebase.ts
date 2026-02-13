@@ -8,7 +8,7 @@
 
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { getStorage } from 'firebase/storage'
 
 /**
  * Validates required Firebase environment variables
@@ -54,10 +54,9 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
-export const db = getFirestore(app)
-export const auth = getAuth(app)
+const db = getFirestore(app)
+const storage = getStorage(app)
 
-// Log initialization (only in development)
-if (import.meta.env.DEV) {
-  console.debug('Firebase initialized', { projectId: firebaseConfig.projectId })
-}
+
+
+export { db, storage }

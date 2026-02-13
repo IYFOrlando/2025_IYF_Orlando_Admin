@@ -9,8 +9,8 @@ import Login from '@mui/icons-material/Login'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { auth } from '../../lib/firebase'
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 interface AuthMenuProps {
   isAdmin?: boolean
@@ -19,29 +19,24 @@ interface AuthMenuProps {
 
 export default function AuthMenu({ isAdmin = false, hasGmailAccess = false }: AuthMenuProps) {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-  const [user, setUser] = React.useState<any>(auth.currentUser || null)
+  const { currentUser, signOut } = useAuth()
+  const navigate = useNavigate()
   const open = Boolean(anchorEl)
-
-  React.useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => setUser(u))
-    return () => unsub()
-  }, [])
 
   const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)
   const handleClose = () => setAnchorEl(null)
 
   const signIn = async () => {
-    const provider = new GoogleAuthProvider()
-    await signInWithPopup(auth, provider)
     handleClose()
+    navigate('/login')
   }
 
   const doSignOut = async () => {
-    await signOut(auth)
+    await signOut()
     handleClose()
   }
 
-  if (!user) {
+  if (!currentUser) {
     return (
       <Tooltip title="Sign in">
         <IconButton onClick={signIn} color="inherit" size="small" aria-label="sign in">
@@ -52,7 +47,7 @@ export default function AuthMenu({ isAdmin = false, hasGmailAccess = false }: Au
   }
 
   const initials =
-    (user.displayName?.split(' ').map((p: string) => p[0]).slice(0, 2).join('') || 'U').toUpperCase()
+    (currentUser.email?.split('@')[0].substring(0, 2).toUpperCase() || 'U')
 
   return (
     <>
@@ -77,7 +72,7 @@ export default function AuthMenu({ isAdmin = false, hasGmailAccess = false }: Au
             sx={{ fontSize: '0.7rem', height: 24 }}
           />
         )}
-        <Tooltip title={user.email || 'Account'}>
+        <Tooltip title={currentUser.email || 'Account'}>
           <IconButton onClick={handleOpen} color="inherit" size="small" aria-label="account menu">
             <Avatar sx={{ width: 28, height: 28 }}>{initials}</Avatar>
           </IconButton>
@@ -87,8 +82,8 @@ export default function AuthMenu({ isAdmin = false, hasGmailAccess = false }: Au
         <MenuItem disabled>
           <ListItemIcon><ManageAccountsIcon fontSize="small" /></ListItemIcon>
           <ListItemText
-            primary={user.displayName || user.email}
-            secondary={user.email || ''}
+            primary={currentUser.email}
+            secondary={currentUser.email || ''}
           />
         </MenuItem>
         <MenuItem onClick={doSignOut}>

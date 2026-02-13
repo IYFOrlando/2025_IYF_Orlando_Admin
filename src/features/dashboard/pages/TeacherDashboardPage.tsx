@@ -22,10 +22,9 @@ import {
 } from "lucide-react";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../../lib/firebase";
-import { ATTENDANCE_COLLECTION } from "../../../lib/config";
-import { useRegistrations } from "../../registrations/hooks/useRegistrations";
+// import { supabase } from "../../../lib/supabase"; // Removed - using hooks
+import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
+import { useSupabaseAttendance } from "../../attendance/hooks/useSupabaseAttendance";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import { deduplicateRegistrations } from "../../../lib/registrations";
 
@@ -106,7 +105,8 @@ export default function TeacherDashboardPage() {
   const { teacherProfile } = useTeacherContext();
   const navigate = useNavigate();
   const theme = useTheme();
-  const { data: allRegistrations } = useRegistrations();
+  const { data: allRegistrations } = useSupabaseRegistrations();
+  const { fetchDailyOverallAttendance } = useSupabaseAttendance();
 
   // -- Stats State --
   const [stats, setStats] = React.useState({
@@ -123,24 +123,15 @@ export default function TeacherDashboardPage() {
 
       try {
         setLoadingStats(true);
-        const myAcademies = teacherProfile.academies.map((a) =>
-          normalizeAcademy(a.academyName),
-        );
-
         // 1. Calculate Total Students for this teacher
-        // Filter registrations where selectedAcademies matches any of myAcademies (respecting level)
-
         const uniqueRegs = deduplicateRegistrations(allRegistrations);
         let teacherStudents = 0;
 
         uniqueRegs.forEach((reg) => {
-          // Check against all teacher assignments
-          // If teacher has specific level, strict match. If no level (Main), broad match.
           const isMatch = teacherProfile.academies.some((asg) => {
             const myAcademy = normalizeAcademy(asg.academyName);
             const myLevel = asg.level ? normalizeLevel(asg.level) : null;
 
-            // Check New Structure
             if (reg.selectedAcademies && Array.isArray(reg.selectedAcademies)) {
               return reg.selectedAcademies.some((sa) => {
                 const saAcademy = normalizeAcademy(sa.academy || "");
@@ -151,66 +142,42 @@ export default function TeacherDashboardPage() {
                 return true;
               });
             }
-
-            // Check Legacy Structure
-            const p1Academy = normalizeAcademy(reg.firstPeriod?.academy || "");
-            const p1Level = normalizeLevel(reg.firstPeriod?.level || "");
-            const p2Academy = normalizeAcademy(reg.secondPeriod?.academy || "");
-            const p2Level = normalizeLevel(reg.secondPeriod?.level || "");
-
-            if (p1Academy === myAcademy) {
-              if (!myLevel || p1Level === myLevel) return true;
-            }
-            if (p2Academy === myAcademy) {
-              if (!myLevel || p2Level === myLevel) return true;
-            }
-
             return false;
           });
 
           if (isMatch) teacherStudents++;
         });
 
-        // 2. Calculate Attendance for Today (or nearest Saturday)
+        // 2. Calculate Attendance for Today using Hook
         const d = new Date();
         const day = d.getDay();
         if (day !== 6) {
+          // If not Saturday, fallback to last Saturday/session? Or just show 0?
+          // Logic in existing code rolled back date to Saturday if not Sat.
+          // Keeping that logic for consistency.
           const diff = (day + 1) % 7;
+          // If day is Sunday (0), diff = 1 (Sat).
+          // If day is Friday (5), diff = 6 (Sat).
+          // Wait, logic was: if (day !== 6) { diff = (day + 1) % 7; d.setDate(...) }
+          // (day + 1) % 7:
+          // Sun(0) -> 1 -> -1 day -> Sat. Correct.
+          // Mon(1) -> 2 -> -2 days -> Sat. Correct.
           d.setDate(d.getDate() - diff);
         }
         const targetDate = d.toISOString().slice(0, 10);
 
-        // Query existing attendance docs for this date
-        // Note: This matches "AttendancePage" logic.
-        // We query ALL attendance for this date, then filter client side for my academies to save reads?
-        // Or query per academy. Query per academy might be too many reads if many academies.
-        // Let's query by date and filter client side since attendance records for one day aren't massive yet.
-        const q = query(
-          collection(db, ATTENDANCE_COLLECTION),
-          where("date", "==", targetDate),
+        const myAcademyIds = teacherProfile.academies
+          .map((a) => a.academyId)
+          .filter(Boolean) as string[];
+
+        const { totalPresent } = await fetchDailyOverallAttendance(
+          targetDate,
+          myAcademyIds,
         );
-        const snap = await getDocs(q);
 
-        let presentCount = 0;
-        let totalMarked = 0;
-
-        snap.forEach((doc) => {
-          const data = doc.data();
-          if (myAcademies.includes(data.academy)) {
-            totalMarked++;
-            if (data.present) presentCount++;
-          }
-        });
-
-        // If no records marked yet, attendance is 0%
-        // But maybe we want "Taken / Total"?
-        // Requirement said "Percentage".
-        // Use totalMarked if we want % of those marked.
-        // OR use teacherStudents if we want % of total class.
-        // Usually % Attendance means (Present / Total Enrolled).
         const percent =
           teacherStudents > 0
-            ? Math.round((presentCount / teacherStudents) * 100)
+            ? Math.round((totalPresent / teacherStudents) * 100)
             : 0;
 
         setStats({
@@ -228,7 +195,7 @@ export default function TeacherDashboardPage() {
     if (teacherProfile && allRegistrations.length > 0) {
       fetchStats();
     }
-  }, [teacherProfile, allRegistrations]);
+  }, [teacherProfile, allRegistrations, fetchDailyOverallAttendance]);
 
   const classesCount = teacherProfile?.academies.length || 0;
 
@@ -256,6 +223,26 @@ export default function TeacherDashboardPage() {
         <Typography variant="h6" color="text.secondary" fontWeight={500}>
           Here's what's happening with your classes today.
         </Typography>
+        <Stack direction="row" spacing={1} sx={{ mt: 2, alignItems: "center" }}>
+          <Chip
+            label="🟢 Supabase Data"
+            size="small"
+            sx={{
+              bgcolor: "rgba(76, 175, 80, 0.1)",
+              color: "success.main",
+              fontWeight: 700,
+              border: "1px solid rgba(76, 175, 80, 0.2)",
+            }}
+          />
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => window.location.reload()}
+            sx={{ minWidth: "auto" }}
+          >
+            Refresh
+          </Button>
+        </Stack>
       </Box>
 
       {/* Stats Row */}

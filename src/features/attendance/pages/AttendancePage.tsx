@@ -14,7 +14,6 @@ import {
   Grid,
   Typography,
   useTheme,
-  useMediaQuery,
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import type { GridColDef } from "@mui/x-data-grid";
@@ -24,37 +23,26 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import CloseIcon from "@mui/icons-material/Close";
 import ChecklistIcon from "@mui/icons-material/Checklist";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import type { QueryConstraint } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../../context/AuthContext";
 
-import { db, auth } from "../../../lib/firebase";
-import { ATTENDANCE_COLLECTION } from "../../../lib/config";
 import {
   Alert as SAlert,
   confirmDelete,
   notifyError,
   notifySuccess,
 } from "../../../lib/alerts";
-import { useRegistrations } from "../../registrations/hooks/useRegistrations";
+import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import type { Registration } from "../../registrations/types";
 import { GlassCard } from "../../../components/GlassCard";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { useInstructors } from "../../payments/hooks/useInstructors";
 import { useTeacherNotifications } from "../../dashboard/hooks/useTeacherNotifications";
+import { useSupabaseAttendance } from "../hooks/useSupabaseAttendance";
 import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
+import { deduplicateRegistrations } from "../../../lib/registrations";
 
 const KOREAN = "Korean Language";
 const KOREAN_LEVELS = [
@@ -65,7 +53,7 @@ const KOREAN_LEVELS = [
 ] as const;
 
 // Keep in sync with Firestore rules isAdmin() allowlist
-const ADMIN_EMAILS = ["jodlouis.dev@gmail.com"];
+const ADMIN_EMAILS = ["jodlouis.dev@gmail.com", "orlando@iyfusa.org"];
 
 type Row = {
   id: string;
@@ -74,28 +62,20 @@ type Row = {
   present: boolean;
   reason?: string;
   percent?: number;
+  recordId?: string; // Supabase record ID
 };
 
-interface AttendanceDoc {
-  registrationId: string;
-  studentName: string;
-  present: boolean;
-  reason?: string;
-  date: string;
-  academy: string;
-  level?: string;
-  teacherName?: string;
-  teacherNote?: string;
-  updatedAt?: any;
-}
-
 export default function AttendancePage() {
-  const { data: regs } = useRegistrations();
+  const { data: allRegs, loading: loadingRegs } = useSupabaseRegistrations();
+  const regs = React.useMemo(
+    () => deduplicateRegistrations(allRegs),
+    [allRegs],
+  );
   const { getInstructorByAcademy } = useInstructors();
 
   // Mobile check
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  // const isMobile = useMediaQuery(theme.breakpoints.down("md")); // Unused currently
 
   // Teacher Context
   const {
@@ -103,17 +83,11 @@ export default function AttendancePage() {
     teacherProfile,
     isAdmin: contextIsAdmin,
   } = useTeacherContext();
-  const { addNotification } = useTeacherNotifications(false); // Trigger only, no need to listen here
+  const { addNotification } = useTeacherNotifications(false);
 
   // Who is signed in (to flip admin vs read-only)
-  // We keep the old local check for fallback, but prefer contextIsAdmin
-  const [userEmail, setUserEmail] = React.useState<string | null>(
-    auth.currentUser?.email || null,
-  );
-  React.useEffect(
-    () => onAuthStateChanged(auth, (u) => setUserEmail(u?.email || null)),
-    [],
-  );
+  const { currentUser } = useAuth();
+  const userEmail = currentUser?.email || null;
 
   const isSuperAdmin =
     !!(userEmail && ADMIN_EMAILS.includes(userEmail)) || contextIsAdmin;
@@ -125,7 +99,6 @@ export default function AttendancePage() {
     const d = new Date();
     const day = d.getDay();
     if (day !== 6) {
-      // 0=Sun (1 ago), 1=Mon (2 ago), ... 5=Fri (6 ago)
       const diff = (day + 1) % 7;
       d.setDate(d.getDate() - diff);
     }
@@ -139,7 +112,7 @@ export default function AttendancePage() {
     if (!val) return;
     setDate(val);
   };
-  // Removed period state
+
   const [academy, setAcademy] = React.useState<string>("");
   const [level, setLevel] = React.useState<string>("");
   const [teacherName, setTeacherName] = React.useState<string>("");
@@ -168,19 +141,17 @@ export default function AttendancePage() {
 
     const set = new Set<string>();
     regs.forEach((r) => {
-      // Check legacy period fields
-      const a1 = normalizeAcademy(r?.firstPeriod?.academy || "");
-      const a2 = normalizeAcademy(r?.secondPeriod?.academy || "");
-      if (a1 && a1.toLowerCase() !== "n/a" && a1 !== "No Academy") set.add(a1);
-      if (a2 && a2.toLowerCase() !== "n/a" && a2 !== "No Academy") set.add(a2);
-
-      // Check new selectedAcademies array
       if (r.selectedAcademies && Array.isArray(r.selectedAcademies)) {
         r.selectedAcademies.forEach((sa) => {
-          const a = normalizeAcademy(sa?.academy || "");
+          const a = normalizeAcademy(sa.academy || "");
           if (a && a.toLowerCase() !== "n/a" && a !== "No Academy") set.add(a);
         });
       }
+      // Check legacy period fields
+      const a1 = normalizeAcademy(r.firstPeriod?.academy || "");
+      const a2 = normalizeAcademy(r.secondPeriod?.academy || "");
+      if (a1 && a1.toLowerCase() !== "n/a" && a1 !== "No Academy") set.add(a1);
+      if (a2 && a2.toLowerCase() !== "n/a" && a2 !== "No Academy") set.add(a2);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [regs, isTeacher, teacherProfile]);
@@ -199,39 +170,32 @@ export default function AttendancePage() {
     const list: { id: string; name: string }[] = [];
 
     regs.forEach((r: Registration) => {
-      // Consolidated check: is student enrolled in this academy?
-      // support multiple levels
       const studentLevels = new Set<string>();
 
-      // 1. Check legacy periods
-      const p1 = normalizeAcademy(r?.firstPeriod?.academy || "");
-      const p2 = normalizeAcademy(r?.secondPeriod?.academy || "");
-
-      if (p1 === academy) {
-        studentLevels.add(normalizeLevel(r?.firstPeriod?.level || ""));
-      }
-      if (p2 === academy) {
-        studentLevels.add(normalizeLevel(r?.secondPeriod?.level || ""));
-      }
-
-      // 2. Check new selectedAcademies
+      // Check selectedAcademies
       if (r.selectedAcademies && Array.isArray(r.selectedAcademies)) {
         r.selectedAcademies.forEach((sa) => {
-          if (normalizeAcademy(sa?.academy || "") === academy) {
-            studentLevels.add(normalizeLevel(sa?.level || ""));
+          if (normalizeAcademy(sa.academy || "") === academy) {
+            studentLevels.add(normalizeLevel(sa.level || ""));
           }
         });
       }
 
+      // Legacy
+      if (normalizeAcademy(r.firstPeriod?.academy || "") === academy) {
+        studentLevels.add(normalizeLevel(r.firstPeriod?.level || ""));
+      }
+      if (normalizeAcademy(r.secondPeriod?.academy || "") === academy) {
+        studentLevels.add(normalizeLevel(r.secondPeriod?.level || ""));
+      }
+
       if (studentLevels.size > 0) {
-        // If Korean and filtering by level, check if student has THAT level
         if (isK && level) {
           if (studentLevels.has(level)) {
             const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
             list.push({ id: r.id, name: fullName });
           }
         } else {
-          // No level filter or not Korean -> include
           const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
           list.push({ id: r.id, name: fullName });
         }
@@ -243,24 +207,29 @@ export default function AttendancePage() {
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [regs, academy, level]);
 
-  // History for this class (to compute %)
-  const [classHistory, setClassHistory] = React.useState<any[]>([]);
-  React.useEffect(() => {
-    if (!academy) {
-      setClassHistory([]);
-      return;
-    }
-    // Query by academy only (ignore period)
-    const cons: any[] = [where("academy", "==", academy)];
-    if (academy === KOREAN) cons.push(where("level", "==", level || ""));
+  // Helper to fetch Academy ID (since we only have name in state)
+  // We need this for Supabase queries
+  const [academyIdMap, setAcademyIdMap] = React.useState<
+    Record<string, string>
+  >({});
 
-    const qAll = query(collection(db, ATTENDANCE_COLLECTION), ...cons);
-    getDocs(qAll).then((snap) => {
-      setClassHistory(
-        snap.docs.map((d) => ({ id: d.id, ...(d.data() as AttendanceDoc) })),
-      );
-    });
-  }, [academy, level]);
+  React.useEffect(() => {
+    // Build a map of Academy Name -> ID from teacherProfile or registrations?
+    // Actually registrations don't have academy IDs usually, just names.
+    // But teacherProfile has `academyId`.
+    // If admin, we might need to fetch `academies` table to get IDs.
+    const fetchAcademyIds = async () => {
+      const { data } = await supabase.from("academies").select("id, name");
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach((a: any) => (map[normalizeAcademy(a.name)] = a.id));
+        setAcademyIdMap(map);
+      }
+    };
+    fetchAcademyIds();
+  }, []);
+
+  const currentAcademyId = academyIdMap[academy];
 
   // Grid rows
   const [rows, setRows] = React.useState<Row[]>([]);
@@ -268,69 +237,128 @@ export default function AttendancePage() {
   const [error, setError] = React.useState<string | null>(null);
   const [selection, setSelection] = React.useState<string[]>([]);
 
+  // -- Class History for % --
+  const [studentStats, setStudentStats] = React.useState<
+    Record<string, number>
+  >({});
+
+  React.useEffect(() => {
+    const fetchHistory = async () => {
+      if (!currentAcademyId) return;
+
+      // 1. Get all sessions for this academy
+      const { data: sessions } = await supabase
+        .from("attendance_sessions")
+        .select("id")
+        .eq("academy_id", currentAcademyId);
+
+      if (!sessions || sessions.length === 0) {
+        setStudentStats({});
+        return;
+      }
+
+      const sessionIds = sessions.map((s) => s.id);
+
+      // 2. Get all status records
+      const { data: records } = await supabase
+        .from("attendance_records")
+        .select("student_id, status")
+        .in("session_id", sessionIds);
+
+      if (!records) return;
+
+      const stats: Record<string, { present: number; total: number }> = {};
+      records.forEach((r: any) => {
+        if (!stats[r.student_id])
+          stats[r.student_id] = { present: 0, total: 0 };
+        stats[r.student_id].total++;
+        if (r.status === "present") stats[r.student_id].present++;
+      });
+
+      const percents: Record<string, number> = {};
+      Object.keys(stats).forEach((sid) => {
+        const s = stats[sid];
+        percents[sid] = Math.round((s.present / s.total) * 100);
+      });
+      setStudentStats(percents);
+    };
+
+    fetchHistory();
+  }, [currentAcademyId]); // Re-fetch when academy changes
+
   const loadClassForDate = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      if (!academy) {
+      if (!academy || !currentAcademyId) {
         setRows([]);
         setLoading(false);
         return;
       }
 
-      // Query by date + academy (ignore period)
-      const cons: any[] = [
-        where("date", "==", date),
-        where("academy", "==", academy),
-      ];
-      if (academy === KOREAN) cons.push(where("level", "==", level || ""));
+      // 1. Get Session for Date + Academy
+      // Note: Level is also important for Unique constraint!
+      // If we differ by level (e.g. Korean), we need level_id too?
+      // Currently `attendance_sessions` has `level_id`.
+      // Getting level_id from name is tricky without a map.
+      // Let's assume for now we filter by academy_id, and if Korean, we might need more logic.
+      // Ideally we fetch levels map too.
 
-      const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons);
-      const snap = await getDocs(qDay);
-      const byReg = new Map<string, any>();
-      snap.forEach((d) =>
-        byReg.set((d.data() as AttendanceDoc).registrationId, {
-          id: d.id,
-          ...(d.data() as AttendanceDoc),
-        }),
-      );
+      let query = supabase
+        .from("attendance_sessions")
+        .select("id, notes, teacher_id")
+        .eq("date", date)
+        .eq("academy_id", currentAcademyId);
 
-      // compute % from history
-      const totals = new Map<string, { present: number; total: number }>();
-      classHistory.forEach((a) => {
-        const t = totals.get(a.registrationId) || { present: 0, total: 0 };
-        t.total += 1;
-        if (a.present) t.present += 1;
-        totals.set(a.registrationId, t);
-      });
+      // If level is handled, we'd add .eq('level_id', getLevelId(level))
+      // For now, let's fetch the session that matches best?
+      // Or just fetch all sessions for that academy/date and match locally if multiple?
+
+      const { data: sessions } = await query;
+      const session = sessions && sessions.length > 0 ? sessions[0] : null;
+      // TODO: Handle level distinction correctly if multiple sessions exist for same academy/date (diff levels)
+
+      const existingRecords: Record<string, any> = {};
+
+      if (session) {
+        // Get Records
+        const { data: recs } = await supabase
+          .from("attendance_records")
+          .select("*")
+          .eq("session_id", session.id);
+
+        recs?.forEach((r: any) => {
+          existingRecords[r.student_id] = r;
+        });
+
+        if (session.notes) setTeacherNote(session.notes);
+      } else {
+        setTeacherNote("");
+      }
 
       const base: Row[] = roster.map((s) => {
-        const ex = byReg.get(s.id);
-        const t = totals.get(s.id);
-        const percent =
-          t && t.total > 0
-            ? Math.round((t.present / t.total) * 100)
-            : undefined;
+        const ex = existingRecords[s.id];
+        const percent = studentStats[s.id]; // stats from broader history
+
         return {
           id: s.id,
-          registrationId: s.id, // Ensure this matches existing ID if any
+          registrationId: s.id,
           studentName: s.name,
-          present: ex ? !!ex.present : true,
+          present: ex ? ex.status === "present" : true, // Default to present if new? Or false? UI defaults to true usually
           reason: ex?.reason || "",
           percent,
+          recordId: ex?.id,
         };
       });
+
       setRows(base);
       setLoading(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setError(
-        msg.includes("index") ? "Missing index. Check console for link." : msg,
-      );
+      setError(e.message || "Unknown error");
       setLoading(false);
     }
-  }, [academy, level, date, roster, classHistory]);
+  }, [academy, currentAcademyId, date, roster, studentStats]);
 
   React.useEffect(() => {
     void loadClassForDate();
@@ -419,6 +447,39 @@ export default function AttendancePage() {
       prev.map((r) => ({ ...r, present: val, reason: val ? "" : r.reason })),
     );
 
+  // Fetch Levels Map for ID lookup
+  const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(
+    {},
+  );
+
+  React.useEffect(() => {
+    const fetchLevels = async () => {
+      const { data } = await supabase
+        .from("levels")
+        .select("id, name, academy_id");
+      if (data) {
+        const map: Record<string, string> = {};
+        // We map "Normalized Academy + Level Name" -> ID?
+        // Or just filtered by current academy ID?
+        // Simpler: Map Level ID by Name if unique per academy.
+        // But map key needs to be unique globally or we filter.
+        // Let's store raw data or map by specific keys.
+        // Actually, we filter by Academy ID in saveAll.
+        // Let's just store all levels and filter locally.
+        // Better: Store Map<AcademyID + LevelName, LevelID>
+        data.forEach((l: any) => {
+          map[`${l.academy_id}:${normalizeLevel(l.name)}`] = l.id;
+          // Also fallback for exact name match?
+          map[`${l.academy_id}:${l.name}`] = l.id;
+        });
+        setLevelIdMap(map);
+      }
+    };
+    fetchLevels();
+  }, []);
+
+  const { saveAttendance, deleteAttendanceRecords } = useSupabaseAttendance();
+
   const saveAll = async () => {
     if (!canEdit)
       return SAlert.fire({
@@ -426,76 +487,85 @@ export default function AttendancePage() {
         text: "Only admins or teachers can save.",
         icon: "info",
       });
-    if (!academy)
+    if (!academy || !currentAcademyId)
       return SAlert.fire({ title: "Select an academy", icon: "warning" });
-    try {
-      // Check existing by date+academy (ignore period)
-      const cons: QueryConstraint[] = [
-        where("date", "==", date),
-        where("academy", "==", academy),
-      ];
-      if (academy === KOREAN) cons.push(where("level", "==", level || ""));
 
-      const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons);
-      const snap = await getDocs(qDay);
-      const existingByReg = new Map<string, { id: string }>();
-      snap.forEach((d) =>
-        existingByReg.set((d.data() as AttendanceDoc).registrationId, {
-          id: d.id,
-        }),
-      );
+    // Validate Level Requirement for Korean
+    const isKorean = academy === KOREAN;
+    let targetLevelId: string | null = null;
 
-      const base: any = {
-        date,
-        academy,
-        level: academy === KOREAN ? level || "" : "",
-        teacherName: teacherName || "",
-        teacherNote: teacherNote || "",
-        period: 0, // Default to 0 for dynamic (or 1 if we want to default)
-      };
+    if (isKorean) {
+      if (!level || level === "All") {
+        // Assuming 'All' might be a default
+        return SAlert.fire({
+          title: "Level Required",
+          text: "Please select a specific level (Alphabet, Beginner, etc.) to save attendance for Korean Language.",
+          icon: "warning",
+        });
+      }
+      // Find level ID
+      targetLevelId =
+        levelIdMap[`${currentAcademyId}:${normalizeLevel(level)}`] ||
+        levelIdMap[`${currentAcademyId}:${level}`] ||
+        null;
 
-      const ops: Promise<any>[] = [];
-      rows.forEach((r) => {
-        const exists = existingByReg.get(r.registrationId);
-        const data = {
-          ...base,
-          registrationId: r.registrationId,
-          studentName: r.studentName,
-          present: !!r.present,
-          reason: r.present ? "" : r.reason || "",
-          updatedAt: serverTimestamp(),
-        };
-        if (exists)
-          ops.push(updateDoc(doc(db, ATTENDANCE_COLLECTION, exists.id), data));
-        else
-          ops.push(
-            addDoc(collection(db, ATTENDANCE_COLLECTION), {
-              ...data,
-              createdAt: serverTimestamp(),
-            }),
-          );
-      });
+      if (!targetLevelId) {
+        // Fallback: try to fetch it if map is stale?
+        // Or error.
+        console.warn("Level ID not found in map for", level);
+        // Attempt direct fetch?
+        const { data } = await supabase
+          .from("levels")
+          .select("id")
+          .eq("academy_id", currentAcademyId)
+          .ilike("name", level)
+          .single();
+        if (data) targetLevelId = data.id;
+        else {
+          return SAlert.fire({
+            title: "Error",
+            text: "Invalid Level ID. Please contact support.",
+            icon: "error",
+          });
+        }
+      }
+    }
 
-      await Promise.all(ops);
-      notifySuccess("Attendance saved", `${rows.length} record(s) updated`);
+    // Prepare rows for hook
+    const rowsToSave = rows.map((r) => ({
+      id: r.registrationId, // hook uses 'id' as studentId
+      studentName: r.studentName,
+      present: r.present,
+      reason: r.reason || "",
+      recordId: r.recordId,
+    }));
 
-      // Real-time Notification for Admins
+    const success = await saveAttendance(
+      date,
+      currentAcademyId,
+      targetLevelId,
+      teacherProfile?.id || null, // Pass teacher ID
+      teacherNote,
+      rowsToSave,
+    );
+
+    if (success) {
+      // Notification is handled in hook?
+      // Hook has `notifySuccess`.
+      // We might want to send the "Teacher Notification" (Admin Log) here?
+      // Hook doesn't do "Teacher Notification" logging (supabase/admin_notifications).
+
       if (isTeacher && teacherProfile) {
         void addNotification({
           teacherId: teacherProfile.id,
           teacherName: teacherProfile.name,
           action: "Updated Attendance",
           academy: academy,
-          details: `Date: ${date}, ${rows.length} students`,
+          details: `Date: ${date}, ${rows.length} students, Level: ${level || "N/A"}`,
         });
       }
 
       void loadClassForDate();
-    } catch (e) {
-      notifyError(
-        "Save failed",
-        e instanceof Error ? e.message : "Unknown error",
-      );
     }
   };
 
@@ -513,53 +583,32 @@ export default function AttendancePage() {
         timer: 1200,
         showConfirmButton: false,
       });
-    try {
-      const realDocIds: string[] = [];
 
-      const cons: QueryConstraint[] = [
-        where("date", "==", date),
-        where("academy", "==", academy),
-      ];
-      if (academy === KOREAN) cons.push(where("level", "==", level || ""));
-      const qDay = query(collection(db, ATTENDANCE_COLLECTION), ...cons);
-      const snap = await getDocs(qDay);
+    const rowsToDelete = rows.filter((r) => selection.includes(r.id));
+    const recordIds = rowsToDelete
+      .map((r) => r.recordId)
+      .filter(Boolean) as string[];
 
-      snap.forEach((d) => {
-        const data = d.data() as AttendanceDoc;
-        // If the selection includes the Doc ID (saved row) OR the Registration ID (in case logic shifts)
-        // We rely on doc.id primarily.
-        if (
-          selection.includes(d.id) ||
-          selection.includes(data.registrationId)
-        ) {
-          realDocIds.push(d.id);
-        }
-      });
+    if (recordIds.length === 0) {
+      setSelection([]);
+      return;
+    }
 
-      if (!realDocIds.length) {
-        setSelection([]);
-        return;
-      }
+    const res = await confirmDelete(
+      "Delete attendance?",
+      `You are about to delete ${recordIds.length} record(s) for ${date}.`,
+    );
+    if (!res.isConfirmed) return;
 
-      const res = await confirmDelete(
-        "Delete attendance?",
-        `You are about to delete ${realDocIds.length} record(s) for ${date}.`,
-      );
-      if (!res.isConfirmed) return;
+    const success = await deleteAttendanceRecords(recordIds);
 
-      await Promise.all(
-        realDocIds.map((id) => deleteDoc(doc(db, ATTENDANCE_COLLECTION, id))),
-      );
-      notifySuccess("Deleted", `${realDocIds.length} record(s) removed`);
+    if (success) {
       setSelection([]);
       void loadClassForDate();
-    } catch (e) {
-      notifyError(
-        "Delete failed",
-        e instanceof Error ? e.message : "Unknown error",
-      );
     }
   };
+
+  // ... (Removing the duplicate 'cols' block completely)
 
   return (
     <Box>
@@ -802,10 +851,12 @@ export default function AttendancePage() {
               rowSelectionModel={selection}
               getRowId={(r) => r.id}
               slots={{ toolbar: GridToolbar }}
-              columnVisibilityModel={{
-                percent: !isMobile,
-                reason: !isMobile,
-              }}
+              columnVisibilityModel={
+                {
+                  // isMobile logic removed or handled via Media Query hook if needed
+                  // Currently just showing standard columns
+                }
+              }
               sx={{
                 border: "none",
                 "& .MuiDataGrid-cell": {

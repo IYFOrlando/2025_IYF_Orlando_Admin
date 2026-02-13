@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -31,37 +31,19 @@ import {
   Search as SearchIcon,
   Visibility as VisibilityIcon,
 } from "@mui/icons-material";
-import {
-  collection,
-  onSnapshot,
-  doc,
-  updateDoc,
-  writeBatch,
-  setDoc,
-  serverTimestamp,
-  deleteDoc,
-} from "firebase/firestore";
-import { db } from "../../../lib/firebase";
-// Teachers now use email-based document IDs in 'teachers' collection
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { AccessDenied } from "../../../components/AccessDenied";
 import SchoolIcon from "@mui/icons-material/School";
 import { PageHeader } from "../../../components/PageHeader";
 import Swal from "sweetalert2";
+import { supabase } from "../../../lib/supabase";
+import { useSupabaseAcademies } from "../../academies/hooks/useSupabaseAcademies";
+import { useTeachers } from "../hooks/useTeachers";
 
-// Types locally for now, could be moved
-interface AcademyDoc {
-  id: string;
-  name: string;
-  teacher?: { name: string; email: string; phone?: string };
-  levels?: Array<{
-    name: string;
-    teacher?: { name: string; email: string; phone?: string };
-  }>;
-}
-
+// Internal types for the UI logic
 interface TeacherEntity {
-  email: string; // ID
+  id: string; // auth/profile id or email
+  email: string;
   name: string;
   phone?: string;
   assignments: Array<{
@@ -73,8 +55,18 @@ interface TeacherEntity {
 
 export default function TeachersManagementPage() {
   const { isAdmin, impersonate } = useTeacherContext();
-  const [academies, setAcademies] = useState<AcademyDoc[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    academies,
+    loading: loadingAcademies,
+    refresh: refreshAcademies,
+  } = useSupabaseAcademies();
+  const {
+    teachers: profileTeachers,
+    loading: loadingProfiles,
+    refreshTeachers,
+  } = useTeachers();
+
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Dialog State
@@ -92,39 +84,41 @@ export default function TeachersManagementPage() {
     levelName: "ALL", // 'ALL' for academy main teacher, otherwise specific level
   });
 
-  useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, "academies_2026_spring"),
-      (snap) => {
-        const data = snap.docs.map(
-          (d) => ({ id: d.id, ...d.data() }) as AcademyDoc,
-        );
-        setAcademies(data);
-        setLoading(false);
-      },
-    );
-    return () => unsub();
-  }, []);
-
-  // Derived list of unique teachers
-  const teachers = useMemo(() => {
+  // Derived list of unique teachers combining Profiles and Assignments
+  // We want to list ALL teachers who have assignments + ALL teachers in the profile list
+  // Merging them by email
+  const teachersList = useMemo(() => {
     const map = new Map<string, TeacherEntity>();
 
-    academies.forEach((aca) => {
+    // 1. Add all from Profiles
+    profileTeachers.forEach((pt) => {
+      const id = pt.email.toLowerCase().trim();
+      map.set(id, {
+        id: pt.id || id,
+        email: pt.email,
+        name: pt.name,
+        phone: pt.phone,
+        assignments: [],
+      });
+    });
+
+    // 2. Add/Merge from Assignments (Academies)
+    academies?.forEach((aca) => {
       // Check Main Teacher
-      if (aca.teacher?.name) {
-        // Use email as ID if available, otherwise use name as temporary ID
-        const id = aca.teacher.email
-          ? aca.teacher.email.toLowerCase().trim()
-          : `temp_${aca.teacher.name.toLowerCase().replace(/\s+/g, "_")}`;
+      if (aca.teacher?.email) {
+        const id = aca.teacher.email.toLowerCase().trim();
         if (!map.has(id)) {
+          // If not in profiles, create a temporary entry
           map.set(id, {
-            email: aca.teacher.email || "",
-            name: aca.teacher.name,
-            phone: aca.teacher.phone,
+            id: id,
+            email: aca.teacher.email,
+            name: aca.teacher.name || "Unknown",
+            phone: aca.teacher.phone || "",
             assignments: [],
           });
         }
+
+        // Push assignment
         map.get(id)!.assignments.push({
           academyId: aca.id,
           academyName: aca.name || aca.id,
@@ -135,16 +129,14 @@ export default function TeachersManagementPage() {
       // Check Levels
       if (aca.levels) {
         aca.levels.forEach((lvl) => {
-          if (lvl.teacher?.name) {
-            // Use email as ID if available, otherwise use name as temporary ID
-            const id = lvl.teacher.email
-              ? lvl.teacher.email.toLowerCase().trim()
-              : `temp_${lvl.teacher.name.toLowerCase().replace(/\s+/g, "_")}`;
+          if (lvl.teacher?.email) {
+            const id = lvl.teacher.email.toLowerCase().trim();
             if (!map.has(id)) {
               map.set(id, {
-                email: lvl.teacher.email || "",
-                name: lvl.teacher.name,
-                phone: lvl.teacher.phone,
+                id: id,
+                email: lvl.teacher.email,
+                name: lvl.teacher.name || "Unknown",
+                phone: lvl.teacher.phone || "",
                 assignments: [],
               });
             }
@@ -158,14 +150,18 @@ export default function TeachersManagementPage() {
       }
     });
 
-    return Array.from(map.values());
-  }, [academies]);
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [academies, profileTeachers]);
 
   if (!isAdmin) {
     return <AccessDenied />;
   }
 
-  const filteredTeachers = teachers.filter(
+  const isLoading = loading || loadingAcademies || loadingProfiles;
+
+  const filteredTeachers = teachersList.filter(
     (t) =>
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.email.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -192,132 +188,74 @@ export default function TeachersManagementPage() {
 
     try {
       setLoading(true);
-      const batch = writeBatch(db);
-      let updateCount = 0;
+      const newEmail = formData.email.toLowerCase().trim();
+      const oldEmail = editingTeacher.email.toLowerCase().trim();
+      const emailChanged = newEmail !== oldEmail;
 
-      // Helper function to check if a teacher matches the one being edited
-      const matchesTeacher = (teacher: any) => {
-        if (editingTeacher.email) {
-          // If editing teacher has email, match by email
-          return (
-            teacher?.email?.toLowerCase().trim() ===
-            editingTeacher.email.toLowerCase().trim()
-          );
-        } else {
-          // If editing teacher has no email, match by name
-          return teacher?.name === editingTeacher.name && !teacher?.email;
-        }
-      };
+      // 1. Upsert Profile via Supabase
+      // We need to resolve the ID. If editing existing, we might have ID.
+      // If email changed, we essentially treat it as a new/different user context unless we find the ID for the new email.
+      // Strategy: Updates here generally mean updating the Profile metadata.
+      // If email changes, it's tricky because Auth email change requires re-verification.
+      // For simplified admin:
+      // - We update the Profile Name/Phone.
+      // - If email changed, we update all Assignments to point to the new email.
 
-      academies.forEach((aca) => {
-        let acaModified = false;
-        const acaUpdate: Partial<AcademyDoc> = {};
+      // Update assignments first if email changed
+      if (emailChanged) {
+        // This is a heavy operation: find all places where oldEmail is used and update to newEmail
+        // In Supabase, we update `teacher_email` on academies and levels.
 
-        if (aca.teacher && matchesTeacher(aca.teacher)) {
-          acaUpdate.teacher = {
-            name: formData.name,
-            email: formData.email.trim(),
-            phone: formData.phone,
-          };
-          acaModified = true;
-        }
+        // Update Academies
+        await supabase
+          .from("academies")
+          .update({ teacher_email: newEmail })
+          .ilike("teacher_email", oldEmail);
 
-        if (aca.levels) {
-          const newLevels = aca.levels.map((lvl) => {
-            if (lvl.teacher && matchesTeacher(lvl.teacher)) {
-              acaModified = true;
-              return {
-                ...lvl,
-                teacher: {
-                  name: formData.name,
-                  email: formData.email.trim(),
-                  phone: formData.phone,
-                },
-              };
-            }
-            return lvl;
-          });
-          if (acaModified) acaUpdate.levels = newLevels;
-        }
-
-        if (acaModified) {
-          batch.update(doc(db, "academies_2026_spring", aca.id), acaUpdate);
-          updateCount++;
-        }
-      });
-
-      if (updateCount > 0) {
-        await batch.commit();
-
-        // SYNC to teacher index only if email is provided
-        if (formData.email.trim()) {
-          // Check if email changed and delete old doc if so
-          const oldEmail = editingTeacher.email.toLowerCase().trim();
-          const newEmail = formData.email.toLowerCase().trim();
-
-          if (oldEmail && oldEmail !== newEmail) {
-            try {
-              await deleteDoc(doc(db, "teachers", oldEmail));
-              console.log(`Deleted old teacher index: ${oldEmail}`);
-            } catch (e) {
-              console.error("Error deleting old teacher index:", e);
-            }
-          }
-
-          const teacherAssignments: {
-            academyId: string;
-            academyName: string;
-            levelName: string | null;
-          }[] = [];
-          academies.forEach((aca) => {
-            if (aca.teacher?.name === formData.name) {
-              teacherAssignments.push({
-                academyId: aca.id,
-                academyName: aca.name || aca.id,
-                levelName: null,
-              });
-            }
-            aca.levels?.forEach((lvl) => {
-              if (lvl.teacher?.name === formData.name) {
-                teacherAssignments.push({
-                  academyId: aca.id,
-                  academyName: aca.name || aca.id,
-                  levelName: lvl.name,
-                });
-              }
-            });
-          });
-
-          await setDoc(doc(db, "teachers", newEmail), {
-            email: newEmail,
-            name: formData.name,
-            assignments: teacherAssignments,
-            authorizedAcademies: [
-              ...new Set(teacherAssignments.map((a) => a.academyName)),
-            ],
-            authorizedAcademyIds: [
-              ...new Set(teacherAssignments.map((a) => a.academyId)),
-            ],
-            updatedAt: serverTimestamp(),
-          });
-        }
-
-        Swal.fire(
-          "Updated",
-          `Updated info across ${updateCount} docs${formData.email ? ", index synced" : ""}.`,
-          "success",
-        );
-      } else {
-        // If no assignments found, we might still want to update the ID doc if it exists (orphaned teacher case)
-        // But for now, user flow is editing via assignments.
-        // IF editing a "ghost" teacher (no assignments but exists in list), we should handle that too.
-        // Given the current logic derives teachers FROM assignments, updateCount > 0 is usually true if they are in the list.
-        Swal.fire("Info", "Teacher updated in assignments", "info");
+        // Update Levels
+        await supabase
+          .from("levels")
+          .update({ teacher_email: newEmail })
+          .ilike("teacher_email", oldEmail);
       }
+
+      // Now ensure Profile exists/updates for the TARGET email
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", newEmail)
+        .single();
+
+      if (existingProfile) {
+        await supabase
+          .from("profiles")
+          .update({
+            full_name: formData.name,
+            phone: formData.phone,
+          })
+          .eq("id", existingProfile.id);
+      } else {
+        // If no profile, we can't easily insert ID-less profile if RLS/Auth enforces it.
+        // But our migration script logic suggests we need Auth user.
+        // For now, if profile missing, we just skip profile update and rely on email in tables.
+        // Or we create a shadow profile if allowed? No, best to warn.
+        console.warn(
+          "Profile not found for email, treating as assignments only update.",
+        );
+      }
+
+      // Update Academies/Levels metadata if name/phone changed? No, we store teacher_email FK logic effectively.
+      // The UI derives Name/Phone from Profile. So updating Profile is enough.
+
+      await refreshAcademies();
+      await refreshTeachers();
+
+      Swal.fire("Success", "Teacher updated", "success");
       setOpenDialog(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      Swal.fire("Error", "Failed to update teacher", "error");
+      Swal.fire("Error", "Failed to update teacher: " + error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -332,151 +270,62 @@ export default function TeachersManagementPage() {
     const { teacherEmail, academyId, levelName } = assignData;
     if (!teacherEmail || !academyId) return;
 
-    const existing = teachers.find((t) => t.email === teacherEmail);
-    const nameToUse = existing
-      ? existing.name
-      : prompt("Enter/Verify Teacher Name:") || "Unknown";
-    const phoneToUse = existing ? existing.phone : "";
+    const emailToUse = teacherEmail.toLowerCase().trim();
 
     try {
       setLoading(true);
-      const academyDoc = academies.find((a) => a.id === academyId);
-      if (!academyDoc) {
-        setLoading(false);
-        return;
-      }
 
-      const teacherObj = {
-        name: nameToUse,
-        email: teacherEmail,
-        phone: phoneToUse,
-      };
+      // 1. Ensure Profile Exists (optional but good)
+      // If not, we can still assign, but name won't show up nicely until they sign up or we migrate them.
 
+      // 2. Perform Assignment
       if (levelName === "ALL") {
-        await updateDoc(doc(db, "academies_2026_spring", academyId), {
-          teacher: teacherObj,
-        });
+        // Assign to Academy
+        const { error } = await supabase
+          .from("academies")
+          .update({ teacher_email: emailToUse })
+          .eq("id", academyId);
+        if (error) throw error;
       } else {
-        if (!academyDoc.levels) {
-          setLoading(false);
-          return;
-        }
-        const newLevels = academyDoc.levels.map((l) =>
-          l.name === levelName ? { ...l, teacher: teacherObj } : l,
-        );
-        await updateDoc(doc(db, "academies_2026_spring", academyId), {
-          levels: newLevels,
-        });
+        // Assign to Level
+        // Need to find level ID by name + academyId
+        // or we can select first? Select by name match.
+        const { data: lvl, error: findError } = await supabase
+          .from("levels")
+          .select("id")
+          .eq("academy_id", academyId)
+          .eq("name", levelName)
+          .single();
+
+        if (findError) throw findError;
+
+        const { error } = await supabase
+          .from("levels")
+          .update({ teacher_email: emailToUse })
+          .eq("id", lvl.id);
+        if (error) throw error;
       }
 
-      // SYNC
-      const academyDocUpdated = { ...academyDoc };
-      if (levelName === "ALL") academyDocUpdated.teacher = teacherObj;
-      else {
-        academyDocUpdated.levels = academyDoc.levels?.map((l) =>
-          l.name === levelName ? { ...l, teacher: teacherObj } : l,
-        );
-      }
+      await refreshAcademies();
+      await refreshTeachers();
 
-      const otherAcademies = academies.filter((a) => a.id !== academyId);
-      const allAcas = [...otherAcademies, academyDocUpdated as AcademyDoc];
-
-      const teacherAssignments: {
-        academyId: string;
-        academyName: string;
-        levelName: string | null;
-      }[] = [];
-      allAcas.forEach((aca) => {
-        if (
-          aca.teacher?.email?.toLowerCase().trim() ===
-          teacherEmail.toLowerCase().trim()
-        ) {
-          teacherAssignments.push({
-            academyId: aca.id,
-            academyName: aca.name || aca.id,
-            levelName: null,
-          });
-        }
-        aca.levels?.forEach((lvl) => {
-          if (
-            lvl.teacher?.email?.toLowerCase().trim() ===
-            teacherEmail.toLowerCase().trim()
-          ) {
-            teacherAssignments.push({
-              academyId: aca.id,
-              academyName: aca.name || aca.id,
-              levelName: lvl.name,
-            });
-          }
-        });
-      });
-
-      await setDoc(doc(db, "teachers", teacherEmail.toLowerCase().trim()), {
-        email: teacherEmail.toLowerCase().trim(),
-        name: nameToUse,
-        assignments: teacherAssignments,
-        authorizedAcademies: [
-          ...new Set(teacherAssignments.map((a) => a.academyName)),
-        ],
-        authorizedAcademyIds: [
-          ...new Set(teacherAssignments.map((a) => a.academyId)),
-        ],
-        updatedAt: serverTimestamp(),
-      });
-
-      Swal.fire(
-        "Assigned",
-        "Teacher assigned and index synced successfully",
-        "success",
-      );
+      Swal.fire("Assigned", "Teacher assigned successfully", "success");
       setOpenAssignDialog(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Swal.fire("Error", "Assignment failed", "error");
+      Swal.fire("Error", "Assignment failed: " + err.message, "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // Sync is no longer needed as we read directly from Source of Truth
   const handleFullSync = async () => {
-    try {
-      setLoading(true);
-      const batch = writeBatch(db);
-      const teachersWithEmail = teachers.filter(
-        (t) => t.email && t.email.trim(),
-      );
-
-      teachersWithEmail.forEach((t) => {
-        batch.set(doc(db, "teachers", t.email.toLowerCase().trim()), {
-          ...t,
-          email: t.email.toLowerCase().trim(),
-          authorizedAcademies: [
-            ...new Set(t.assignments.map((a) => a.academyName)),
-          ],
-          authorizedAcademyIds: [
-            ...new Set(t.assignments.map((a) => a.academyId)),
-          ],
-          updatedAt: serverTimestamp(),
-        });
-      });
-
-      if (teachersWithEmail.length > 0) {
-        await batch.commit();
-        const skipped = teachers.length - teachersWithEmail.length;
-        Swal.fire(
-          "Synced",
-          `${teachersWithEmail.length} teachers synced to index${skipped > 0 ? `. ${skipped} teachers skipped (no email)` : ""}`,
-          "success",
-        );
-      } else {
-        Swal.fire("Info", "No teachers with email to sync", "info");
-      }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Sync failed", "error");
-    } finally {
-      setLoading(false);
-    }
+    Swal.fire(
+      "Info",
+      "Sync not needed with Supabase (Direct DB access)",
+      "info",
+    );
   };
 
   return (
@@ -492,8 +341,9 @@ export default function TeachersManagementPage() {
         <Stack direction="row" spacing={1}>
           <Button
             variant="outlined"
-            onClick={handleFullSync}
-            sx={{ borderRadius: 3, textTransform: "none" }}
+            onClick={handleFullSync} // Kept for UI continuity but disabled logic
+            sx={{ borderRadius: 3, textTransform: "none", display: "none" }} // Hidden
+            disabled
           >
             Push Index Sync
           </Button>
@@ -508,7 +358,7 @@ export default function TeachersManagementPage() {
         </Stack>
       </Box>
 
-      {loading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+      {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
       <Box sx={{ mb: 3 }}>
         <TextField
@@ -539,7 +389,7 @@ export default function TeachersManagementPage() {
           </TableHead>
           <TableBody>
             {filteredTeachers.map((teacher) => (
-              <TableRow key={teacher.email} hover>
+              <TableRow key={teacher.id || teacher.email} hover>
                 <TableCell>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Box
@@ -647,11 +497,7 @@ export default function TeachersManagementPage() {
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })
             }
-            helperText={
-              !formData.email
-                ? "Email is required for teacher login access"
-                : ""
-            }
+            helperText="Changing email will update assignments for this teacher."
           />
           <TextField
             label="Phone"
@@ -666,7 +512,7 @@ export default function TeachersManagementPage() {
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
           <Button onClick={handleSaveTeacher} variant="contained">
-            Save All Assignments
+            Save Changes
           </Button>
         </DialogActions>
       </Dialog>
@@ -701,14 +547,16 @@ export default function TeachersManagementPage() {
                   })
                 }
               >
-                {academies.map((a) => (
-                  <MenuItem key={a.id} value={a.id}>
-                    {a.name || a.id}
-                  </MenuItem>
-                ))}
+                {academies &&
+                  academies.map((a) => (
+                    <MenuItem key={a.id} value={a.id}>
+                      {a.name || a.id}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
             {assignData.academyId &&
+              academies &&
               academies.find((a) => a.id === assignData.academyId)?.levels && (
                 <FormControl fullWidth>
                   <InputLabel>Level</InputLabel>

@@ -12,7 +12,9 @@ import theme from '../theme'
 
 // Pages
 import DashboardPage from '../features/dashboard/pages/DashboardPage'
+
 import RegistrationsList from '../features/registrations/pages/RegistrationsList'
+
 import PaymentsPage from '../features/payments/pages/PaymentsPage'
 import ReportsPage from '../features/reports/pages/ReportsPage'
 import PaymentsReportPage from '../features/reports/pages/PaymentsReportPage'
@@ -99,6 +101,7 @@ const router = createBrowserRouter([
     path: '/volunteer-registration',
     element: <VolunteerRegistrationPage />,
   },
+
   // 404 Catch-all -> Redirect to Dashboard (which will gate auth)
   {
     path: '*',

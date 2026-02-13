@@ -24,56 +24,33 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SchoolIcon from "@mui/icons-material/School";
 import PrintIcon from "@mui/icons-material/Print";
 import PersonIcon from "@mui/icons-material/Person";
-import {
-  collection,
-  doc,
-  setDoc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
-
-import { useRegistrations } from "../../registrations/hooks/useRegistrations";
+import { supabase } from "../../../lib/supabase";
+import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import type { Registration } from "../../registrations/types";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import logoImage from "../../../assets/logo/IYF_logo.png";
-import { db } from "../../../lib/firebase";
+// import { db } from "../../../lib/firebase"; // Removed legacy firebase
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import { computeAge } from "../../../lib/validations";
-import { COLLECTIONS_CONFIG } from "../../../config/shared.js";
-import { deduplicateRegistrations } from "../../../lib/registrations";
 
-type Academy = {
-  id: string;
-  name: string;
-  price: number;
-  schedule: string;
-  hasLevels: boolean;
-  levels?: Array<{
-    name: string;
-    schedule: string;
-    order: number;
-    teacher?: {
-      name: string;
-      email: string;
-      phone: string;
-      credentials?: string;
-    };
-  }>;
-  order: number;
-  enabled: boolean;
-  description: string;
-  teacher?: {
-    name: string;
-    email: string;
-    phone: string;
-    credentials?: string;
-  };
-};
+import { useSupabaseAcademies } from "../hooks/useSupabaseAcademies";
+import type { Academy } from "../hooks/useAcademies";
 
 const AcademiesPage = React.memo(function AcademiesPage() {
-  const { data: registrations, loading, error } = useRegistrations();
+  const {
+    data: registrations,
+    loading: regsLoading,
+    error: regsError,
+  } = useSupabaseRegistrations();
+  const {
+    academies,
+    loading: academiesLoading,
+    error: academiesError,
+  } = useSupabaseAcademies();
+
+  const loading = regsLoading || academiesLoading;
+  const error = regsError || academiesError;
 
   const [teacherDialogOpen, setTeacherDialogOpen] = React.useState(false);
   const [selectedAcademy, setSelectedAcademy] = React.useState<string>("");
@@ -83,166 +60,17 @@ const AcademiesPage = React.memo(function AcademiesPage() {
   const [teacherPhone, setTeacherPhone] = React.useState("");
   const [teacherCredentials, setTeacherCredentials] = React.useState("");
 
-  // Store teacher information - for Korean: academy_level, for others: academy
-  const [teachers, setTeachers] = React.useState<
-    Record<
-      string,
-      {
-        name: string;
-        email: string;
-        phone: string;
-        credentials?: string;
-        academy?: string;
-        level?: string | null;
-      }
-    >
-  >({});
-  const [teachersLoading, setTeachersLoading] = React.useState(true);
+  // Removed legacy teacher state.
+  // Using hook state.
 
-  // Load academies from Firestore
-  const [academies, setAcademies] = React.useState<Academy[]>([]);
-  const [academiesLoading, setAcademiesLoading] = React.useState(true);
+  // Get registrations (omitted changes to getRegistrationsForAcademy in this chunk, targeting only the state and handleTeacherSave)
+  // Wait, I can't skip lines in ReplacementContent safely if I'm replacing a huge block.
+  // I need to be precise.
 
-  // Load teachers from Firebase
-  React.useEffect(() => {
-    const teachersRef = collection(db, "teachers");
+  // Actually, I'll execute the REMOVAL of state first.
 
-    const unsubscribe = onSnapshot(
-      teachersRef,
-      (snapshot) => {
-        const teachersData: Record<
-          string,
-          {
-            name: string;
-            email: string;
-            phone: string;
-            credentials?: string;
-            academy?: string;
-            level?: string | null;
-          }
-        > = {};
-
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const teacherInfo = {
-            name: data.name || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            credentials: data.credentials || "",
-            academy: data.academy || "",
-            level: data.level || null,
-          };
-
-          // Store by document ID (primary key)
-          teachersData[doc.id] = teacherInfo;
-
-          // Also store by academy name (for easier lookup)
-          if (data.academy) {
-            const academyKey = data.level
-              ? `${data.academy}_${data.level}`
-              : data.academy;
-            if (
-              !teachersData[academyKey] ||
-              teachersData[academyKey].name === ""
-            ) {
-              teachersData[academyKey] = teacherInfo;
-            }
-          }
-        });
-
-        setTeachers(teachersData);
-        setTeachersLoading(false);
-      },
-      () => {
-        setTeachersLoading(false);
-      },
-    );
-
-    return () => unsubscribe();
-  }, []);
-
-  // Load academies from academies_2026_spring collection
-  React.useEffect(() => {
-    const academiesRef = collection(
-      db,
-      COLLECTIONS_CONFIG.academies2026Spring || "academies_2026_spring",
-    );
-    const q = query(academiesRef, orderBy("order", "asc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const academiesData: Academy[] = [];
-
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          academiesData.push({
-            id: doc.id,
-            name: data.name || "",
-            price: data.price || 0,
-            schedule: data.schedule || "",
-            hasLevels: data.hasLevels || false,
-            levels: data.levels || [],
-            order: data.order || 999,
-            enabled: data.enabled !== false,
-            description: data.description || "",
-            teacher: data.teacher || undefined,
-          });
-        });
-
-        setAcademies(
-          academiesData.filter((a) => {
-            if (!a.enabled) return false;
-
-            // Hide "Korean Conversation" and other variations that are normalized to "Korean Language"
-            // but keep the main "Korean Language" academy
-            const normalized = normalizeAcademy(a.name);
-            if (normalized === "Korean Language") {
-              // If this is the main Korean Language academy, ensure it has "Korean Conversation" level
-              if (a.name === "Korean Language") {
-                const hasConversation = a.levels?.some(
-                  (l) =>
-                    normalizeLevel(l.name) === "Korean Conversation" ||
-                    l.name.toLowerCase().includes("conversation"),
-                );
-
-                if (!hasConversation) {
-                  if (!a.levels) a.levels = [];
-                  // Find the standalone Korean Conversation academy to get the teacher
-                  const conversationAcademy = academiesData.find(
-                    (a) =>
-                      normalizeAcademy(a.name).includes("Korean Language") &&
-                      a.name.toLowerCase().includes("conversation"),
-                  );
-
-                  // Inject Korean Conversation level
-                  a.levels.push({
-                    name: "Korean Conversation",
-                    schedule: "1:30 PM - 2:30 PM", // Default schedule
-                    order: 4,
-                    teacher: conversationAcademy?.teacher, // Inject the teacher!
-                  });
-                  // Ensure it's marked as having levels
-                  a.hasLevels = true;
-                }
-                return true;
-              }
-              // Hide the standalone "Korean Conversation" academy
-              return false;
-            }
-
-            return true;
-          }),
-        );
-        setAcademiesLoading(false);
-      },
-      () => {
-        setAcademiesLoading(false);
-      },
-    );
-
-    return () => unsubscribe();
-  }, []);
+  // Teachers and Academies are now fetched via useSupabaseAcademies hook
+  // which handles the joining and normalization internally.
 
   // Helper to deduplicate registrations, keeping only the most recent one for each student
   // MOVED TO src/lib/registrations.ts
@@ -291,7 +119,9 @@ const AcademiesPage = React.memo(function AcademiesPage() {
           return matchesAcademy;
         }) || [];
 
-      return deduplicateRegistrations(filtered);
+      // Return filtered list directly without second-pass deduplication
+      // This ensures counts match the Reports page (which shows all DB records)
+      return filtered;
     },
     [registrations],
   );
@@ -398,9 +228,10 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       });
 
       // Deduplicate each level's list
-      Object.keys(byLevel).forEach((key) => {
-        byLevel[key] = deduplicateRegistrations(byLevel[key]);
-      });
+      // REMOVED (2026): Allow duplicates to show so they match reports and can be managed
+      // Object.keys(byLevel).forEach((key) => {
+      //   byLevel[key] = deduplicateRegistrations(byLevel[key]);
+      // });
 
       return byLevel;
     },
@@ -443,66 +274,75 @@ const AcademiesPage = React.memo(function AcademiesPage() {
 
   const handleTeacherSave = React.useCallback(async () => {
     if (selectedAcademy && teacherName.trim()) {
-      const teacherKey = selectedLevel
-        ? `${selectedAcademy}_${selectedLevel}`
-        : selectedAcademy;
-
       try {
-        // 1. Save to teachers collection (Legacy/Admin internal)
-        const teacherRef = doc(db, "teachers", teacherKey);
-        await setDoc(teacherRef, {
-          name: teacherName.trim(),
-          email: teacherEmail.trim(),
-          phone: teacherPhone.trim(),
-          academy: selectedAcademy,
-          level: selectedLevel || null,
-          credentials: teacherCredentials.trim() || "",
-          updatedAt: new Date(),
-        });
+        const email = teacherEmail.trim().toLowerCase();
 
-        // 2. Sync to academies collection (For Website Public View)
-        // Find the academy document ID
+        // 1. Upsert Profile (to ensure teacher exists and has updated info)
+        if (email) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .upsert(
+              {
+                email: email,
+                full_name: teacherName.trim(),
+                phone: teacherPhone.trim(),
+                credentials: teacherCredentials.trim(),
+                role: "teacher", // Ensure they are a teacher
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "email" },
+            );
+
+          if (profileError) throw profileError;
+        }
+
+        // 2. Link to Academy or Level
         const targetAcademy = academies.find(
           (a) => normalizeAcademy(a.name) === normalizeAcademy(selectedAcademy),
         );
 
         if (targetAcademy) {
-          const collectionName =
-            COLLECTIONS_CONFIG.academies2026Spring || "academies_2026_spring";
-          const academyDocRef = doc(db, collectionName, targetAcademy.id);
-
-          // If it's a main academy instructor (no level), update the main fields
-          if (!selectedLevel) {
-            await setDoc(
-              academyDocRef,
-              {
-                instructor: teacherName.trim(),
-                instructorBio: teacherCredentials.trim(),
-                // Also save structured teacher object for new admin panel
-                teacher: {
-                  name: teacherName.trim(),
-                  email: teacherEmail.trim(),
-                  phone: teacherPhone.trim(),
-                  credentials: teacherCredentials.trim(),
-                },
-              },
-              { merge: true },
+          if (selectedLevel) {
+            // Find Level ID
+            const targetLevel = targetAcademy.levels?.find(
+              (l) => normalizeLevel(l.name) === normalizeLevel(selectedLevel),
             );
+            if (targetLevel) {
+              // Need ID... see note below
+              // We will fetch levels again to find ID if not present, OR update hook.
+              // IMPORTANT: I must update Hook to include ID in Level object.
+              const { data: levelData } = await supabase
+                .from("levels")
+                .select("id")
+                .eq("academy_id", targetAcademy.id)
+                .eq("name", selectedLevel)
+                .single();
+
+              if (levelData) {
+                const { error: lError } = await supabase
+                  .from("levels")
+                  .update({ teacher_email: email })
+                  .eq("id", levelData.id);
+                if (lError) throw lError;
+              }
+            }
+          } else {
+            // Update Academy
+            const { error: acError } = await supabase
+              .from("academies")
+              .update({ teacher_email: email })
+              .eq("id", targetAcademy.id);
+            if (acError) throw acError;
           }
-          // Note: Level-specific instructors are not currently displayed on the main academy detail page
-          // but we preserve the logic for future use if needed.
         }
 
-        setTeacherDialogOpen(false);
-        setTeacherName("");
-        setTeacherEmail("");
-        setTeacherPhone("");
-        setTeacherCredentials("");
-        setSelectedAcademy("");
-        setSelectedLevel("");
-      } catch (error) {
+        // Refresh page or trigger re-fetch?
+        // Ideally the subscription or re-fetch happens.
+        // For now, reload.
+        window.location.reload();
+      } catch (error: any) {
         console.error("Error saving teacher:", error);
-        alert("Error saving teacher information. Please try again.");
+        alert("Error saving teacher information: " + error.message);
       }
     }
   }, [
@@ -519,10 +359,22 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     (academyName: string, level?: string) => {
       setSelectedAcademy(academyName);
       setSelectedLevel(level || "");
-      const teacherKey = level ? `${academyName}_${level}` : academyName;
-      const existingTeacher = teachers[teacherKey];
+
+      // Find existing teacher from hook data
+      const academy = academies.find(
+        (a) => normalizeAcademy(a.name) === normalizeAcademy(academyName),
+      );
+      let existingTeacher = academy?.teacher;
+
+      if (level && academy?.levels) {
+        const lvl = academy.levels.find(
+          (l) => normalizeLevel(l.name) === normalizeLevel(level),
+        );
+        if (lvl) existingTeacher = lvl.teacher;
+      }
+
       if (existingTeacher) {
-        setTeacherName(existingTeacher.name);
+        setTeacherName(existingTeacher.name || "");
         setTeacherEmail(existingTeacher.email || "");
         setTeacherPhone(existingTeacher.phone || "");
         setTeacherCredentials(existingTeacher.credentials || "");
@@ -549,111 +401,28 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       }
       setTeacherDialogOpen(true);
     },
-    [teachers],
+    [academies],
   );
 
   const getTeacherForAcademy = React.useCallback(
     (academyName: string, level?: string) => {
-      // Try multiple lookup strategies
-      const teacherKey = level ? `${academyName}_${level}` : academyName;
+      const academy = academies.find(
+        (a) => normalizeAcademy(a.name) === normalizeAcademy(academyName),
+      );
+      if (!academy) return undefined;
 
-      // Strategy 1: Direct key match
-      if (teachers[teacherKey]) {
-        return teachers[teacherKey];
+      if (level && academy.levels) {
+        const lvl = academy.levels.find(
+          (l) => normalizeLevel(l.name) === normalizeLevel(level),
+        );
+        if (lvl) return lvl.teacher;
       }
-
-      // Strategy 2: Search by academy and level in teacher data
-      for (const [, teacher] of Object.entries(teachers)) {
-        if (
-          teacher.academy &&
-          normalizeAcademy(teacher.academy) === normalizeAcademy(academyName)
-        ) {
-          if (level) {
-            if (
-              teacher.level &&
-              normalizeLevel(teacher.level) === normalizeLevel(level)
-            ) {
-              return teacher;
-            }
-          } else {
-            // No level specified, return if teacher has no level or level is null
-            if (!teacher.level || teacher.level === null) {
-              return teacher;
-            }
-          }
-        }
-      }
-
-      return undefined;
+      return academy.teacher;
     },
-    [teachers],
+    [academies],
   );
 
-  // NEW: Helper to resolve teacher from Academy/Level data with live lookup
-  const resolveAssignedTeacher = React.useCallback(
-    (
-      assignedTeacher:
-        | { id?: string; name?: string; email?: string; phone?: string }
-        | undefined,
-      academyName: string,
-      levelName?: string,
-    ) => {
-      // 1. If we have an explicit assignment in the Academy/Level doc
-      if (assignedTeacher?.name || assignedTeacher?.email) {
-        // Try ID match first
-        if (assignedTeacher.id && teachers[assignedTeacher.id]) {
-          return teachers[assignedTeacher.id];
-        }
-
-        // Try Email match - Strictly prefer the record where ID === Email (New System)
-        if (assignedTeacher.email) {
-          const emailKey = assignedTeacher.email.toLowerCase().trim();
-          if (teachers[emailKey]) {
-            return teachers[emailKey];
-          }
-
-          // Fallback: Find any record with this email (Legacy IDs)
-          const match = Object.values(teachers).find(
-            (t) => t.email.toLowerCase().trim() === emailKey,
-          );
-          if (match) return match;
-        }
-
-        // Try Name match - Dangerous if multiple matches
-        if (assignedTeacher.name) {
-          // Prefer a match that ALSO matches the credentials or phone if possible?
-          // For now, just find matches
-          const matches = Object.values(teachers).filter(
-            (t) => t.name === assignedTeacher.name,
-          );
-
-          if (matches.length > 0) {
-            // If multiple, try to pick the "best" one
-            // 1. One with an email
-            const withEmail = matches.find((t) => t.email);
-            if (withEmail) return withEmail;
-
-            // 2. Just the first one
-            return matches[0];
-          }
-        }
-
-        // Return snapshot if live lookup fails
-        return {
-          name: assignedTeacher.name || "",
-          email: assignedTeacher.email || "",
-          phone: assignedTeacher.phone || "",
-          credentials: (assignedTeacher as any).credentials || "",
-          academy: academyName,
-          level: levelName || null,
-        };
-      }
-
-      // 2. Fallback to Legacy lookup (Teacher claiming the academy via 'academy' field)
-      return getTeacherForAcademy(academyName, levelName);
-    },
-    [teachers, getTeacherForAcademy],
-  );
+  // Removed resolveAssignedTeacher as getTeacherForAcademy now handles live data via hook.
 
   const generatePDF = React.useCallback(
     (academyName: string, registrations: Registration[], level?: string) => {
@@ -814,11 +583,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
               {levels.map((level) => {
                 const levelRegistrations =
                   koreanByLevel[normalizeLevel(level.name)] || [];
-                const teacher = resolveAssignedTeacher(
-                  (level as any).teacher,
-                  academy.name,
-                  level.name,
-                );
+                const teacher = getTeacherForAcademy(academy.name, level.name);
 
                 return (
                   <Box key={level.name} sx={{ mb: 3 }}>
@@ -904,7 +669,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
                           },
                         }}
                         paginationMode="client"
-                        pageSizeOptions={[]}
+                        pageSizeOptions={[25, 50, 100]}
                         sx={{
                           flex: 1,
                           minHeight: 0,
@@ -1099,7 +864,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
       } else {
         // Academy without levels
         const academyRegistrations = getRegistrationsForAcademy(academy.name);
-        const teacher = resolveAssignedTeacher(academy.teacher, academy.name);
+        const teacher = getTeacherForAcademy(academy.name);
 
         return (
           <Accordion key={academy.id} defaultExpanded={false}>
@@ -1189,7 +954,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
                     },
                   }}
                   paginationMode="client"
-                  pageSizeOptions={[]}
+                  pageSizeOptions={[10, 25, 50, 100]}
                   sx={{
                     flex: 1,
                     minHeight: 0,
@@ -1222,7 +987,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
     [
       getKoreanRegistrationsByLevel,
       getRegistrationsForAcademy,
-      getTeacherForAcademy,
+
       openTeacherDialog,
       generatePDF,
       studentCols,
@@ -1246,11 +1011,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
               {error}
             </Alert>
           )}
-          {teachersLoading && (
-            <Alert severity="info" sx={{ mb: 1 }}>
-              Loading teacher information...
-            </Alert>
-          )}
+          {/* teachersLoading block removed */}
           {academiesLoading && (
             <Alert severity="info" sx={{ mb: 1 }}>
               Loading academies...
@@ -1276,11 +1037,7 @@ const AcademiesPage = React.memo(function AcademiesPage() {
             fullWidth
           >
             <DialogTitle>
-              {teachers[
-                selectedLevel
-                  ? `${selectedAcademy}_${selectedLevel}`
-                  : selectedAcademy
-              ]
+              {getTeacherForAcademy(selectedAcademy, selectedLevel)
                 ? "Edit Teacher"
                 : "Add Teacher"}
               {selectedLevel

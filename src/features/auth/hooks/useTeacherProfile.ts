@@ -1,115 +1,107 @@
 import { useState, useEffect } from "react";
-import { collection, onSnapshot, query } from "firebase/firestore";
-import { db } from "../../../lib/firebase";
-import { useAuth } from "../../../context/AuthContext"; // Assuming this exists, or use direct auth
-import type { TeacherProfile, TeacherAcademy, TeacherData } from "../types";
+import { useAuth } from "../../../context/AuthContext";
+import { supabase } from "../../../lib/supabase";
+import type { TeacherProfile, TeacherAcademy } from "../types";
 
 export const useTeacherProfile = (overrideEmail?: string | null) => {
-  const { currentUser } = useAuth();
+  const { session } = useAuth();
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTeacher, setIsTeacher] = useState(false);
 
   useEffect(() => {
-    // If no current user AND no override, reset
-    if (!currentUser?.email && !overrideEmail) {
+    const targetEmail = (overrideEmail || session?.user?.email || "").trim().toLowerCase();
+
+    if (!targetEmail) {
       setProfile(null);
       setIsTeacher(false);
       setLoading(false);
       return;
     }
 
-    const email = (overrideEmail || currentUser?.email || "")
-      .toLowerCase()
-      .trim();
-    if (!email) return;
-    const q = query(collection(db, "academies_2026_spring"));
+    const fetchTeacherData = async () => {
+      setLoading(true);
+      
+      try {
+        // 1. Fetch Academies where user is the main teacher
+        const { data: academiesData, error: acError } = await supabase
+            .from('academies')
+            .select('*')
+            .ilike('teacher_email', targetEmail);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
+        if (acError) throw acError;
+
+        // 2. Fetch Levels where user is the level teacher
+        const { data: levelsData, error: lvlError } = await supabase
+            .from('levels')
+            .select(`
+                *,
+                academies (
+                    id,
+                    name
+                )
+            `)
+            .ilike('teacher_email', targetEmail);
+
+        if (lvlError) throw lvlError;
+
         const taughtAcademies: TeacherAcademy[] = [];
-        let foundTeacherName = "";
-        let foundTeacherData: TeacherData | undefined;
 
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          const academyName = data.name || doc.id;
-
-          // 1. Check Main Teacher (whole academy)
-          if (
-            data.teacher?.email &&
-            data.teacher.email.toLowerCase().trim() === email
-          ) {
-            taughtAcademies.push({
-              academyId: doc.id,
-              academyName: academyName,
-              level: null, // Entire academy
-              teacherData: data.teacher,
+        // Process Academies
+        if (academiesData) {
+            academiesData.forEach(ac => {
+                taughtAcademies.push({
+                    academyId: ac.id,
+                    academyName: ac.name,
+                    level: null, // Entire academy
+                    teacherData: {
+                        name: '', // We don't have name easily here unless we query profiles, relying on User context
+                        email: targetEmail,
+                    }
+                });
             });
-            if (!foundTeacherName) foundTeacherName = data.teacher.name;
-            foundTeacherData = data.teacher;
-          }
+        }
 
-          // 2. Check Level Teachers
-          if (data.levels && Array.isArray(data.levels)) {
-            data.levels.forEach(
-              (lvl: { name: string; teacher?: TeacherData }) => {
-                if (
-                  lvl.teacher?.email &&
-                  lvl.teacher.email.toLowerCase().trim() === email
-                ) {
-                  taughtAcademies.push({
-                    academyId: doc.id,
-                    academyName: academyName,
+        // Process Levels
+        if (levelsData) {
+            levelsData.forEach((lvl: any) => {
+                // Determine Academy Name (joined)
+                const acName = lvl.academies?.name || 'Unknown Academy';
+                
+                taughtAcademies.push({
+                    academyId: lvl.academy_id,
+                    academyName: acName,
                     level: lvl.name,
-                    teacherData: lvl.teacher,
-                  });
-                  if (!foundTeacherName) foundTeacherName = lvl.teacher.name;
-                  if (!foundTeacherData) foundTeacherData = lvl.teacher;
-                }
-              },
-            );
-          }
-        });
+                    teacherData: {
+                         name: '', 
+                         email: targetEmail
+                    }
+                });
+            });
+        }
 
         if (taughtAcademies.length > 0) {
-          setIsTeacher(true);
-          setProfile({
-            id: email,
-            email: email,
-            name:
-              foundTeacherName ||
-              userDisplayName({
-                displayName: currentUser?.displayName,
-                email: currentUser?.email,
-              }),
-            phone: foundTeacherData?.phone,
-            credentials: foundTeacherData?.credentials,
-            academies: taughtAcademies,
-          });
+            setIsTeacher(true);
+            setProfile({
+                id: targetEmail,
+                email: targetEmail,
+                name: session?.user.user_metadata?.full_name || targetEmail.split('@')[0],
+                academies: taughtAcademies
+            });
         } else {
-          setIsTeacher(false);
-          setProfile(null);
+            setIsTeacher(false);
+            setProfile(null);
         }
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Error fetching teacher profile:", err);
-        setLoading(false);
-      },
-    );
 
-    return () => unsubscribe();
-  }, [currentUser, overrideEmail]);
+      } catch (err) {
+        console.error("Error fetching teacher profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeacherData();
+  }, [session, overrideEmail]);
 
   return { isTeacher, profile, loading };
 };
-
-// Helper safely getting display name
-function userDisplayName(user: {
-  displayName?: string | null;
-  email?: string | null;
-}) {
-  return user.displayName || user.email?.split("@")[0] || "Teacher";
-}

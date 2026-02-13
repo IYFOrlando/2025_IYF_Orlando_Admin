@@ -12,10 +12,7 @@ import {
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import { PageHeader } from "../../../components/PageHeader";
-import { useRegistrations } from "../../registrations/hooks/useRegistrations";
-import { useInvoices } from "../../payments/hooks/useInvoices";
-import { latestInvoicePerStudent } from "../../payments/utils";
-import { useAutoInvoice } from "../../registrations/hooks/useAutoInvoice";
+import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { displayYMD } from "../../../lib/date";
@@ -74,6 +71,7 @@ const GlassCard = ({ children, sx = {}, ...props }: any) => {
         height: "100%",
         overflow: "visible",
         ...sx,
+        ...sx,
       }}
       {...props}
     >
@@ -117,150 +115,85 @@ import TeacherDashboardPage from "./TeacherDashboardPage";
 // Old "DashboardPage" becomes "AdminDashboard"
 function AdminDashboard() {
   const navigate = useNavigate();
-  // ... existing hooks
-  const { data: registrations, loading: regLoading } = useRegistrations();
-  const { data: invoices, loading: invLoading } = useInvoices();
 
-  // Auto-invoice hook
-  useAutoInvoice(true);
+  const { data: registrations, loading: regLoading } =
+    useSupabaseRegistrations();
+  // Financial hooks removed per user request
 
   // ... existing calculation logic ...
-  const { totals, academyRows, financialStats, unpaidCount, partialPaidCount } =
-    React.useMemo(() => {
-      // 1. Registration Stats
-      const academies = new Map<string, number>();
-      // const dailyCounts = new Map<string, number>() // Unused
+  const { totals, academyRows } = React.useMemo(() => {
+    // 1. Registration Stats
+    const academies = new Map<string, number>();
 
-      const uniqueRegs = deduplicateRegistrations(registrations);
+    const uniqueRegs = deduplicateRegistrations(registrations);
 
-      for (const r of uniqueRegs) {
-        // Daily Trend - REMOVED for optimization
-        /*
-      if (r.createdAt) {
-        const dateStr = displayYMD(r.createdAt)
-        if (dateStr) {
-          dailyCounts.set(dateStr, (dailyCounts.get(dateStr) || 0) + 1)
-        }
+    for (const r of uniqueRegs) {
+      // Academies
+      if (
+        (r as any).selectedAcademies &&
+        Array.isArray((r as any).selectedAcademies)
+      ) {
+        (r as any).selectedAcademies.forEach((a: any) => {
+          if (a.academy && normalizeAcademy(a.academy) !== "n/a") {
+            const key = normalizeAcademy(a.academy);
+            academies.set(key, (academies.get(key) || 0) + 1);
+          }
+        });
+      } else {
+        // Legacy
+        const check = (a: any) => {
+          if (a && normalizeAcademy(a) !== "n/a") {
+            const key = normalizeAcademy(a);
+            academies.set(key, (academies.get(key) || 0) + 1);
+          }
+        };
+        check(r.firstPeriod?.academy);
+        check(r.secondPeriod?.academy);
       }
-      */
+    }
 
-        // Academies
-        if (
-          (r as any).selectedAcademies &&
-          Array.isArray((r as any).selectedAcademies)
-        ) {
-          (r as any).selectedAcademies.forEach((a: any) => {
-            if (a.academy && normalizeAcademy(a.academy) !== "n/a") {
-              const key = normalizeAcademy(a.academy);
-              academies.set(key, (academies.get(key) || 0) + 1);
-            }
-          });
-        } else {
-          // Legacy
-          const check = (a: any) => {
-            if (a && normalizeAcademy(a) !== "n/a") {
-              const key = normalizeAcademy(a);
-              academies.set(key, (academies.get(key) || 0) + 1);
-            }
-          };
-          check(r.firstPeriod?.academy);
-          check(r.secondPeriod?.academy);
-        }
+    const academyRows: CountRow[] = Array.from(academies.entries())
+      .map(([academy, count]) => ({ academy, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const totalAcademies = Array.from(academies.values()).reduce(
+      (a, b) => a + b,
+      0,
+    );
+
+    // Calculate today's registrations lightly
+    let registrationsToday = 0;
+    const todayStr = displayYMD(new Date());
+    for (const r of uniqueRegs) {
+      if (r.createdAt && displayYMD(r.createdAt) === todayStr) {
+        registrationsToday++;
       }
+    }
 
-      const academyRows: CountRow[] = Array.from(academies.entries())
-        .map(([academy, count]) => ({ academy, count }))
-        .sort((a, b) => b.count - a.count);
+    return {
+      totals: {
+        registrations: uniqueRegs.length,
+        totalAcademies,
+        registrationsToday,
+      },
+      academyRows,
+    };
+  }, [registrations]);
 
-      const totalAcademies = Array.from(academies.values()).reduce(
-        (a, b) => a + b,
-        0,
-      );
-
-      // 2. Financial Stats
-      const latest = latestInvoicePerStudent(invoices);
-      const totalCollected = latest.reduce(
-        (sum, inv) => sum + (inv.paid ?? 0),
-        0,
-      );
-      const totalPending = latest.reduce(
-        (sum, inv) => sum + (inv.balance ?? 0),
-        0,
-      );
-      const fullyPaidCount = latest.filter(
-        (inv) => inv.status === "paid",
-      ).length;
-      const partialPaidCount = latest.filter(
-        (inv) => inv.status === "partial",
-      ).length;
-      const unpaidCount = latest.filter(
-        (inv) => inv.status === "unpaid",
-      ).length;
-      const withBalance = latest.filter((inv) => (inv.balance ?? 0) > 0);
-      const invoicesWithBalance = withBalance.length;
-      const studentsWithBalance = withBalance.length;
-
-      // Payment Status Breakdown for chart
-      const paymentStatusData = [
-        { status: "Paid", count: fullyPaidCount, color: "#4CAF50" },
-        { status: "Partial", count: partialPaidCount, color: "#FF9800" },
-        { status: "Unpaid", count: unpaidCount, color: "#F44336" },
-      ].filter((item) => item.count > 0);
-
-      // Calculate today's registrations lightly
-      let registrationsToday = 0;
-      const todayStr = displayYMD(new Date());
-      for (const r of uniqueRegs) {
-        if (r.createdAt && displayYMD(r.createdAt) === todayStr) {
-          registrationsToday++;
-        }
-      }
-
-      return {
-        totals: {
-          registrations: uniqueRegs.length,
-          totalAcademies,
-          registrationsToday,
-        },
-        academyRows,
-        financialStats: {
-          collected: totalCollected,
-          pending: totalPending,
-          paidInvoices: fullyPaidCount,
-          paymentStatusData,
-          invoicesWithBalance,
-          studentsWithBalance,
-        },
-        unpaidCount,
-        partialPaidCount,
-      };
-    }, [registrations, invoices]);
-
-  const loading = regLoading || invLoading;
+  const loading = regLoading;
 
   // Setup PDF export
   const exportPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const marginX = 40;
-    doc.setFontSize(24).text("IYF Dashboard Report", marginX, 40);
+    doc.setFontSize(24).text("IYF Dashboard Report (Spring 2026)", marginX, 40);
     autoTable(doc, {
       startY: 60,
       head: [["Metric", "Value"]],
-      body: [
-        ["Total Registrations", String(totals.registrations)],
-        ["Total Revenue (Collected)", formatCurrency(financialStats.collected)],
-        ["Pending Revenue", formatCurrency(financialStats.pending)],
-      ],
+      body: [["Total Registrations", String(totals.registrations)]],
     });
-    doc.save("dashboard-report.pdf");
+    doc.save("dashboard-report-2026.pdf");
   };
-
-  // Formatting Currency
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(val / 100);
 
   return (
     <Box
@@ -270,6 +203,30 @@ function AdminDashboard() {
       animate="visible"
       sx={{ pb: 8 }}
     >
+      {/* Welcome Banner */}
+      <Box sx={{ mb: 4, mt: 2 }}>
+        <Typography
+          variant="h4"
+          fontWeight={800}
+          sx={{
+            background: "linear-gradient(45deg, #2196F3, #21CBF3)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            width: "fit-content",
+          }}
+        >
+          Welcome to IYF Admin
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </Typography>
+      </Box>
+
       {/* Header */}
       <PageHeader
         title="Dashboard"
@@ -278,7 +235,30 @@ function AdminDashboard() {
         color="#2196F3"
       />
 
-      <Box sx={{ mb: 4, display: "flex", justifyContent: "flex-end" }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ mb: 4, justifyContent: "flex-end", alignItems: "center" }}
+      >
+        <Chip
+          label="🟢 Supabase Data"
+          sx={{
+            bgcolor: "rgba(76, 175, 80, 0.1)",
+            color: "success.main",
+            fontWeight: 700,
+            border: "1px solid rgba(76, 175, 80, 0.2)",
+          }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<TrendingUp size={16} />} // Recycling icon since Refresh icon import might be missing
+          onClick={() => window.location.reload()}
+          sx={{ borderRadius: 2 }}
+        >
+          Refresh Data
+        </Button>
+
         <Button
           variant="contained"
           startIcon={<Download size={18} />}
@@ -291,11 +271,10 @@ function AdminDashboard() {
         >
           Export Report
         </Button>
-      </Box>
+      </Stack>
 
-      {/* KPI Cards Row 1: Users & Money */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6}>
           <GlassCard>
             <CardContent>
               <StatValue
@@ -322,43 +301,7 @@ function AdminDashboard() {
           </GlassCard>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <GlassCard>
-            <CardContent>
-              <StatValue
-                value={
-                  loading ? "..." : formatCurrency(financialStats.collected)
-                }
-                label="Total Revenue"
-                icon={DollarSign}
-                color="#4CAF50"
-                subValue={
-                  invoices.length === 0 ? "No invoices yet" : "Collected"
-                }
-              />
-            </CardContent>
-          </GlassCard>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <GlassCard>
-            <CardContent>
-              <StatValue
-                value={loading ? "..." : formatCurrency(financialStats.pending)}
-                label="Pending Payments"
-                icon={Clock}
-                color="#FF9800"
-                subValue={
-                  invoices.length === 0
-                    ? "No invoices yet"
-                    : `${financialStats.studentsWithBalance} students with balance`
-                }
-              />
-            </CardContent>
-          </GlassCard>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6}>
           <GlassCard>
             <CardContent>
               <StatValue
@@ -410,46 +353,7 @@ function AdminDashboard() {
                     New Student
                   </Button>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<CreditCard size={18} />}
-                    onClick={() => navigate("/payments")}
-                    sx={{
-                      borderRadius: 3,
-                      py: 2,
-                      borderColor: "#4CAF50",
-                      color: "#4CAF50",
-                      "&:hover": {
-                        bgcolor: "rgba(76, 175, 80, 0.08)",
-                        borderColor: "#4CAF50",
-                      },
-                    }}
-                  >
-                    Record Payment
-                  </Button>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<FileText size={18} />}
-                    onClick={() => navigate("/payments")}
-                    sx={{
-                      borderRadius: 3,
-                      py: 2,
-                      borderColor: "#FF9800",
-                      color: "#FF9800",
-                      "&:hover": {
-                        bgcolor: "rgba(255, 152, 0, 0.08)",
-                        borderColor: "#FF9800",
-                      },
-                    }}
-                  >
-                    View Invoices
-                  </Button>
-                </Grid>
+
                 <Grid item xs={6} sm={3}>
                   <Button
                     variant="outlined"
@@ -483,48 +387,6 @@ function AdminDashboard() {
                 ⚠️ Attention Needed
               </Typography>
               <Stack spacing={2} sx={{ mt: 2 }}>
-                {unpaidCount > 0 && (
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: "rgba(244, 67, 54, 0.08)",
-                      border: "1px solid rgba(244, 67, 54, 0.2)",
-                    }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <XCircle size={20} color="#F44336" />
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        color="error"
-                      >
-                        {unpaidCount} students with unpaid invoices
-                      </Typography>
-                    </Stack>
-                  </Box>
-                )}
-                {partialPaidCount > 0 && (
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: "rgba(255, 152, 0, 0.08)",
-                      border: "1px solid rgba(255, 152, 0, 0.2)",
-                    }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <AlertCircle size={20} color="#FF9800" />
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        color="warning"
-                      >
-                        {partialPaidCount} students with partial payments
-                      </Typography>
-                    </Stack>
-                  </Box>
-                )}
                 {totals.registrationsToday > 0 && (
                   <Box
                     sx={{
@@ -546,7 +408,7 @@ function AdminDashboard() {
                     </Stack>
                   </Box>
                 )}
-                {financialStats.paidInvoices > 0 && (
+                {totals.registrationsToday === 0 && (
                   <Box
                     sx={{
                       p: 2,
@@ -562,35 +424,11 @@ function AdminDashboard() {
                         fontWeight={600}
                         color="success"
                       >
-                        {financialStats.paidInvoices} students fully paid ✅
+                        All clear! No issues to report. ✅
                       </Typography>
                     </Stack>
                   </Box>
                 )}
-                {unpaidCount === 0 &&
-                  partialPaidCount === 0 &&
-                  totals.registrationsToday === 0 &&
-                  financialStats.paidInvoices === 0 && (
-                    <Box
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: "rgba(76, 175, 80, 0.08)",
-                        border: "1px solid rgba(76, 175, 80, 0.2)",
-                      }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <CheckCircle size={20} color="#4CAF50" />
-                        <Typography
-                          variant="body2"
-                          fontWeight={600}
-                          color="success"
-                        >
-                          All clear! No issues to report. ✅
-                        </Typography>
-                      </Stack>
-                    </Box>
-                  )}
               </Stack>
             </CardContent>
           </GlassCard>
@@ -692,12 +530,6 @@ function AdminDashboard() {
                       to: "/registrations",
                       icon: Users,
                       color: "#2196F3",
-                    },
-                    {
-                      label: "Payments & Invoices",
-                      to: "/payments",
-                      icon: CreditCard,
-                      color: "#00BCD4",
                     },
                     {
                       label: "Volunteers",

@@ -22,10 +22,10 @@ import iyfLogo from '../../assets/logo/IYF_logo.png'
 import { useTeacherContext } from '../../features/auth/context/TeacherContext'
 import TeacherLayout from '../../features/teacher/components/TeacherLayout'
 import TeacherNotificationsPanel from '../../features/dashboard/components/TeacherNotificationsPanel'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { signOut, getAuth } from 'firebase/auth'
-import { db } from '../../lib/firebase'
-import { SECURITY_LOGS_COLLECTION } from '../../lib/config'
+// import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { useAuth } from '../../context/AuthContext'
+// import { db } from '../../lib/firebase'
+// import { SECURITY_LOGS_COLLECTION } from '../../lib/config'
 import { Button } from '@mui/material'
 
 const DRAWER_WIDTH = 280
@@ -460,18 +460,21 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
 
 export default function AppLayout(props: AppLayoutProps) {
   const { role, loading, teacherProfile } = useTeacherContext()
+  const { currentUser, signOut } = useAuth()
   const navigate = useNavigate()
 
   // Security Audit Logging for Unauthorized Access
+  // Security Audit Logging for Unauthorized Access
   React.useEffect(() => {
+    // TODO: Migrate security logging to Supabase
+    /*
     if (!loading && role === 'unauthorized') {
       const logAttempt = async () => {
         try {
-          const auth = getAuth()
-          if (auth.currentUser) {
+          if (currentUser) {
             await addDoc(collection(db, SECURITY_LOGS_COLLECTION), {
-              email: auth.currentUser.email,
-              uid: auth.currentUser.uid,
+              email: currentUser.email,
+              uid: currentUser.id,
               timestamp: serverTimestamp(),
               userAgent: navigator.userAgent,
               type: 'unauthorized_access_attempt',
@@ -484,12 +487,12 @@ export default function AppLayout(props: AppLayoutProps) {
       }
       logAttempt()
     }
-  }, [loading, role])
+    */
+  }, [loading, role, currentUser])
 
   const handleLogout = async () => {
     try {
-      const auth = getAuth()
-      await signOut(auth)
+      await signOut()
       navigate('/login')
     } catch (error) {
       console.error('Logout failed', error)
