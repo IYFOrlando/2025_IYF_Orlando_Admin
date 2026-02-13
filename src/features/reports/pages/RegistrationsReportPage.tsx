@@ -111,7 +111,7 @@ export default function RegistrationsReportPage() {
     return {
       dailyStats,
       academyStats,
-      totalRegistrations: uniqueRegs.length,
+      totalRegistrations: registrations.length,
     };
   }, [registrations]);
 

@@ -21,7 +21,7 @@ import { useTeacherPlan, type Task, type TeacherEvent } from '../hooks/useTeache
 // DayCell removed in favor of FullCalendar
 
 export default function TeacherPlannerPage() {
-  const { teacherProfile } = useTeacherContext()
+  useTeacherContext() // auth guard - ensures teacher context is available
   
   // Mobile check
   const theme = useTheme()

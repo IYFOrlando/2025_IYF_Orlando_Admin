@@ -237,6 +237,11 @@ export default function AttendancePage() {
 
   const currentAcademyId = academyIdMap[academy];
 
+  // Fetch Levels Map for ID lookup (must be declared before loadClassForDate)
+  const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(
+    {},
+  );
+
   // Grid rows
   const [rows, setRows] = React.useState<Row[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -471,11 +476,6 @@ export default function AttendancePage() {
     setRows((prev) =>
       prev.map((r) => ({ ...r, present: val, reason: val ? "" : r.reason })),
     );
-
-  // Fetch Levels Map for ID lookup
-  const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(
-    {},
-  );
 
   React.useEffect(() => {
     const fetchLevels = async () => {
