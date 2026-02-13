@@ -159,21 +159,33 @@ export async function deleteStudentData(studentId: string): Promise<void> {
     const invoiceIds = invoices.map(i => i.id)
 
     // 2. Delete payments for those invoices
-    await supabase.from('payments').delete().in('invoice_id', invoiceIds)
+    const { error: payErr } = await supabase.from('payments').delete().in('invoice_id', invoiceIds)
+    if (payErr) console.error('Delete payments error:', payErr)
 
     // 3. Delete invoice items (in case no cascade)
-    await supabase.from('invoice_items').delete().in('invoice_id', invoiceIds)
+    const { error: itemErr } = await supabase.from('invoice_items').delete().in('invoice_id', invoiceIds)
+    if (itemErr) console.error('Delete invoice_items error:', itemErr)
 
     // 4. Delete invoices
-    await supabase.from('invoices').delete().in('id', invoiceIds)
+    const { error: invErr } = await supabase.from('invoices').delete().in('id', invoiceIds)
+    if (invErr) console.error('Delete invoices error:', invErr)
   }
 
-  // 5. Delete enrollments for this semester
-  await supabase.from('enrollments').delete()
+  // 5. Delete attendance records for this student (so FK doesn't block enrollment delete)
+  const { error: attErr } = await supabase.from('attendance_records').delete()
+    .eq('student_id', studentId)
+  if (attErr) console.error('Delete attendance_records error:', attErr)
+
+  // 6. Delete enrollments for this semester
+  const { error: enrollErr } = await supabase.from('enrollments').delete()
     .eq('student_id', studentId)
     .eq('semester_id', semesterId)
+  if (enrollErr) {
+    console.error('Delete enrollments error:', enrollErr)
+    throw new Error(`Failed to delete enrollment: ${enrollErr.message}`)
+  }
 
-  // 6. Check if student has enrollments in other semesters
+  // 7. Check if student has enrollments in other semesters
   const { data: otherEnrollments } = await supabase
     .from('enrollments')
     .select('id')
@@ -182,7 +194,8 @@ export async function deleteStudentData(studentId: string): Promise<void> {
 
   // Only delete the student if they have no other enrollments
   if (!otherEnrollments || otherEnrollments.length === 0) {
-    await supabase.from('students').delete().eq('id', studentId)
+    const { error: studentErr } = await supabase.from('students').delete().eq('id', studentId)
+    if (studentErr) console.error('Delete student error:', studentErr)
   }
 }
 
