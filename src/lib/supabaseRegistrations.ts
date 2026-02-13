@@ -249,7 +249,10 @@ export async function recordQuickPayment(
       amount: amountDollars,
       method,
     })
-  if (payError) throw payError
+  if (payError) {
+    console.error('Payment insert error:', payError)
+    throw payError
+  }
 
   // 2. Update invoice balance
   const { data: inv, error: invError } = await supabase
@@ -257,18 +260,24 @@ export async function recordQuickPayment(
     .select('total, paid_amount')
     .eq('id', invoiceId)
     .single()
-  if (invError) throw invError
+  if (invError) {
+    console.error('Invoice fetch error:', invError)
+    throw invError
+  }
 
   const newPaid = (inv.paid_amount || 0) + amountDollars
   const newBalance = (inv.total || 0) - newPaid
   const status = newBalance <= 0.01 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid'
 
-  await supabase.from('invoices').update({
+  const { error: updateError } = await supabase.from('invoices').update({
     paid_amount: newPaid,
     balance: newBalance,
     status,
-    updated_at: new Date().toISOString(),
   }).eq('id', invoiceId)
+  if (updateError) {
+    console.error('Invoice update error:', updateError)
+    throw updateError
+  }
 }
 
 /** Ensure a student has an up-to-date invoice (create or update). Used by RegistrationDrawer. */
@@ -427,13 +436,13 @@ async function updateInvoiceForStudent(
   const status = balance <= 0.01 ? 'paid' : paid > 0 ? 'partial' : 'unpaid'
 
   // Update invoice totals
-  await supabase.from('invoices').update({
+  const { error: updErr } = await supabase.from('invoices').update({
     subtotal,
     total,
     balance,
     status,
-    updated_at: new Date().toISOString(),
   }).eq('id', invoice.id)
+  if (updErr) console.error('Invoice update error:', updErr)
 
   // Replace line items
   await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)

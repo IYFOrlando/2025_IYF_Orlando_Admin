@@ -107,15 +107,15 @@ export function useSupabasePayments() {
       const computedStatus =
         newBalance <= 0.01 ? "paid" : newPaid > 0 ? "partial" : "unpaid";
 
-      await supabase
+      const { error: updErr } = await supabase
         .from("invoices")
         .update({
           paid_amount: newPaid,
           balance: newBalance,
           status: computedStatus,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", paymentData.invoiceId);
+      if (updErr) console.error("Invoice update error:", updErr);
 
       await fetchPayments();
       return pay.id;
@@ -156,15 +156,15 @@ export function useSupabasePayments() {
         const computedStatus =
           newBalance <= 0.01 ? "paid" : newPaid > 0 ? "partial" : "unpaid";
 
-        await supabase
+        const { error: revertErr } = await supabase
           .from("invoices")
           .update({
             paid_amount: newPaid,
             balance: newBalance,
             status: computedStatus,
-            updated_at: new Date().toISOString(),
           })
           .eq("id", invoiceId);
+        if (revertErr) console.error("Invoice revert error:", revertErr);
       }
 
       await fetchPayments();

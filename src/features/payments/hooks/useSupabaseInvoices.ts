@@ -168,8 +168,6 @@ export function useSupabaseInvoices() {
         dbUpdates.balance = updates.balance / 100;
       if (updates.total !== undefined) dbUpdates.total = updates.total / 100;
 
-      dbUpdates.updated_at = new Date().toISOString();
-
       const { error } = await supabase
         .from("invoices")
         .update(dbUpdates)
