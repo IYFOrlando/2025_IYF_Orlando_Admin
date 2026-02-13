@@ -39,7 +39,7 @@ import { useSupabaseAttendance } from "../hooks/useSupabaseAttendance";
 import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
-import { deduplicateRegistrations } from "../../../lib/registrations";
+// deduplicateRegistrations removed - Supabase hook already groups by student.id
 
 const KOREAN = "Korean Language";
 const KOREAN_LEVELS = [
@@ -64,10 +64,7 @@ type Row = {
 
 export default function AttendancePage() {
   const { data: allRegs } = useSupabaseRegistrations();
-  const regs = React.useMemo(
-    () => deduplicateRegistrations(allRegs),
-    [allRegs],
-  );
+  const regs = allRegs; // Supabase hook already groups by student.id
   const { getInstructorByAcademy } = useInstructors();
 
   // Mobile check

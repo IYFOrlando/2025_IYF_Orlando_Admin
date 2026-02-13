@@ -26,7 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { useSupabaseAttendance } from "../../attendance/hooks/useSupabaseAttendance";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
-import { deduplicateRegistrations } from "../../../lib/registrations";
+// deduplicateRegistrations removed - Supabase hook already groups by student.id
 
 // --- Components ---
 const GlassCard = ({ children, sx = {}, ...props }: any) => {
@@ -124,7 +124,7 @@ export default function TeacherDashboardPage() {
       try {
         setLoadingStats(true);
         // 1. Calculate Total Students for this teacher
-        const uniqueRegs = deduplicateRegistrations(allRegistrations);
+        const uniqueRegs = allRegistrations; // Already grouped by student.id
         let teacherStudents = 0;
 
         uniqueRegs.forEach((reg) => {
