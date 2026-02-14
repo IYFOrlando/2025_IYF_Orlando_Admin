@@ -92,10 +92,16 @@ export const COMMITMENT_OPTIONS = [
 // Discount Codes
 export const DISCOUNT_CODES = {
   'TEACHER100': {
-    name: 'Teacher Discount',
+    name: 'Teacher Discount (100%)',
     discount: 100,
     type: 'percentage' as const,
     description: '100% discount for teachers'
+  },
+  'TEACHER50': {
+    name: 'Teacher Discount (50%)',
+    discount: 50,
+    type: 'percentage' as const,
+    description: '50% discount for teachers'
   },
   'SAVE50': {
     name: 'Save $50',

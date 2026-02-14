@@ -194,6 +194,10 @@ export async function deleteStudentData(studentId: string): Promise<void> {
 
   // Only delete the student if they have no other enrollments
   if (!otherEnrollments || otherEnrollments.length === 0) {
+    // 8. Delete signed waivers (FK reference blocks student delete)
+    const { error: waiverErr } = await supabase.from('signed_waivers').delete().eq('student_id', studentId)
+    if (waiverErr) console.error('Delete signed_waivers error:', waiverErr)
+
     const { error: studentErr } = await supabase.from('students').delete().eq('id', studentId)
     if (studentErr) console.error('Delete student error:', studentErr)
   }
