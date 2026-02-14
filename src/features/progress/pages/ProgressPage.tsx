@@ -228,6 +228,7 @@ function ProgressDialog({
   open:boolean; onClose:()=>void; editing:ProgressRow|null; 
   canEdit:boolean; isTeacher:boolean; teacherProfile: any
 }) {
+  const { currentUser } = useAuth()
   const { addNotification } = useTeacherNotifications(false) 
   const { searchStudents, saveProgress } = useSupabaseProgress()
   
