@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { useAuth } from '../../../context/AuthContext'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
 
 export type ProgressRow = {
@@ -25,6 +26,7 @@ export type StudentSearchResult = {
 export function useSupabaseProgress() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { currentUser } = useAuth()
 
   // Fetch progress reports for specific academies
   const fetchProgress = useCallback(async (academyNames: string[] | null) => {
@@ -174,7 +176,8 @@ export function useSupabaseProgress() {
           level_id: levelId,
           date: record.date,
           score: record.score,
-          comments: record.note
+          comments: record.note,
+          teacher_id: currentUser?.id || null,
       }
 
       if (record.id) {
