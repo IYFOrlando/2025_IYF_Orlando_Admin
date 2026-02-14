@@ -548,6 +548,9 @@ export default function AttendancePage() {
             placeholder="Illness, travel, family…"
             value={p.row.reason || ""}
             disabled={p.row.present || !canEdit}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
             onChange={(e) =>
               setRows((prev) =>
                 prev.map((r) =>
@@ -698,7 +701,7 @@ export default function AttendancePage() {
       date,
       saveAcademyId, // Use correct academy (may differ from primary for Korean levels)
       targetLevelId,
-      teacherProfile?.id || null, // Pass teacher ID
+      currentUser?.id || null, // Pass auth user UUID (not email)
       teacherNote,
       rowsToSave,
     );
@@ -711,7 +714,7 @@ export default function AttendancePage() {
 
       if (isTeacher && teacherProfile) {
         void addNotification({
-          teacherId: teacherProfile.id,
+          teacherId: currentUser?.id || '',
           teacherName: teacherProfile.name,
           action: "Updated Attendance",
           academy: academy,
