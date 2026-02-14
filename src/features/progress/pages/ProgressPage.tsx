@@ -354,7 +354,7 @@ function ProgressDialog({
       // Real-time Notification for Admins
       if (isTeacher && teacherProfile) {
         void addNotification({
-          teacherId: teacherProfile.id,
+          teacherId: currentUser?.id || '',
           teacherName: teacherProfile.name,
           action: 'Updated Progress',
           academy: academy,
