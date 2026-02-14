@@ -27,7 +27,16 @@ export function useVolunteerCommitments() {
 
         if (fetchError) throw fetchError
 
-        setData((rows || []).map(r => ({ id: r.id, ...r } as VolunteerCommitment)))
+        setData((rows || []).map(r => ({
+          id: r.id,
+          volunteerId: r.volunteerid,
+          volunteerName: r.firstname ? `${r.firstname} ${r.lastname || ''}`.trim() : r.volunteername,
+          volunteerEmail: r.email || r.volunteeremail,
+          email: r.email,
+          commitmentResponse: r.commitmentresponse || '',
+          createdAt: r.commitmentdate || r.createdat,
+          updatedAt: r.updatedat,
+        } as VolunteerCommitment)))
         setError(null)
       } catch (err: any) {
         logger.error('Error fetching volunteer commitments', err)
