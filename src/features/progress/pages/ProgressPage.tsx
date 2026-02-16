@@ -46,9 +46,13 @@ export default function ProgressPage() {
   const [rows, setRows] = React.useState<FeedbackRow[]>([])
   const [certRows, setCertRows] = React.useState<FeedbackRow[]>([])
 
-  // Academy selection
-  const [academies, setAcademies] = React.useState<{ id: string; name: string }[]>([])
-  const [selectedAcademy, setSelectedAcademy] = React.useState<{ id: string; name: string } | null>(null)
+  // Academy + Level selection
+  type AcademyOption = { id: string; name: string }
+  type LevelOption = { id: string; name: string; schedule?: string }
+  const [academies, setAcademies] = React.useState<AcademyOption[]>([])
+  const [selectedAcademy, setSelectedAcademy] = React.useState<AcademyOption | null>(null)
+  const [levels, setLevels] = React.useState<LevelOption[]>([])
+  const [selectedLevel, setSelectedLevel] = React.useState<string>('') // level_id or '' for all
 
   // Load academies
   React.useEffect(() => {
@@ -57,7 +61,7 @@ export default function ProgressPage() {
       if (!data) return
       let list = data.map((a: any) => ({ id: a.id, name: a.name }))
 
-      // Teacher scoping
+      // Teacher scoping: show only assigned academies
       if (isTeacher && teacherProfile?.academies) {
         const assigned = new Set(teacherProfile.academies.map((a: any) => normalizeAcademy(a.academyName)))
         list = list.filter(a => assigned.has(normalizeAcademy(a.name)))
@@ -69,15 +73,54 @@ export default function ProgressPage() {
     load()
   }, [isTeacher, teacherProfile])
 
-  // Load feedback when academy changes
+  // Load levels when academy changes
+  React.useEffect(() => {
+    if (!selectedAcademy) { setLevels([]); setSelectedLevel(''); return }
+    const load = async () => {
+      const { data } = await supabase
+        .from('levels')
+        .select('id, name, schedule')
+        .eq('academy_id', selectedAcademy.id)
+        .order('display_order', { ascending: true })
+      if (data && data.length > 0) {
+        let levelList = data.map((l: any) => ({ id: l.id, name: l.name, schedule: l.schedule }))
+
+        // Teacher scoping: only show assigned levels
+        if (isTeacher && teacherProfile?.academies) {
+          const teacherLevels = teacherProfile.academies
+            .filter((a: any) => normalizeAcademy(a.academyName) === normalizeAcademy(selectedAcademy.name) && a.level)
+            .map((a: any) => a.level)
+          if (teacherLevels.length > 0) {
+            levelList = levelList.filter(l => teacherLevels.includes(l.name))
+          }
+          // Auto-select if only one level
+          if (levelList.length === 1) {
+            setSelectedLevel(levelList[0].id)
+          }
+        }
+
+        setLevels(levelList)
+      } else {
+        setLevels([])
+        setSelectedLevel('')
+      }
+    }
+    load()
+  }, [selectedAcademy, isTeacher, teacherProfile])
+
+  // Load feedback when academy/level changes
   React.useEffect(() => {
     if (!selectedAcademy || tab !== 0) return
     const load = async () => {
       const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
-      setRows(data)
+      // Filter by level if selected
+      const filtered = selectedLevel
+        ? data.filter(r => r.levelId === selectedLevel)
+        : data
+      setRows(filtered)
     }
     load()
-  }, [selectedAcademy, tab, fetchFeedback])
+  }, [selectedAcademy, selectedLevel, tab, fetchFeedback])
 
   // Load certifications
   React.useEffect(() => {
@@ -98,10 +141,11 @@ export default function ProgressPage() {
   const handleSaveAll = async () => {
     const success = await saveFeedbackBatch(rows)
     if (success) {
-      // Refresh
+      // Refresh with same level filter
       if (selectedAcademy) {
         const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
-        setRows(data)
+        const filtered = selectedLevel ? data.filter(r => r.levelId === selectedLevel) : data
+        setRows(filtered)
       }
       if (isTeacher && teacherProfile) {
         void addNotification({
@@ -272,16 +316,33 @@ export default function ProgressPage() {
             <Box>
               {!canEdit && <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>View only. Teachers and admins can edit.</Alert>}
 
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems="center">
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems="center" flexWrap="wrap">
                 <Autocomplete
                   options={academies}
                   getOptionLabel={(o) => o.name}
                   value={selectedAcademy}
-                  onChange={(_, v) => setSelectedAcademy(v)}
+                  onChange={(_, v) => { setSelectedAcademy(v); setSelectedLevel(''); }}
                   renderInput={(p) => <TextField {...p} label="Academy" size="small" placeholder="Select academy..." />}
                   sx={{ minWidth: 280 }}
                   isOptionEqualToValue={(o, v) => o.id === v.id}
                 />
+                {levels.length > 0 && (
+                  <TextField
+                    select
+                    label="Level / Schedule"
+                    value={selectedLevel}
+                    onChange={(e) => setSelectedLevel(e.target.value)}
+                    size="small"
+                    sx={{ minWidth: 220 }}
+                  >
+                    <MenuItem value="">All Levels</MenuItem>
+                    {levels.map(l => (
+                      <MenuItem key={l.id} value={l.id}>
+                        {l.name}{l.schedule ? ` — ${l.schedule}` : ''}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
                 <Box sx={{ flexGrow: 1 }} />
                 {dirtyCount > 0 && (
                   <Chip label={`${dirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
