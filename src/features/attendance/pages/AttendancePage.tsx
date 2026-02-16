@@ -13,6 +13,19 @@ import {
   Autocomplete,
   Grid,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Paper,
+  Tabs,
+  Tab,
+  IconButton,
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import type { GridColDef } from "@mui/x-data-grid";
@@ -24,6 +37,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import HistoryIcon from "@mui/icons-material/History";
+import PersonIcon from "@mui/icons-material/Person";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../context/AuthContext";
@@ -360,42 +375,83 @@ export default function AttendancePage() {
     Record<string, number>
   >({});
 
+  // Past sessions history
+  type SessionSummary = { id: string; date: string; presentCount: number; absentCount: number; total: number };
+  const [pastSessions, setPastSessions] = React.useState<SessionSummary[]>([]);
+  const [historyTab, setHistoryTab] = React.useState(0); // 0=attendance grid, 1=history
+
+  // Student detail dialog
+  type StudentHistoryRow = { date: string; status: string; reason: string | null };
+  const [studentDetailOpen, setStudentDetailOpen] = React.useState(false);
+  const [studentDetailName, setStudentDetailName] = React.useState("");
+  const [studentDetailRows, setStudentDetailRows] = React.useState<StudentHistoryRow[]>([]);
+  const [studentDetailSummary, setStudentDetailSummary] = React.useState({ present: 0, total: 0, pct: 0 });
+
+  // Resolve level ID for history queries
+  const currentLevelId = React.useMemo(() => {
+    if (!level || !academyHasLevels) return null;
+    const isKorean = academy === KOREAN;
+    const searchIds = isKorean && koreanAcademyIds.length > 0 ? koreanAcademyIds : [currentAcademyId];
+    for (const aid of searchIds) {
+      const lid = levelIdMap[`${aid}:${normalizeLevel(level)}`] || levelIdMap[`${aid}:${level}`];
+      if (lid) return lid;
+    }
+    return null;
+  }, [level, academyHasLevels, academy, koreanAcademyIds, currentAcademyId, levelIdMap]);
+
   React.useEffect(() => {
     const fetchHistory = async () => {
       if (!currentAcademyId) return;
 
-      // 1. Get all sessions for this academy (use all Korean IDs for Korean)
       const isKorean = academy === KOREAN;
       const queryIds = isKorean && koreanAcademyIds.length > 0
         ? koreanAcademyIds
         : [currentAcademyId];
 
-      const { data: sessions } = await supabase
+      // Build sessions query with optional level filter
+      let sessQuery = supabase
         .from("attendance_sessions")
-        .select("id")
-        .in("academy_id", queryIds);
+        .select("id, date")
+        .in("academy_id", queryIds)
+        .order("date", { ascending: false });
+
+      if (currentLevelId) {
+        sessQuery = sessQuery.eq("level_id", currentLevelId);
+      }
+
+      const { data: sessions } = await sessQuery;
 
       if (!sessions || sessions.length === 0) {
         setStudentStats({});
+        setPastSessions([]);
         return;
       }
 
       const sessionIds = sessions.map((s) => s.id);
 
-      // 2. Get all status records
       const { data: records } = await supabase
         .from("attendance_records")
-        .select("student_id, status")
+        .select("session_id, student_id, status")
         .in("session_id", sessionIds);
 
       if (!records) return;
 
+      // Per-student stats
       const stats: Record<string, { present: number; total: number }> = {};
+      // Per-session stats
+      const sessionStats: Record<string, { present: number; absent: number; total: number }> = {};
+
       records.forEach((r: any) => {
-        if (!stats[r.student_id])
-          stats[r.student_id] = { present: 0, total: 0 };
+        // Student stats
+        if (!stats[r.student_id]) stats[r.student_id] = { present: 0, total: 0 };
         stats[r.student_id].total++;
         if (r.status === "present") stats[r.student_id].present++;
+
+        // Session stats
+        if (!sessionStats[r.session_id]) sessionStats[r.session_id] = { present: 0, absent: 0, total: 0 };
+        sessionStats[r.session_id].total++;
+        if (r.status === "present") sessionStats[r.session_id].present++;
+        else sessionStats[r.session_id].absent++;
       });
 
       const percents: Record<string, number> = {};
@@ -404,10 +460,56 @@ export default function AttendancePage() {
         percents[sid] = Math.round((s.present / s.total) * 100);
       });
       setStudentStats(percents);
+
+      // Build past sessions list
+      const summaries: SessionSummary[] = sessions.map((s: any) => {
+        const ss = sessionStats[s.id] || { present: 0, absent: 0, total: 0 };
+        return { id: s.id, date: s.date, presentCount: ss.present, absentCount: ss.absent, total: ss.total };
+      });
+      setPastSessions(summaries);
     };
 
     fetchHistory();
-  }, [currentAcademyId, academy, koreanAcademyIds]); // Re-fetch when academy changes
+  }, [currentAcademyId, academy, koreanAcademyIds, currentLevelId]);
+
+  // Open student detail dialog
+  const openStudentDetail = async (studentId: string, studentName: string) => {
+    setStudentDetailName(studentName);
+    setStudentDetailOpen(true);
+    setStudentDetailRows([]);
+
+    if (!currentAcademyId) return;
+    const isKorean = academy === KOREAN;
+    const queryIds = isKorean && koreanAcademyIds.length > 0 ? koreanAcademyIds : [currentAcademyId];
+
+    let sessQ = supabase.from("attendance_sessions").select("id, date").in("academy_id", queryIds).order("date", { ascending: false });
+    if (currentLevelId) sessQ = sessQ.eq("level_id", currentLevelId);
+    const { data: sessions } = await sessQ;
+    if (!sessions || sessions.length === 0) return;
+
+    const sessionIds = sessions.map((s) => s.id);
+    const sessionDateMap: Record<string, string> = {};
+    sessions.forEach((s: any) => { sessionDateMap[s.id] = s.date; });
+
+    const { data: recs } = await supabase
+      .from("attendance_records")
+      .select("session_id, status, reason")
+      .eq("student_id", studentId)
+      .in("session_id", sessionIds);
+
+    if (!recs) return;
+
+    const rows: StudentHistoryRow[] = recs.map((r: any) => ({
+      date: sessionDateMap[r.session_id] || "Unknown",
+      status: r.status,
+      reason: r.reason,
+    })).sort((a, b) => b.date.localeCompare(a.date));
+
+    const present = rows.filter((r) => r.status === "present").length;
+    const total = rows.length;
+    setStudentDetailRows(rows);
+    setStudentDetailSummary({ present, total, pct: total > 0 ? Math.round((present / total) * 100) : 0 });
+  };
 
   const loadClassForDate = React.useCallback(async () => {
     try {
@@ -506,7 +608,18 @@ export default function AttendancePage() {
   // Columns
   const cols = React.useMemo<GridColDef[]>(
     () => [
-      { field: "studentName", headerName: "Student", minWidth: 220, flex: 1 },
+      {
+        field: "studentName", headerName: "Student", minWidth: 220, flex: 1,
+        renderCell: (p) => (
+          <Typography
+            variant="body2"
+            sx={{ cursor: "pointer", color: "primary.main", fontWeight: 500, "&:hover": { textDecoration: "underline" } }}
+            onClick={(e) => { e.stopPropagation(); openStudentDetail(p.row.id, p.row.studentName); }}
+          >
+            {p.row.studentName}
+          </Typography>
+        ),
+      },
       {
         field: "present",
         headerName: "Present",
@@ -1030,37 +1143,142 @@ export default function AttendancePage() {
             </Alert>
           )}
 
-          <Box sx={{ height: 600, width: "100%" }}>
-            <DataGrid
-              rows={rows}
-              columns={cols}
-              loading={loading}
-              checkboxSelection={canEdit}
-              disableRowSelectionOnClick
-              onRowSelectionModelChange={(m) => setSelection(m as string[])}
-              rowSelectionModel={selection}
-              getRowId={(r) => r.id}
-              slots={{ toolbar: GridToolbar }}
-              columnVisibilityModel={
-                {
-                  // isMobile logic removed or handled via Media Query hook if needed
-                  // Currently just showing standard columns
-                }
-              }
-              sx={{
-                border: "none",
-                "& .MuiDataGrid-cell": {
-                  borderBottom: "1px solid rgba(224, 224, 224, 0.4)",
-                },
-                "& .MuiDataGrid-columnHeaders": {
-                  bgcolor: "rgba(63, 81, 181, 0.08)",
-                  fontWeight: 700,
-                },
-              }}
-            />
-          </Box>
+          {/* Tabs: Today / History */}
+          <Tabs
+            value={historyTab}
+            onChange={(_, v) => setHistoryTab(v)}
+            sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+          >
+            <Tab icon={<ChecklistIcon />} iconPosition="start" label="Today" />
+            <Tab icon={<HistoryIcon />} iconPosition="start" label={`History (${pastSessions.length})`} />
+          </Tabs>
+
+          {historyTab === 0 && (
+            <Box sx={{ height: 600, width: "100%" }}>
+              <DataGrid
+                rows={rows}
+                columns={cols}
+                loading={loading}
+                checkboxSelection={canEdit}
+                disableRowSelectionOnClick
+                onRowSelectionModelChange={(m) => setSelection(m as string[])}
+                rowSelectionModel={selection}
+                getRowId={(r) => r.id}
+                slots={{ toolbar: GridToolbar }}
+                columnVisibilityModel={{}}
+                sx={{
+                  border: "none",
+                  "& .MuiDataGrid-cell": {
+                    borderBottom: "1px solid rgba(224, 224, 224, 0.4)",
+                  },
+                  "& .MuiDataGrid-columnHeaders": {
+                    bgcolor: "rgba(63, 81, 181, 0.08)",
+                    fontWeight: 700,
+                  },
+                }}
+              />
+            </Box>
+          )}
+
+          {historyTab === 1 && (
+            <Box>
+              {pastSessions.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>No past sessions recorded for this academy/level.</Alert>
+              ) : (
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "rgba(63, 81, 181, 0.08)" }}>
+                        <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Present</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Absent</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Total</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {pastSessions.map((s) => (
+                        <TableRow key={s.id} hover>
+                          <TableCell>{new Date(s.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</TableCell>
+                          <TableCell align="center">
+                            <Chip label={s.presentCount} color="success" size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={s.absentCount} color={s.absentCount > 0 ? "error" : "default"} size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell align="center">{s.total}</TableCell>
+                          <TableCell align="center">
+                            <Button
+                              size="small"
+                              variant="text"
+                              onClick={() => { setDate(s.date); setHistoryTab(0); }}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
         </CardContent>
       </GlassCard>
+
+      {/* Student Attendance Detail Dialog */}
+      <Dialog open={studentDetailOpen} onClose={() => setStudentDetailOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <PersonIcon />
+          {studentDetailName} — Attendance History
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Chip
+                label={`${studentDetailSummary.present} / ${studentDetailSummary.total} present`}
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
+                label={`${studentDetailSummary.pct}%`}
+                color={studentDetailSummary.pct >= 90 ? "success" : studentDetailSummary.pct >= 75 ? "warning" : "default"}
+              />
+            </Stack>
+            {studentDetailRows.length === 0 ? (
+              <Alert severity="info">No attendance records found.</Alert>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "rgba(63, 81, 181, 0.08)" }}>
+                      <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Reason</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {studentDetailRows.map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={r.status === "present" ? "Present" : r.status === "late" ? "Late" : "Absent"}
+                            color={r.status === "present" ? "success" : r.status === "late" ? "warning" : "error"}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>{r.reason || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

@@ -1,146 +1,261 @@
 import * as React from 'react'
 import {
-  CardContent, Stack, Button, Tooltip, Box, Alert,
-  TextField, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Typography, Autocomplete, 
-  CircularProgress, useTheme, useMediaQuery, Chip
+  CardContent, Stack, Button, Box, Alert, TextField, Typography, Chip,
+  Autocomplete, Tabs, Tab, MenuItem,
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import type { GridColDef } from '@mui/x-data-grid'
-import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import EditIcon from '@mui/icons-material/Edit'
+import SaveIcon from '@mui/icons-material/Save'
 import InsightsIcon from '@mui/icons-material/Insights'
-import SearchIcon from '@mui/icons-material/Search'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import DownloadIcon from '@mui/icons-material/Download'
 
 import { useAuth } from '../../../context/AuthContext'
-import { Alert as SAlert, confirmDelete } from '../../../lib/alerts'
 import { GlassCard } from '../../../components/GlassCard'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotifications'
-import { useSupabaseProgress, type ProgressRow, type StudentSearchResult } from '../hooks/useSupabaseProgress'
+import { useSupabaseProgress, type FeedbackRow } from '../hooks/useSupabaseProgress'
 import { supabase } from '../../../lib/supabase'
+import { normalizeAcademy } from '../../../lib/normalization'
 
-// Keep in sync with Firestore rules isAdmin() allowlist
 const ADMIN_EMAILS = ['jodlouis.dev@gmail.com', 'orlando@iyfusa.org']
+
+const CERT_THRESHOLDS = {
+  completion: 70,
+  participation: 1,
+}
+
+function getCertType(pct: number | null): 'Completion' | 'Participation' | 'None' {
+  if (pct === null || pct === undefined) return 'None'
+  if (pct >= CERT_THRESHOLDS.completion) return 'Completion'
+  if (pct >= CERT_THRESHOLDS.participation) return 'Participation'
+  return 'None'
+}
 
 export default function ProgressPage() {
   const { isTeacher, teacherProfile, isAdmin: contextIsAdmin } = useTeacherContext()
-  
-  // Mobile check
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md')) // Used in column visibility
-
-  // Admin detection (for UI enable/disable)
   const { currentUser } = useAuth()
   const userEmail = currentUser?.email || null
-  
   const isSuperAdmin = !!(userEmail && ADMIN_EMAILS.includes(userEmail)) || contextIsAdmin
   const canEdit = isSuperAdmin || isTeacher
 
-  const { fetchProgress, deleteProgress } = useSupabaseProgress()
+  const { fetchFeedback, saveFeedbackBatch, fetchAllCertifications, loading } = useSupabaseProgress()
+  const { addNotification } = useTeacherNotifications(false)
 
-  const [rows, setRows] = React.useState<ProgressRow[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string|null>(null)
-  const [selection, setSelection] = React.useState<string[]>([])
-  const [open, setOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState<ProgressRow | null>(null)
+  const [tab, setTab] = React.useState(0) // 0=Feedback, 1=Certifications
+  const [rows, setRows] = React.useState<FeedbackRow[]>([])
+  const [certRows, setCertRows] = React.useState<FeedbackRow[]>([])
 
-  const loadData = React.useCallback(async () => {
-      setLoading(true)
-      try {
-          // If teacher, filter by their assigned academies
-          let assigned: string[] | null = null;
-          if (isTeacher && teacherProfile?.academies) {
-              assigned = teacherProfile.academies.map(a => a.academyName).filter(Boolean);
-              if (assigned.length === 0) {
-                  setRows([]); setLoading(false); return;
-              }
-          }
-          
-          const data = await fetchProgress(assigned);
-          setRows(data);
-          setError(null);
-      } catch (err: any) {
-          setError(err.message);
-      } finally {
-          setLoading(false);
+  // Academy selection
+  const [academies, setAcademies] = React.useState<{ id: string; name: string }[]>([])
+  const [selectedAcademy, setSelectedAcademy] = React.useState<{ id: string; name: string } | null>(null)
+
+  // Load academies
+  React.useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('academies').select('id, name').order('name')
+      if (!data) return
+      let list = data.map((a: any) => ({ id: a.id, name: a.name }))
+
+      // Teacher scoping
+      if (isTeacher && teacherProfile?.academies) {
+        const assigned = new Set(teacherProfile.academies.map((a: any) => normalizeAcademy(a.academyName)))
+        list = list.filter(a => assigned.has(normalizeAcademy(a.name)))
       }
-  }, [isTeacher, teacherProfile, fetchProgress]);
 
-  React.useEffect(()=>{
-    void loadData();
-  }, [loadData])
-
-  const cols = React.useMemo<GridColDef[]>(()=>[
-    { field:'date', headerName:'Date', width:130 },
-    { field:'studentName', headerName:'Student', minWidth:200, flex:1 },
-    { field:'academy', headerName:'Academy', minWidth:160, flex:1 },
-    { field:'level', headerName:'Level', minWidth:140, flex:1 },
-    { 
-        field:'score', headerName:'Score', width:90,
-        renderCell: (p) => {
-            const sc = p.value as number | undefined;
-            if (sc === undefined || sc === null) return '-';
-            let color: "default" | "success" | "warning" | "error" = "default";
-            if (sc >= 90) color = "success";
-            else if (sc >= 70) color = "warning";
-            else if (sc < 70) color = "error";
-            return <Chip label={sc} color={color} size="small" variant="outlined" />
-        }
-    },
-    { field:'note', headerName:'Note', minWidth:240, flex:1 },
-    {
-      field: 'actions', headerName: 'Actions', width: 100, sortable:false, filterable:false,
-      renderCell: (p) => (
-        <Tooltip title={canEdit ? 'Edit' : 'Read-only'}>
-          <span>
-            <IconButton size="small" onClick={() => { if(canEdit) { setEditing(p.row as ProgressRow); setOpen(true); } }} disabled={!canEdit}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-      )
+      setAcademies(list)
+      if (list.length === 1) setSelectedAcademy(list[0])
     }
-  ],[canEdit])
+    load()
+  }, [isTeacher, teacherProfile])
 
-  const handleDelete = async () => {
-    if (!isSuperAdmin) return SAlert.fire({ title:'Super Admin Only', text:'Only admins can delete record(s).', icon:'info' })
-    if (!selection.length) return SAlert.fire({ title:'No rows selected', icon:'info', timer:1200, showConfirmButton:false })
-    
-    const res = await confirmDelete('Delete progress?', `You are about to delete ${selection.length} record(s).`)
-    if (!res.isConfirmed) return
-    
-    const success = await deleteProgress(selection)
+  // Load feedback when academy changes
+  React.useEffect(() => {
+    if (!selectedAcademy || tab !== 0) return
+    const load = async () => {
+      const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
+      setRows(data)
+    }
+    load()
+  }, [selectedAcademy, tab, fetchFeedback])
+
+  // Load certifications
+  React.useEffect(() => {
+    if (tab !== 1) return
+    const load = async () => {
+      const data = await fetchAllCertifications()
+      setCertRows(data)
+    }
+    load()
+  }, [tab, fetchAllCertifications])
+
+  const updateRow = (studentId: string, field: 'score' | 'comment', value: any) => {
+    setRows(prev => prev.map(r =>
+      r.studentId === studentId ? { ...r, [field]: value, dirty: true } : r
+    ))
+  }
+
+  const handleSaveAll = async () => {
+    const success = await saveFeedbackBatch(rows)
     if (success) {
-        setSelection([])
-        void loadData()
+      // Refresh
+      if (selectedAcademy) {
+        const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
+        setRows(data)
+      }
+      if (isTeacher && teacherProfile) {
+        void addNotification({
+          teacherId: currentUser?.id || '',
+          teacherName: teacherProfile.name,
+          action: 'Updated Feedback',
+          academy: selectedAcademy?.name || '',
+          details: `Saved feedback for ${rows.filter(r => r.dirty).length} students`,
+        })
+      }
     }
   }
 
+  const dirtyCount = rows.filter(r => r.dirty).length
+
+  // Feedback columns
+  const feedbackCols: GridColDef[] = React.useMemo(() => [
+    { field: 'studentName', headerName: 'Student', minWidth: 200, flex: 1 },
+    {
+      field: 'levelName', headerName: 'Level', width: 140,
+      renderCell: (p) => p.value || '—',
+    },
+    {
+      field: 'attendancePct', headerName: 'Attendance %', width: 130,
+      renderCell: (p) => {
+        const pct = p.value as number | null
+        if (pct === null || pct === undefined) return <Chip size="small" variant="outlined" label="—" />
+        return <Chip size="small" color={pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'default'} label={`${pct}%`} />
+      },
+    },
+    {
+      field: 'score', headerName: 'Score (0-100)', width: 140,
+      renderCell: (p) => (
+        <TextField
+          size="small"
+          type="number"
+          inputProps={{ min: 0, max: 100 }}
+          value={p.row.score ?? ''}
+          disabled={!canEdit}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            const v = e.target.value === '' ? null : Math.min(100, Math.max(0, Number(e.target.value)))
+            updateRow(p.row.studentId, 'score', v)
+          }}
+          sx={{ width: 100 }}
+        />
+      ),
+    },
+    {
+      field: 'comment', headerName: 'Comment', minWidth: 300, flex: 2,
+      renderCell: (p) => (
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="Teacher feedback..."
+          value={p.row.comment || ''}
+          disabled={!canEdit}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(e) => updateRow(p.row.studentId, 'comment', e.target.value)}
+        />
+      ),
+    },
+    {
+      field: 'dirty', headerName: '', width: 60, sortable: false, filterable: false,
+      renderCell: (p) => p.row.dirty ? <Chip label="*" color="warning" size="small" /> : null,
+    },
+  ], [canEdit])
+
+  // Certification columns
+  const certCols: GridColDef[] = React.useMemo(() => [
+    { field: 'studentName', headerName: 'Student', minWidth: 200, flex: 1 },
+    { field: 'academyName', headerName: 'Academy', minWidth: 160, flex: 1 },
+    { field: 'levelName', headerName: 'Level', width: 130, renderCell: (p) => p.value || '—' },
+    {
+      field: 'attendancePct', headerName: 'Attendance %', width: 130,
+      renderCell: (p) => {
+        const pct = p.value as number | null
+        if (pct === null) return <Chip size="small" variant="outlined" label="—" />
+        return <Chip size="small" color={pct >= 70 ? 'success' : pct >= 1 ? 'warning' : 'default'} label={`${pct}%`} />
+      },
+    },
+    {
+      field: 'score', headerName: 'Score', width: 90,
+      renderCell: (p) => {
+        const sc = p.value as number | null
+        if (sc === null || sc === undefined) return '—'
+        let color: 'default' | 'success' | 'warning' | 'error' = 'default'
+        if (sc >= 90) color = 'success'
+        else if (sc >= 70) color = 'warning'
+        else color = 'error'
+        return <Chip label={sc} color={color} size="small" variant="outlined" />
+      },
+    },
+    { field: 'comment', headerName: 'Comment', minWidth: 200, flex: 1, renderCell: (p) => p.value || '—' },
+    {
+      field: 'certType', headerName: 'Certificate', width: 150,
+      valueGetter: (_value: any, row: any) => getCertType(row.attendancePct),
+      renderCell: (p) => {
+        const ct = p.value as string
+        if (ct === 'Completion') return <Chip label="Completion" color="success" size="small" icon={<EmojiEventsIcon />} />
+        if (ct === 'Participation') return <Chip label="Participation" color="info" size="small" />
+        return <Chip label="None" size="small" variant="outlined" />
+      },
+    },
+  ], [])
+
+  // CSV export for certifications
+  const exportCertCSV = () => {
+    const header = ['Student', 'Academy', 'Level', 'Attendance %', 'Score', 'Comment', 'Certificate']
+    const csvRows = certRows.map(r => [
+      r.studentName,
+      r.academyName,
+      r.levelName || '',
+      r.attendancePct !== null ? String(r.attendancePct) : '',
+      r.score !== null ? String(r.score) : '',
+      `"${(r.comment || '').replace(/"/g, '""')}"`,
+      getCertType(r.attendancePct),
+    ])
+    const csv = [header.join(','), ...csvRows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `certifications_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Cert stats
+  const completionCount = certRows.filter(r => getCertType(r.attendancePct) === 'Completion').length
+  const participationCount = certRows.filter(r => getCertType(r.attendancePct) === 'Participation').length
+
   return (
     <Box>
-      {/* Header with Gradient */}
-      <Box sx={{ 
+      <Box sx={{
         mb: 4,
-        background: 'linear-gradient(135deg, #009688 0%, #006064 100%)', // Teal/Cyan gradient
+        background: 'linear-gradient(135deg, #009688 0%, #006064 100%)',
         borderRadius: 3,
         p: { xs: 2.5, sm: 3 },
         color: 'white',
         boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(0, 150, 136, 0.4)'
       }}>
-        <Stack 
-          direction={{ xs: 'column', sm: 'row' }} 
-          alignItems={{ xs: 'flex-start', sm: 'center' }} 
-          spacing={2}
-        >
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
           <InsightsIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: 'white' }} />
           <Box>
             <Typography variant="h4" fontWeight={800} color="white" sx={{ fontSize: { xs: '1.75rem', sm: '2.125rem' } }}>
-              Student Progress
+              Student Feedback
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.5, color: 'white' }}>
-              {isSuperAdmin ? 'Full admin visibility' : isTeacher ? 'Scoping by assigned classes' : 'View progress (read-only)'}
+              {isSuperAdmin ? 'Full admin visibility' : isTeacher ? 'Scoped by assigned classes' : 'View feedback (read-only)'}
             </Typography>
           </Box>
         </Stack>
@@ -148,303 +263,111 @@ export default function ProgressPage() {
 
       <GlassCard>
         <CardContent>
-          {!canEdit && <Alert severity="info" sx={{ mb:2, borderRadius: 2 }}>You can view progress. Only admins or teachers can add/edit records.</Alert>}
+          <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
+            <Tab icon={<InsightsIcon />} iconPosition="start" label="Feedback" />
+            <Tab icon={<EmojiEventsIcon />} iconPosition="start" label="Certifications" />
+          </Tabs>
 
-          <Stack 
-            direction={{ xs: 'column', sm: 'row' }} 
-            spacing={1.5} 
-            sx={{ mb: 2 }}
-          >
-            <Button 
-              startIcon={<AddIcon />} 
-              variant="contained" 
-              onClick={()=>{ setEditing(null); setOpen(true) }} 
-              disabled={!canEdit}
-              sx={{ 
-                borderRadius: 2, 
-                px: 3,
-                py: 1.2,
-                background: 'linear-gradient(45deg, #009688 30%, #00BCD4 90%)',
-                boxShadow: '0 3px 5px 2px rgba(0, 188, 212, .3)'
-              }}
-            >
-              New Record
-            </Button>
-            {isSuperAdmin && selection.length > 0 && (
-              <Button color="error" variant="outlined" startIcon={<DeleteIcon />} onClick={handleDelete} sx={{ borderRadius: 2 }}>
-                Delete ({selection.length})
-              </Button>
-            )}
-          </Stack>
+          {tab === 0 && (
+            <Box>
+              {!canEdit && <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>View only. Teachers and admins can edit.</Alert>}
 
-          {error && <Alert severity="error" sx={{ mb:1, borderRadius: 2 }}>{error}</Alert>}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems="center">
+                <Autocomplete
+                  options={academies}
+                  getOptionLabel={(o) => o.name}
+                  value={selectedAcademy}
+                  onChange={(_, v) => setSelectedAcademy(v)}
+                  renderInput={(p) => <TextField {...p} label="Academy" size="small" placeholder="Select academy..." />}
+                  sx={{ minWidth: 280 }}
+                  isOptionEqualToValue={(o, v) => o.id === v.id}
+                />
+                <Box sx={{ flexGrow: 1 }} />
+                {dirtyCount > 0 && (
+                  <Chip label={`${dirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
+                )}
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveAll}
+                  disabled={!canEdit || dirtyCount === 0 || loading}
+                  sx={{
+                    borderRadius: 2,
+                    background: 'linear-gradient(45deg, #009688 30%, #00BCD4 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(0, 188, 212, .3)',
+                  }}
+                >
+                  Save All ({dirtyCount})
+                </Button>
+              </Stack>
 
-          <Box sx={{ height: 600, width: '100%' }}>
-            <DataGrid
-              rows={rows}
-              columns={cols}
-              loading={loading}
-              checkboxSelection={isSuperAdmin}
-              disableRowSelectionOnClick
-              onRowSelectionModelChange={(m)=>setSelection(m as string[])}
-              rowSelectionModel={selection}
-              onRowDoubleClick={(p)=> { if(canEdit) { setEditing(p.row as ProgressRow); setOpen(true); } }}
-              getRowId={(r)=>r.id}
-              slots={{ toolbar: GridToolbar }}
-              columnVisibilityModel={{
-                academy: !isMobile,
-                level: !isMobile,
-                note: !isMobile,
-                date: !isMobile
-              }}
-              sx={{
-                border: 'none',
-                '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(224, 224, 224, 0.4)' },
-                '& .MuiDataGrid-columnHeaders': { 
-                  bgcolor: 'rgba(0, 150, 136, 0.08)', 
-                  fontWeight: 700 
-                },
-              }}
-            />
-          </Box>
+              {!selectedAcademy ? (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>Select an academy to view and edit student feedback.</Alert>
+              ) : rows.length === 0 && !loading ? (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>No students enrolled in {selectedAcademy.name} this semester.</Alert>
+              ) : (
+                <Box sx={{ height: 600, width: '100%' }}>
+                  <DataGrid
+                    rows={rows}
+                    columns={feedbackCols}
+                    loading={loading}
+                    disableRowSelectionOnClick
+                    getRowId={(r) => r.studentId}
+                    slots={{ toolbar: GridToolbar }}
+                    sx={{
+                      border: 'none',
+                      '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(224, 224, 224, 0.4)' },
+                      '& .MuiDataGrid-columnHeaders': { bgcolor: 'rgba(0, 150, 136, 0.08)', fontWeight: 700 },
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
 
-          <ProgressDialog
-            open={open}
-            onClose={()=>{ setOpen(false); setEditing(null); void loadData(); }}
-            editing={editing}
-            canEdit={canEdit}
-            isTeacher={isTeacher}
-            teacherProfile={teacherProfile}
-          />
+          {tab === 1 && (
+            <Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems="center">
+                <Stack direction="row" spacing={1}>
+                  <Chip icon={<EmojiEventsIcon />} label={`${completionCount} Completion`} color="success" variant="outlined" />
+                  <Chip label={`${participationCount} Participation`} color="info" variant="outlined" />
+                  <Chip label={`${certRows.length} Total`} variant="outlined" />
+                </Stack>
+                <Box sx={{ flexGrow: 1 }} />
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={exportCertCSV}
+                  disabled={certRows.length === 0}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Export CSV
+                </Button>
+              </Stack>
+
+              {certRows.length === 0 && !loading ? (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>No enrollment data found for this semester.</Alert>
+              ) : (
+                <Box sx={{ height: 600, width: '100%' }}>
+                  <DataGrid
+                    rows={certRows}
+                    columns={certCols}
+                    loading={loading}
+                    disableRowSelectionOnClick
+                    getRowId={(r) => `${r.studentId}:${r.academyId}`}
+                    slots={{ toolbar: GridToolbar }}
+                    sx={{
+                      border: 'none',
+                      '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(224, 224, 224, 0.4)' },
+                      '& .MuiDataGrid-columnHeaders': { bgcolor: 'rgba(0, 150, 136, 0.08)', fontWeight: 700 },
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
         </CardContent>
       </GlassCard>
     </Box>
-  )
-}
-
-function ProgressDialog({
-  open, onClose, editing, canEdit, isTeacher, teacherProfile
-}: { 
-  open:boolean; onClose:()=>void; editing:ProgressRow|null; 
-  canEdit:boolean; isTeacher:boolean; teacherProfile: any
-}) {
-  const { currentUser } = useAuth()
-  const { addNotification } = useTeacherNotifications(false) 
-  const { searchStudents, saveProgress } = useSupabaseProgress()
-  
-  const [date, setDate] = React.useState<string>(editing?.date || new Date().toISOString().slice(0,10))
-  const [studentId, setStudentId] = React.useState(editing?.studentId || '')
-  const [studentName, setStudentName] = React.useState(editing?.studentName || '')
-  
-  const [academy, setAcademy] = React.useState(editing?.academy || '')
-  const [level, setLevel] = React.useState(editing?.level || '')
-  const [score, setScore] = React.useState<number|''>(editing?.score ?? '')
-  const [note, setNote] = React.useState(editing?.note || '')
-
-  // Available options for this student
-  const [availableAcademies, setAvailableAcademies] = React.useState<string[]>([])
-  
-  // Search state
-  const [searchOpen, setSearchOpen] = React.useState(false)
-  const [searchTerm, setSearchTerm] = React.useState('')
-  const [searchResults, setSearchResults] = React.useState<StudentSearchResult[]>([])
-  const [searching, setSearching] = React.useState(false)
-
-  React.useEffect(()=>{
-    if (editing) {
-      setDate(editing.date); setStudentId(editing.studentId)
-      setStudentName(editing.studentName); setAcademy(editing.academy || ''); setLevel(editing.level || '')
-      setScore(editing.score ?? ''); setNote(editing.note || '')
-      setAvailableAcademies([]) 
-      void loadFromStudentId(editing.studentId)
-    } else {
-      setDate(new Date().toISOString().slice(0,10))
-      setStudentId(''); setStudentName(''); setAcademy(''); setLevel(''); setScore(''); setNote('')
-      setAvailableAcademies([])
-    }
-  },[editing])
-
-  const loadFromStudentId = async (sid: string) => {
-    try {
-      if (!sid) return
-      
-      // Get Enrolled Academies from Registrations
-      // We assume 'registrations' table has `selected_academies` JSONB
-      // TODO: Filter by active semester if possible?
-      const { data: regs } = await supabase
-        .from('registrations')
-        .select('selected_academies')
-        .eq('student_id', sid)
-        // .eq('semester_id', ...) // if we have it
-      
-      const options = new Set<string>()
-      
-      regs?.forEach((r: any) => {
-         if (r.selected_academies && Array.isArray(r.selected_academies)) {
-            r.selected_academies.forEach((sa: any) => {
-                const a = (sa.academy || '').trim()
-                if (a && a.toLowerCase() !== 'n/a') {
-                     // Teacher Scope
-                    if (!isTeacher || teacherProfile?.academies?.some((ta:any) => ta.academyName === a)) {
-                        options.add(a)
-                    }
-                }
-            })
-         }
-      });
-      
-      const list = Array.from(options).sort()
-      setAvailableAcademies(list)
-      
-      if (list.length > 0 && !editing) {
-         setAcademy(list[0])
-      }
-
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  const handleSearch = async () => {
-    if (!searchTerm || searchTerm.length < 2) return
-    setSearching(true)
-    try {
-      const results = await searchStudents(searchTerm)
-      setSearchResults(results)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  const selectStudent = (s: StudentSearchResult) => {
-    setStudentId(s.id)
-    setStudentName(`${s.firstName} ${s.lastName}`)
-    setSearchOpen(false)
-    void loadFromStudentId(s.id)
-  }
-
-  const handleSave = async () => {
-    if (!canEdit) return SAlert.fire({ title:'Read-only', text:'Only admins or teachers can save.', icon:'info' })
-    if (!studentId) return SAlert.fire({ title:'Missing Student', text:'Please select a student.', icon:'warning' })
-    if (!academy) return SAlert.fire({ title:'Missing Academy', text:'Please select an academy.', icon:'warning' })
-
-    // Scoped validation for teachers
-    if (isTeacher && teacherProfile) {
-        // Safe check for undefined academies map
-      const assigned = teacherProfile.academies?.map((a:any) => a.academyName) || []
-      if (!assigned.includes(academy)) {
-        return SAlert.fire({ title:'Permission Denied', text:`You are not assigned to ${academy}.`, icon:'error' })
-      }
-    }
-
-    const success = await saveProgress({
-        id: editing?.id,
-        studentId,
-        date,
-        academy,
-        level: level || undefined,
-        score: score === '' ? undefined : Number(score),
-        note
-    });
-
-    if (success) {
-      onClose() // Refresh handled by parent
-      
-      // Real-time Notification for Admins
-      if (isTeacher && teacherProfile) {
-        void addNotification({
-          teacherId: currentUser?.id || '',
-          teacherName: teacherProfile.name,
-          action: 'Updated Progress',
-          academy: academy,
-          details: `Student: ${studentName}, Score: ${score || 'N/A'}`
-        })
-      }
-    }
-  }
-
-  return (
-    <>
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? 'Edit Progress' : 'New Progress'}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt:1 }}>
-            <TextField label="Date" type="date" InputLabelProps={{shrink:true}} value={date} onChange={e=>setDate(e.target.value)} />
-            
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="stretch">
-              <TextField 
-                label="Student" 
-                value={studentName || studentId} 
-                disabled
-                fullWidth 
-                helperText="Search to select"
-              />
-              <Stack direction="row" spacing={1}>
-                <Tooltip title="Search by Name">
-                  <IconButton onClick={()=>setSearchOpen(true)} color="primary" sx={{ border: '1px solid rgba(0,0,0,0.1)', flex: 1 }}>
-                    <SearchIcon />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Stack>
-            
-            <Autocomplete
-              freeSolo={false}
-              options={availableAcademies}
-              value={academy}
-              onChange={(_, val) => setAcademy(val || '')}
-              // onInputChange={(_, val) => setAcademy(val)}
-              renderInput={(params) => <TextField {...params} label="Academy" helperText={availableAcademies.length > 0 ? "Select from their enrolled academies" : "No academies found"} />}
-            />
-            
-            <TextField label="Level" value={level} onChange={e=>setLevel(e.target.value)} />
-            <TextField label="Score (0-100)" type="number" inputProps={{min:0,max:100}} value={score} onChange={e=>setScore(e.target.value === '' ? '' : Number(e.target.value))} />
-            <TextField label="Note" value={note} onChange={e=>setNote(e.target.value)} multiline rows={3} />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={!canEdit}>Save</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Student Search Dialog */}
-      <Dialog open={searchOpen} onClose={()=>setSearchOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Search Student</DialogTitle>
-        <DialogContent>
-           <Stack spacing={2} sx={{ mt: 1 }}>
-             <Stack direction="row" spacing={1}>
-                <TextField 
-                  autoFocus
-                  fullWidth 
-                  placeholder="First or Last Name..." 
-                  value={searchTerm} 
-                  onChange={e=>setSearchTerm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                />
-                <Button variant="contained" onClick={handleSearch} disabled={searching}>
-                  {searching ? <CircularProgress size={20} color="inherit" /> : 'Go'}
-                </Button>
-             </Stack>
-             <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
-                {searchResults.map(s => (
-                  <Box key={s.id} onClick={()=>selectStudent(s)} sx={{ p:1, borderBottom:'1px solid #eee', cursor:'pointer', '&:hover':{ bgcolor:'#f5f5f5' } }}>
-                    <Typography variant="subtitle2">{s.firstName} {s.lastName}</Typography>
-                    <Typography variant="caption" color="text.secondary">{s.email} | {s.city}</Typography>
-                  </Box>
-                ))}
-                {searchResults.length === 0 && !searching && searchTerm && (
-                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>No matches found</Typography>
-                )}
-             </Box>
-           </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={()=>setSearchOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </>
   )
 }

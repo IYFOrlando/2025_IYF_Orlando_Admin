@@ -40,7 +40,7 @@ const overviewItems: Item[] = [
 const academicItems: Item[] = [
   { to: '/classes', label: 'Classes', icon: <School size={20} /> },
   { to: '/academies-management', label: 'Academy Settings', icon: <Settings size={20} />, adminOnly: true },
-  { to: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
+  { to: '/progress', label: 'Feedback', icon: <TrendingUp size={20} /> },
   { to: '/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
 ]
 

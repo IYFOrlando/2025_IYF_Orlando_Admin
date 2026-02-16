@@ -45,7 +45,7 @@ const teacherItems = [
     label: "Attendance",
     icon: <ClipboardCheck size={20} />,
   },
-  { to: "/progress", label: "Progress", icon: <TrendingUp size={20} /> },
+  { to: "/progress", label: "Feedback", icon: <TrendingUp size={20} /> },
   { to: "/planner", label: "Planner", icon: <Calendar size={20} /> },
 ];
 
