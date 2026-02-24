@@ -34,6 +34,7 @@ import InvoiceDebugPage from '../pages/InvoiceDebugPage'
 import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
 import TeacherPlannerPage from '../features/teacher/pages/TeacherPlannerPage'
 import TeacherStudentsPage from '../features/teacher/pages/TeacherStudentsPage'
+import TeacherReportsPage from '../features/teacher/pages/TeacherReportsPage'
 import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
 import AnalyticsPage from '../features/analytics/pages/AnalyticsPage'
 import GlobalSearchPage from '../features/search/pages/GlobalSearchPage'
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
       { path: 'progress', element: <ProgressPage /> },
       { path: 'planner', element: <TeacherPlannerPage /> },
       { path: 'my-students', element: <TeacherStudentsPage /> },
+      { path: 'teacher-reports', element: <TeacherReportsPage /> },
 
       // --- Admin-only routes (teachers get redirected to /dashboard) ---
       { path: 'analytics', element: <AdminRoute><AnalyticsPage /></AdminRoute> },

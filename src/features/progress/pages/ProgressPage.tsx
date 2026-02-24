@@ -54,6 +54,7 @@ export default function ProgressPage() {
   const [selectedAcademy, setSelectedAcademy] = React.useState<AcademyOption | null>(null)
   const [levels, setLevels] = React.useState<LevelOption[]>([])
   const [selectedLevel, setSelectedLevel] = React.useState<string>('') // level_id or '' for all
+  const [feedbackDate, setFeedbackDate] = React.useState<string>(new Date().toISOString().slice(0, 10))
 
   const resolveCertType = React.useCallback((row: FeedbackRow): CertType => {
     if (row.certTypeOverride) return row.certTypeOverride
@@ -238,7 +239,7 @@ export default function ProgressPage() {
   }
 
   const handleSaveAll = async () => {
-    const success = await saveFeedbackBatch(rows)
+    const success = await saveFeedbackBatch(rows, feedbackDate)
     if (success) {
       // Refresh with same level filter
       if (selectedAcademy) {
@@ -251,7 +252,7 @@ export default function ProgressPage() {
           teacherName: teacherProfile.name,
           action: 'Updated Feedback',
           academy: selectedAcademy?.name || '',
-          details: `Saved feedback for ${rows.filter(r => r.dirty).length} students`,
+          details: `Saved feedback for ${rows.filter(r => r.dirty).length} students on ${feedbackDate}`,
         })
       }
     }
@@ -498,6 +499,15 @@ export default function ProgressPage() {
                   </TextField>
                 )}
                 <Box sx={{ flexGrow: 1 }} />
+                <TextField
+                  label="Feedback Date"
+                  type="date"
+                  size="small"
+                  value={feedbackDate}
+                  onChange={(e) => setFeedbackDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 190 }}
+                />
                 {dirtyCount > 0 && (
                   <Chip label={`${dirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
                 )}

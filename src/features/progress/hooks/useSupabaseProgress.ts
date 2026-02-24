@@ -180,7 +180,7 @@ export function useSupabaseProgress() {
   }, [getActiveSemesterId, calcAttendancePcts])
 
   // Batch save feedback
-  const saveFeedbackBatch = useCallback(async (rows: FeedbackRow[]): Promise<boolean> => {
+  const saveFeedbackBatch = useCallback(async (rows: FeedbackRow[], saveDate?: string): Promise<boolean> => {
     try {
       setLoading(true)
       const dirtyRows = rows.filter(r => r.dirty)
@@ -190,6 +190,7 @@ export function useSupabaseProgress() {
       }
 
       const today = new Date().toISOString().slice(0, 10)
+      const targetDate = saveDate || today
 
       for (const row of dirtyRows) {
         const payload = {
@@ -197,7 +198,7 @@ export function useSupabaseProgress() {
           academy_id: row.academyId,
           level_id: row.levelId,
           semester_id: row.semesterId,
-          date: today,
+          date: targetDate,
           score: row.score,
           comments: row.comment,
           attendance_pct: row.attendancePct,

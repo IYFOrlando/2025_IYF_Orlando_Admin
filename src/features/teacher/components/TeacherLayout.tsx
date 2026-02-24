@@ -26,6 +26,7 @@ import {
   TrendingUp,
   School,
   Calendar,
+  FileText,
   Eye as VisibilityIcon,
   LogOut as ExitIcon,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const teacherItems = [
     icon: <ClipboardCheck size={20} />,
   },
   { to: "/progress", label: "Feedback", icon: <TrendingUp size={20} /> },
+  { to: "/teacher-reports", label: "Reports", icon: <FileText size={20} /> },
   { to: "/planner", label: "Planner", icon: <Calendar size={20} /> },
 ];
 
