@@ -138,7 +138,7 @@ export function useSupabaseProgress() {
       // 2. Get existing feedback for these students
       const { data: existing } = await supabase
         .from('progress_reports')
-        .select('id, student_id, score, comments, attendance_pct, cert_type_override')
+        .select('id, student_id, score, comments, cert_type_override')
         .eq('academy_id', academyId)
         .eq('semester_id', semesterId)
 
@@ -163,7 +163,7 @@ export function useSupabaseProgress() {
           semesterId,
           score: fb?.score ?? null,
           comment: fb?.comments || '',
-          attendancePct: attPcts[e.student_id] ?? fb?.attendance_pct ?? null,
+          attendancePct: attPcts[e.student_id] ?? null,
           certTypeOverride: fb?.cert_type_override ?? null,
           dirty: false,
         }
@@ -201,7 +201,6 @@ export function useSupabaseProgress() {
           date: targetDate,
           score: row.score,
           comments: row.comment,
-          attendance_pct: row.attendancePct,
           teacher_id: currentUser?.id || null,
         }
 
@@ -252,7 +251,7 @@ export function useSupabaseProgress() {
       // Get all feedback for this semester
       const { data: existing } = await supabase
         .from('progress_reports')
-        .select('id, student_id, academy_id, score, comments, attendance_pct, cert_type_override')
+        .select('id, student_id, academy_id, score, comments, cert_type_override')
         .eq('semester_id', semesterId)
 
       const fbKey = (sid: string, aid: string) => `${sid}:${aid}`
@@ -284,7 +283,7 @@ export function useSupabaseProgress() {
           semesterId,
           score: fb?.score ?? null,
           comment: fb?.comments || '',
-          attendancePct: pcts[e.student_id] ?? fb?.attendance_pct ?? null,
+          attendancePct: pcts[e.student_id] ?? null,
           certTypeOverride: fb?.cert_type_override ?? null,
           dirty: false,
         }
@@ -334,7 +333,6 @@ export function useSupabaseProgress() {
               semester_id: row.semesterId,
               score: row.score,
               comments: row.comment,
-              attendance_pct: row.attendancePct,
               cert_type_override: row.certTypeOverride,
               teacher_id: currentUser?.id || null,
               date: today,

@@ -161,7 +161,7 @@ export function useTeacherReports({ isTeacher, teacherProfile }: UseTeacherRepor
 
       let feedbackQ = supabase
         .from("progress_reports")
-        .select("id, date, score, comments, attendance_pct, cert_type_override, academy_id, level_id, student_id, students(first_name,last_name), academies(name), levels(name)")
+        .select("id, date, score, comments, cert_type_override, academy_id, level_id, student_id, students(first_name,last_name), academies(name), levels(name)")
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: false })
@@ -180,7 +180,7 @@ export function useTeacherReports({ isTeacher, teacherProfile }: UseTeacherRepor
           levelName: r.levels?.name || "All Levels",
           score: r.score ?? null,
           comment: r.comments || "",
-          attendancePct: r.attendance_pct ?? null,
+          attendancePct: null,
           certTypeOverride: r.cert_type_override ?? null,
         })),
       );
