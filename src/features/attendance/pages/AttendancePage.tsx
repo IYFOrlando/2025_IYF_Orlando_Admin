@@ -491,7 +491,7 @@ export default function AttendancePage() {
   }, [currentAcademyId, academy, koreanAcademyIds, currentLevelId]);
 
   // Open student detail dialog
-  const openStudentDetail = async (studentId: string, studentName: string) => {
+  const openStudentDetail = React.useCallback(async (studentId: string, studentName: string) => {
     setStudentDetailName(studentName);
     setStudentDetailOpen(true);
     setStudentDetailRows([]);
@@ -527,7 +527,7 @@ export default function AttendancePage() {
     const total = rows.length;
     setStudentDetailRows(rows);
     setStudentDetailSummary({ present, total, pct: total > 0 ? Math.round((present / total) * 100) : 0 });
-  };
+  }, [currentAcademyId, academy, koreanAcademyIds, currentLevelId]);
 
   const loadClassForDate = React.useCallback(async () => {
     try {
@@ -720,7 +720,7 @@ export default function AttendancePage() {
         },
       },
     ],
-    [canEdit],
+    [canEdit, openStudentDetail],
   );
 
   // Admin-only helpers
@@ -1169,6 +1169,11 @@ export default function AttendancePage() {
               {error}
             </Alert>
           )}
+
+          <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+            Reason is saved only for <strong>Late</strong> or <strong>Absent</strong>.
+            If status is <strong>Present</strong>, the reason field is cleared.
+          </Alert>
 
           {/* Tabs: Today / History */}
           <Tabs

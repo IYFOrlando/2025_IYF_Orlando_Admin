@@ -41,6 +41,20 @@ export type StudentSearchResult = {
   city?: string
 }
 
+const formatSaveError = (err: any): string => {
+  const message = err?.message || 'Unknown error'
+  const code = err?.code
+  const text = String(message).toLowerCase()
+  if (
+    code === '42501' ||
+    text.includes('row-level security') ||
+    text.includes('permission denied')
+  ) {
+    return 'You do not have permission to save feedback for this class. Please contact admin to verify teacher access.'
+  }
+  return message
+}
+
 export function useSupabaseProgress() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -202,7 +216,7 @@ export function useSupabaseProgress() {
       notifySuccess('Saved', `${dirtyRows.length} feedback record(s) saved`)
       return true
     } catch (err: any) {
-      notifyError('Save Failed', err.message)
+      notifyError('Save Failed', formatSaveError(err))
       return false
     } finally {
       setLoading(false)
@@ -331,7 +345,7 @@ export function useSupabaseProgress() {
       notifySuccess('Saved', `${dirtyRows.length} certification override(s) saved`)
       return true
     } catch (err: any) {
-      notifyError('Save Failed', err.message)
+      notifyError('Save Failed', formatSaveError(err))
       return false
     } finally {
       setLoading(false)
