@@ -4,6 +4,8 @@ import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../context/AuthContext'
 import { notifyError, notifySuccess } from '../../../lib/alerts'
 
+export type CertType = 'None' | 'Completion' | 'Participation'
+
 export type FeedbackRow = {
   id: string | null
   studentId: string
@@ -16,6 +18,7 @@ export type FeedbackRow = {
   score: number | null
   comment: string
   attendancePct: number | null
+  certTypeOverride: CertType | null
   dirty: boolean
 }
 
@@ -121,7 +124,7 @@ export function useSupabaseProgress() {
       // 2. Get existing feedback for these students
       const { data: existing } = await supabase
         .from('progress_reports')
-        .select('id, student_id, score, comments, attendance_pct')
+        .select('id, student_id, score, comments, attendance_pct, cert_type_override')
         .eq('academy_id', academyId)
         .eq('semester_id', semesterId)
 
@@ -147,6 +150,7 @@ export function useSupabaseProgress() {
           score: fb?.score ?? null,
           comment: fb?.comments || '',
           attendancePct: attPcts[e.student_id] ?? fb?.attendance_pct ?? null,
+          certTypeOverride: fb?.cert_type_override ?? null,
           dirty: false,
         }
       })
@@ -233,7 +237,7 @@ export function useSupabaseProgress() {
       // Get all feedback for this semester
       const { data: existing } = await supabase
         .from('progress_reports')
-        .select('id, student_id, academy_id, score, comments, attendance_pct')
+        .select('id, student_id, academy_id, score, comments, attendance_pct, cert_type_override')
         .eq('semester_id', semesterId)
 
       const fbKey = (sid: string, aid: string) => `${sid}:${aid}`
@@ -266,6 +270,7 @@ export function useSupabaseProgress() {
           score: fb?.score ?? null,
           comment: fb?.comments || '',
           attendancePct: pcts[e.student_id] ?? fb?.attendance_pct ?? null,
+          certTypeOverride: fb?.cert_type_override ?? null,
           dirty: false,
         }
       })
@@ -279,6 +284,59 @@ export function useSupabaseProgress() {
       setLoading(false)
     }
   }, [getActiveSemesterId, calcAttendancePcts])
+
+  // Save certificate overrides from Certifications tab.
+  const saveCertificationOverrides = useCallback(async (rows: FeedbackRow[]): Promise<boolean> => {
+    try {
+      setLoading(true)
+      const dirtyRows = rows.filter(r => r.dirty)
+      if (dirtyRows.length === 0) {
+        notifySuccess('No changes', 'Nothing to save')
+        return true
+      }
+
+      const today = new Date().toISOString().slice(0, 10)
+      for (const row of dirtyRows) {
+        const payload = {
+          cert_type_override: row.certTypeOverride,
+          teacher_id: currentUser?.id || null,
+          date: today,
+        }
+
+        if (row.id) {
+          const { error } = await supabase
+            .from('progress_reports')
+            .update(payload)
+            .eq('id', row.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase
+            .from('progress_reports')
+            .insert({
+              student_id: row.studentId,
+              academy_id: row.academyId,
+              level_id: row.levelId,
+              semester_id: row.semesterId,
+              score: row.score,
+              comments: row.comment,
+              attendance_pct: row.attendancePct,
+              cert_type_override: row.certTypeOverride,
+              teacher_id: currentUser?.id || null,
+              date: today,
+            })
+          if (error) throw error
+        }
+      }
+
+      notifySuccess('Saved', `${dirtyRows.length} certification override(s) saved`)
+      return true
+    } catch (err: any) {
+      notifyError('Save Failed', err.message)
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }, [currentUser])
 
   // Legacy: Fetch progress reports (old format)
   const fetchProgress = useCallback(async (academyNames: string[] | null) => {
@@ -406,7 +464,7 @@ export function useSupabaseProgress() {
 
   return {
     fetchProgress, searchStudents, saveProgress, deleteProgress,
-    fetchFeedback, saveFeedbackBatch, fetchAllCertifications,
+    fetchFeedback, saveFeedbackBatch, fetchAllCertifications, saveCertificationOverrides,
     calcAttendancePcts, getActiveSemesterId,
     loading, error
   }

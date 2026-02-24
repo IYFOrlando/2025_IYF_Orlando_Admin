@@ -147,6 +147,7 @@ CREATE TABLE progress_reports (
     date DATE DEFAULT CURRENT_DATE,
     score INTEGER CHECK (score >= 0 AND score <= 100),
     comments TEXT,
+    cert_type_override TEXT CHECK (cert_type_override IN ('None', 'Completion', 'Participation')),
     teacher_id UUID REFERENCES profiles(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

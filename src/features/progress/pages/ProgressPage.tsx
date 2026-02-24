@@ -9,14 +9,15 @@ import SaveIcon from '@mui/icons-material/Save'
 import InsightsIcon from '@mui/icons-material/Insights'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import DownloadIcon from '@mui/icons-material/Download'
+import * as XLSX from 'xlsx'
 
 import { useAuth } from '../../../context/AuthContext'
 import { GlassCard } from '../../../components/GlassCard'
 import { useTeacherContext } from '../../auth/context/TeacherContext'
 import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotifications'
-import { useSupabaseProgress, type FeedbackRow } from '../hooks/useSupabaseProgress'
+import { useSupabaseProgress, type FeedbackRow, type CertType } from '../hooks/useSupabaseProgress'
 import { supabase } from '../../../lib/supabase'
-import { normalizeAcademy } from '../../../lib/normalization'
+import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 
 const ADMIN_EMAILS = ['jodlouis.dev@gmail.com', 'orlando@iyfusa.org']
 
@@ -39,7 +40,7 @@ export default function ProgressPage() {
   const isSuperAdmin = !!(userEmail && ADMIN_EMAILS.includes(userEmail)) || contextIsAdmin
   const canEdit = isSuperAdmin || isTeacher
 
-  const { fetchFeedback, saveFeedbackBatch, fetchAllCertifications, loading } = useSupabaseProgress()
+  const { fetchFeedback, saveFeedbackBatch, fetchAllCertifications, saveCertificationOverrides, loading } = useSupabaseProgress()
   const { addNotification } = useTeacherNotifications(false)
 
   const [tab, setTab] = React.useState(0) // 0=Feedback, 1=Certifications
@@ -53,6 +54,55 @@ export default function ProgressPage() {
   const [selectedAcademy, setSelectedAcademy] = React.useState<AcademyOption | null>(null)
   const [levels, setLevels] = React.useState<LevelOption[]>([])
   const [selectedLevel, setSelectedLevel] = React.useState<string>('') // level_id or '' for all
+
+  const resolveCertType = React.useCallback((row: FeedbackRow): CertType => {
+    if (row.certTypeOverride) return row.certTypeOverride
+    return getCertType(row.attendancePct)
+  }, [])
+
+  // Derive teacher-specific level scope for currently selected academy.
+  // Some profiles include full-academy assignments (level=null) and/or specific levels.
+  const teacherScope = React.useMemo(() => {
+    if (!isTeacher || !teacherProfile || !selectedAcademy) {
+      return {
+        hasSpecificLevelScope: false,
+        allowedLevelIds: [] as string[],
+        allowedLevelNameKeys: [] as string[],
+      }
+    }
+
+    const matching = teacherProfile.academies.filter(
+      (a: any) =>
+        normalizeAcademy(a.academyName) === normalizeAcademy(selectedAcademy.name),
+    )
+
+    const levelNameKeys = Array.from(
+      new Set(
+        matching
+          .map((a: any) => a.level)
+          .filter(Boolean)
+          .map((lvl: string) => normalizeLevel(lvl)),
+      ),
+    )
+
+    if (levelNameKeys.length === 0) {
+      return {
+        hasSpecificLevelScope: false,
+        allowedLevelIds: [] as string[],
+        allowedLevelNameKeys: [] as string[],
+      }
+    }
+
+    const allowedLevelIds = levels
+      .filter((l) => levelNameKeys.includes(normalizeLevel(l.name)))
+      .map((l) => l.id)
+
+    return {
+      hasSpecificLevelScope: true,
+      allowedLevelIds,
+      allowedLevelNameKeys: levelNameKeys,
+    }
+  }, [isTeacher, teacherProfile, selectedAcademy, levels])
 
   // Load academies
   React.useEffect(() => {
@@ -91,7 +141,8 @@ export default function ProgressPage() {
             .filter((a: any) => normalizeAcademy(a.academyName) === normalizeAcademy(selectedAcademy.name) && a.level)
             .map((a: any) => a.level)
           if (teacherLevels.length > 0) {
-            levelList = levelList.filter(l => teacherLevels.includes(l.name))
+            const teacherLevelKeys = teacherLevels.map((lvl: string) => normalizeLevel(lvl))
+            levelList = levelList.filter(l => teacherLevelKeys.includes(normalizeLevel(l.name)))
           }
           // Auto-select if only one level
           if (levelList.length === 1) {
@@ -108,29 +159,77 @@ export default function ProgressPage() {
     load()
   }, [selectedAcademy, isTeacher, teacherProfile])
 
+  const applyFeedbackScopeFilter = React.useCallback((data: FeedbackRow[]) => {
+    let filtered = data
+
+    if (isTeacher && teacherScope.hasSpecificLevelScope) {
+      const allowedIds = new Set(teacherScope.allowedLevelIds)
+      const allowedNames = new Set(teacherScope.allowedLevelNameKeys)
+      filtered = filtered.filter((r) => {
+        if (r.levelId && allowedIds.has(r.levelId)) return true
+        if (r.levelName && allowedNames.has(normalizeLevel(r.levelName))) return true
+        return false
+      })
+    }
+
+    if (selectedLevel) {
+      filtered = filtered.filter((r) => r.levelId === selectedLevel)
+    }
+
+    return filtered
+  }, [isTeacher, teacherScope, selectedLevel])
+
+  // Keep selected level valid for teacher scoped access
+  React.useEffect(() => {
+    if (!isTeacher || !teacherScope.hasSpecificLevelScope) return
+    if (teacherScope.allowedLevelIds.length === 0) return
+    if (!selectedLevel || !teacherScope.allowedLevelIds.includes(selectedLevel)) {
+      setSelectedLevel(teacherScope.allowedLevelIds[0])
+    }
+  }, [isTeacher, teacherScope, selectedLevel])
+
   // Load feedback when academy/level changes
   React.useEffect(() => {
     if (!selectedAcademy || tab !== 0) return
     const load = async () => {
       const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
-      // Filter by level if selected
-      const filtered = selectedLevel
-        ? data.filter(r => r.levelId === selectedLevel)
-        : data
-      setRows(filtered)
+      setRows(applyFeedbackScopeFilter(data))
     }
     load()
-  }, [selectedAcademy, selectedLevel, tab, fetchFeedback])
+  }, [selectedAcademy, selectedLevel, tab, fetchFeedback, applyFeedbackScopeFilter])
 
   // Load certifications
+  const applyCertificationScopeFilter = React.useCallback((data: FeedbackRow[]) => {
+    if (!isTeacher || !teacherProfile) return data
+
+    return data.filter((row) => {
+      const matching = teacherProfile.academies.filter(
+        (a: any) => normalizeAcademy(a.academyName) === normalizeAcademy(row.academyName),
+      )
+      if (matching.length === 0) return false
+
+      // Full academy assignment grants access to all levels in that academy.
+      if (matching.some((m: any) => !m.level)) return true
+
+      const levelKeys = new Set(
+        matching
+          .map((m: any) => m.level)
+          .filter(Boolean)
+          .map((lvl: string) => normalizeLevel(lvl)),
+      )
+
+      return row.levelName ? levelKeys.has(normalizeLevel(row.levelName)) : false
+    })
+  }, [isTeacher, teacherProfile])
+
   React.useEffect(() => {
     if (tab !== 1) return
     const load = async () => {
       const data = await fetchAllCertifications()
-      setCertRows(data)
+      setCertRows(applyCertificationScopeFilter(data))
     }
     load()
-  }, [tab, fetchAllCertifications])
+  }, [tab, fetchAllCertifications, applyCertificationScopeFilter])
 
   const updateRow = (studentId: string, field: 'score' | 'comment', value: any) => {
     setRows(prev => prev.map(r =>
@@ -144,8 +243,7 @@ export default function ProgressPage() {
       // Refresh with same level filter
       if (selectedAcademy) {
         const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
-        const filtered = selectedLevel ? data.filter(r => r.levelId === selectedLevel) : data
-        setRows(filtered)
+        setRows(applyFeedbackScopeFilter(data))
       }
       if (isTeacher && teacherProfile) {
         void addNotification({
@@ -160,6 +258,25 @@ export default function ProgressPage() {
   }
 
   const dirtyCount = rows.filter(r => r.dirty).length
+  const certDirtyCount = certRows.filter(r => r.dirty).length
+
+  const updateCertType = (studentId: string, academyId: string, certType: CertType) => {
+    setCertRows(prev => prev.map(r => {
+      if (r.studentId !== studentId || r.academyId !== academyId) return r
+      return {
+        ...r,
+        certTypeOverride: certType === 'None' ? null : certType,
+        dirty: true,
+      }
+    }))
+  }
+
+  const handleSaveCertifications = async () => {
+    const success = await saveCertificationOverrides(certRows)
+    if (!success) return
+    const refreshed = await fetchAllCertifications()
+    setCertRows(applyCertificationScopeFilter(refreshed))
+  }
 
   // Feedback columns
   const feedbackCols: GridColDef[] = React.useMemo(() => [
@@ -248,15 +365,32 @@ export default function ProgressPage() {
       field: 'certType', headerName: 'Certificate', width: 150,
       type: 'singleSelect',
       valueOptions: ['None', 'Completion', 'Participation'],
-      valueGetter: (params: any) => getCertType(params.row?.attendancePct),
+      valueGetter: (params: any) => resolveCertType(params.row as FeedbackRow),
       renderCell: (p) => {
-        const ct = p.value as string
+        const row = p.row as FeedbackRow
+        const ct = resolveCertType(row)
+        if (canEdit) {
+          return (
+            <TextField
+              select
+              size="small"
+              value={ct}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => updateCertType(row.studentId, row.academyId, e.target.value as CertType)}
+              sx={{ minWidth: 145 }}
+            >
+              <MenuItem value="None">None</MenuItem>
+              <MenuItem value="Participation">Participation</MenuItem>
+              <MenuItem value="Completion">Completion</MenuItem>
+            </TextField>
+          )
+        }
         if (ct === 'Completion') return <Chip label="Completion" color="success" size="small" icon={<EmojiEventsIcon />} />
         if (ct === 'Participation') return <Chip label="Participation" color="info" size="small" />
         return <Chip label="None" size="small" variant="outlined" />
       },
     },
-  ], [])
+  ], [canEdit, resolveCertType])
 
   // CSV export for certifications
   const exportCertCSV = () => {
@@ -268,7 +402,7 @@ export default function ProgressPage() {
       r.attendancePct !== null ? String(r.attendancePct) : '',
       r.score !== null ? String(r.score) : '',
       `"${(r.comment || '').replace(/"/g, '""')}"`,
-      getCertType(r.attendancePct),
+      resolveCertType(r),
     ])
     const csv = [header.join(','), ...csvRows.map(r => r.join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -280,9 +414,25 @@ export default function ProgressPage() {
     URL.revokeObjectURL(url)
   }
 
+  const exportCertExcel = () => {
+    const data = certRows.map((r) => ({
+      Student: r.studentName,
+      Academy: r.academyName,
+      Level: r.levelName || '',
+      'Attendance %': r.attendancePct ?? '',
+      Score: r.score ?? '',
+      Comment: r.comment || '',
+      Certificate: resolveCertType(r),
+    }))
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(data)
+    XLSX.utils.book_append_sheet(wb, ws, 'Certifications')
+    XLSX.writeFile(wb, `certifications_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   // Cert stats
-  const completionCount = certRows.filter(r => getCertType(r.attendancePct) === 'Completion').length
-  const participationCount = certRows.filter(r => getCertType(r.attendancePct) === 'Participation').length
+  const completionCount = certRows.filter(r => resolveCertType(r) === 'Completion').length
+  const participationCount = certRows.filter(r => resolveCertType(r) === 'Participation').length
 
   return (
     <Box>
@@ -337,7 +487,9 @@ export default function ProgressPage() {
                     size="small"
                     sx={{ minWidth: 220 }}
                   >
-                    <MenuItem value="">All Levels</MenuItem>
+                    {!(isTeacher && teacherScope.hasSpecificLevelScope) && (
+                      <MenuItem value="">All Levels</MenuItem>
+                    )}
                     {levels.map(l => (
                       <MenuItem key={l.id} value={l.id}>
                         {l.name}{l.schedule ? ` — ${l.schedule}` : ''}
@@ -348,6 +500,14 @@ export default function ProgressPage() {
                 <Box sx={{ flexGrow: 1 }} />
                 {dirtyCount > 0 && (
                   <Chip label={`${dirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
+                )}
+                {isTeacher && teacherScope.hasSpecificLevelScope && (
+                  <Chip
+                    label="Teacher scope: showing assigned level(s) only"
+                    color="info"
+                    variant="outlined"
+                    sx={{ fontWeight: 600 }}
+                  />
                 )}
                 <Button
                   variant="contained"
@@ -397,6 +557,31 @@ export default function ProgressPage() {
                   <Chip label={`${certRows.length} Total`} variant="outlined" />
                 </Stack>
                 <Box sx={{ flexGrow: 1 }} />
+                {certDirtyCount > 0 && (
+                  <Chip label={`${certDirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
+                )}
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveCertifications}
+                  disabled={!canEdit || certDirtyCount === 0 || loading}
+                  sx={{
+                    borderRadius: 2,
+                    background: 'linear-gradient(45deg, #009688 30%, #00BCD4 90%)',
+                    boxShadow: '0 3px 5px 2px rgba(0, 188, 212, .3)',
+                  }}
+                >
+                  Save Certifications ({certDirtyCount})
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={exportCertExcel}
+                  disabled={certRows.length === 0}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   variant="outlined"
                   startIcon={<DownloadIcon />}
