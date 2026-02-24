@@ -246,6 +246,8 @@ export default function ProgressPage() {
     { field: 'comment', headerName: 'Comment', minWidth: 200, flex: 1, renderCell: (p) => p.value || '—' },
     {
       field: 'certType', headerName: 'Certificate', width: 150,
+      type: 'singleSelect',
+      valueOptions: ['None', 'Completion', 'Participation'],
       valueGetter: (_value: any, row: any) => getCertType(row.attendancePct),
       renderCell: (p) => {
         const ct = p.value as string

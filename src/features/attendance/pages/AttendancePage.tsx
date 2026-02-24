@@ -24,7 +24,6 @@ import {
   Paper,
   Tabs,
   Tab,
-  IconButton,
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import type { GridColDef } from "@mui/x-data-grid";
