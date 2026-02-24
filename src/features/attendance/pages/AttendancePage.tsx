@@ -9,7 +9,6 @@ import {
   TextField,
   MenuItem,
   Chip,
-  Switch,
   Autocomplete,
   Grid,
   Typography,
@@ -68,7 +67,7 @@ type Row = {
   id: string;
   registrationId: string;
   studentName: string;
-  present: boolean;
+  status: "present" | "late" | "absent";
   reason?: string;
   percent?: number;
   recordId?: string; // Supabase record ID
@@ -376,7 +375,14 @@ export default function AttendancePage() {
   >({});
 
   // Past sessions history
-  type SessionSummary = { id: string; date: string; presentCount: number; absentCount: number; total: number };
+  type SessionSummary = {
+    id: string;
+    date: string;
+    presentCount: number;
+    lateCount: number;
+    absentCount: number;
+    total: number;
+  };
   const [pastSessions, setPastSessions] = React.useState<SessionSummary[]>([]);
   const [historyTab, setHistoryTab] = React.useState(0); // 0=attendance grid, 1=history
 
@@ -439,7 +445,10 @@ export default function AttendancePage() {
       // Per-student stats
       const stats: Record<string, { present: number; total: number }> = {};
       // Per-session stats
-      const sessionStats: Record<string, { present: number; absent: number; total: number }> = {};
+      const sessionStats: Record<
+        string,
+        { present: number; late: number; absent: number; total: number }
+      > = {};
 
       records.forEach((r: any) => {
         // Student stats
@@ -448,9 +457,12 @@ export default function AttendancePage() {
         if (r.status === "present") stats[r.student_id].present++;
 
         // Session stats
-        if (!sessionStats[r.session_id]) sessionStats[r.session_id] = { present: 0, absent: 0, total: 0 };
+        if (!sessionStats[r.session_id]) {
+          sessionStats[r.session_id] = { present: 0, late: 0, absent: 0, total: 0 };
+        }
         sessionStats[r.session_id].total++;
         if (r.status === "present") sessionStats[r.session_id].present++;
+        else if (r.status === "late") sessionStats[r.session_id].late++;
         else sessionStats[r.session_id].absent++;
       });
 
@@ -463,8 +475,15 @@ export default function AttendancePage() {
 
       // Build past sessions list
       const summaries: SessionSummary[] = sessions.map((s: any) => {
-        const ss = sessionStats[s.id] || { present: 0, absent: 0, total: 0 };
-        return { id: s.id, date: s.date, presentCount: ss.present, absentCount: ss.absent, total: ss.total };
+        const ss = sessionStats[s.id] || { present: 0, late: 0, absent: 0, total: 0 };
+        return {
+          id: s.id,
+          date: s.date,
+          presentCount: ss.present,
+          lateCount: ss.late,
+          absentCount: ss.absent,
+          total: ss.total,
+        };
       });
       setPastSessions(summaries);
     };
@@ -585,7 +604,8 @@ export default function AttendancePage() {
           id: s.id,
           registrationId: s.id,
           studentName: s.name,
-          present: ex ? ex.status === "present" : true,
+          status:
+            ex?.status === "late" || ex?.status === "absent" ? ex.status : "present",
           reason: ex?.reason || "",
           percent,
           recordId: ex?.id,
@@ -621,35 +641,43 @@ export default function AttendancePage() {
         ),
       },
       {
-        field: "present",
-        headerName: "Present",
-        width: 120,
+        field: "status",
+        headerName: "Status",
+        width: 170,
         sortable: false,
         filterable: false,
         renderCell: (p) => (
-          <Switch
-            checked={!!p.row.present}
+          <TextField
+            select
+            size="small"
+            value={p.row.status}
             onChange={(e) => {
-              const checked = e.target.checked;
+              const status = e.target.value as Row["status"];
               setRows((prev) =>
                 prev.map((r) =>
                   r.id === p.row.id
                     ? {
                         ...r,
-                        present: checked,
-                        reason: checked ? "" : r.reason,
+                        status,
+                        reason: status === "present" ? "" : r.reason,
                       }
                     : r,
                 ),
               );
             }}
             disabled={!canEdit}
-          />
+            onClick={(e) => e.stopPropagation()}
+            sx={{ minWidth: 150 }}
+          >
+            <MenuItem value="present">Present</MenuItem>
+            <MenuItem value="late">Late</MenuItem>
+            <MenuItem value="absent">Absent</MenuItem>
+          </TextField>
         ),
       },
       {
         field: "reason",
-        headerName: "Reason (if absent)",
+        headerName: "Reason (if late/absent)",
         minWidth: 260,
         flex: 1.2,
         sortable: false,
@@ -660,7 +688,7 @@ export default function AttendancePage() {
             fullWidth
             placeholder="Illness, travel, family…"
             value={p.row.reason || ""}
-            disabled={p.row.present || !canEdit}
+            disabled={p.row.status === "present" || !canEdit}
             onClick={(e) => e.stopPropagation()}
             onFocus={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
@@ -697,9 +725,9 @@ export default function AttendancePage() {
   );
 
   // Admin-only helpers
-  const markAll = (val: boolean) =>
+  const markAll = (status: Row["status"]) =>
     setRows((prev) =>
-      prev.map((r) => ({ ...r, present: val, reason: val ? "" : r.reason })),
+      prev.map((r) => ({ ...r, status, reason: status === "present" ? "" : r.reason })),
     );
 
   // Schedule display info per level (levelName -> schedule)
@@ -805,7 +833,7 @@ export default function AttendancePage() {
     const rowsToSave = rows.map((r) => ({
       id: r.registrationId, // hook uses 'id' as studentId
       studentName: r.studentName,
-      present: r.present,
+      status: r.status,
       reason: r.reason || "",
       recordId: r.recordId,
     }));
@@ -1067,7 +1095,7 @@ export default function AttendancePage() {
                     <Button
                       startIcon={<DoneAllIcon />}
                       color="success"
-                      onClick={() => markAll(true)}
+                      onClick={() => markAll("present")}
                       disabled={!rows.length}
                       sx={{ minWidth: { xs: "45%", sm: "auto" } }}
                     >
@@ -1078,7 +1106,7 @@ export default function AttendancePage() {
                     <Button
                       startIcon={<CloseIcon />}
                       color="warning"
-                      onClick={() => markAll(false)}
+                      onClick={() => markAll("absent")}
                       disabled={!rows.length}
                       sx={{ minWidth: { xs: "45%", sm: "auto" } }}
                     >
@@ -1191,6 +1219,7 @@ export default function AttendancePage() {
                       <TableRow sx={{ bgcolor: "rgba(63, 81, 181, 0.08)" }}>
                         <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                         <TableCell sx={{ fontWeight: 700 }} align="center">Present</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Late</TableCell>
                         <TableCell sx={{ fontWeight: 700 }} align="center">Absent</TableCell>
                         <TableCell sx={{ fontWeight: 700 }} align="center">Total</TableCell>
                         <TableCell sx={{ fontWeight: 700 }} align="center">Action</TableCell>
@@ -1202,6 +1231,9 @@ export default function AttendancePage() {
                           <TableCell>{new Date(s.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</TableCell>
                           <TableCell align="center">
                             <Chip label={s.presentCount} color="success" size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={s.lateCount} color={s.lateCount > 0 ? "warning" : "default"} size="small" variant="outlined" />
                           </TableCell>
                           <TableCell align="center">
                             <Chip label={s.absentCount} color={s.absentCount > 0 ? "error" : "default"} size="small" variant="outlined" />

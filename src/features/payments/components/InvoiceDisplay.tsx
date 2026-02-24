@@ -1,6 +1,7 @@
 
 import { Box, Paper, Typography, Divider, Grid, Stack } from '@mui/material'
 import { useInvoiceConfig } from '../../settings/hooks/useInvoiceConfig'
+import { formatDateSafe } from '../utils'
 
 // Interface matching the Invoice type in typical usage
 export interface Invoice {
@@ -77,7 +78,7 @@ export function InvoiceDisplay({ invoice }: InvoiceDisplayProps) {
         <Grid item xs={6}>
           <Typography variant="body2" color={TEXT_GRAY}>Invoice Date:</Typography>
           <Typography variant="body1" fontWeight="bold">
-            {invoice.createdAt ? new Date(invoice.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+            {formatDateSafe(invoice.createdAt, 'N/A')}
           </Typography>
         </Grid>
         <Grid item xs={6}>
@@ -108,7 +109,7 @@ export function InvoiceDisplay({ invoice }: InvoiceDisplayProps) {
           <Grid item xs={6}>
             <Typography variant="body2" color={TEXT_GRAY}>Payment Date:</Typography>
             <Typography variant="body1" fontWeight="bold">
-              {new Date(invoice.updatedAt.seconds * 1000).toLocaleDateString()}
+              {formatDateSafe(invoice.updatedAt, 'N/A')}
             </Typography>
           </Grid>
         )}

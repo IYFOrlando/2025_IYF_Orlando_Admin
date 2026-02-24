@@ -58,7 +58,12 @@ import { useInvoiceConfig } from "../../settings/hooks/useInvoiceConfig"; // Thi
 import InvoiceDialog from "../components/InvoiceDialog";
 import { InvoiceDisplay } from "../components/InvoiceDisplay";
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from "../types";
-import { latestInvoicePerStudent } from "../utils";
+import {
+  latestInvoicePerStudent,
+  toMillis,
+  formatDateSafe,
+  formatDateTimeSafe,
+} from "../utils";
 import {
   isKoreanLanguage,
   mapKoreanLevel,
@@ -394,15 +399,11 @@ const PaymentsPage = React.memo(() => {
     // Derived from Supabase data
     const studentInvs = (allInvoices || [])
       .filter((i) => i.studentId === student.id)
-      .sort(
-        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-      );
+      .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
     const studentPays = (allPayments || [])
       .filter((p) => p.studentId === student.id)
-      .sort(
-        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-      );
+      .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
     setStudentInvoices(studentInvs);
     setStudentPayments(studentPays);
@@ -1032,9 +1033,7 @@ const PaymentsPage = React.memo(() => {
         Student: inv?.studentName || "Unknown",
         Amount: fromCents(p.amount),
         Method: p.method,
-        Date: p.createdAt?.seconds
-          ? new Date(p.createdAt.seconds * 1000).toLocaleDateString()
-          : "",
+        Date: formatDateSafe(p.createdAt, ""),
       };
     });
 
@@ -1178,9 +1177,8 @@ const PaymentsPage = React.memo(() => {
       doc.text("Payment Date:", col1, detailY);
       doc.setFont("helvetica", "bold");
       // Try to use update date or today
-      const payDate = inv.updatedAt
-        ? new Date(inv.updatedAt.seconds * 1000 || new Date())
-        : new Date();
+      const payDateMs = toMillis(inv.updatedAt);
+      const payDate = payDateMs > 0 ? new Date(payDateMs) : new Date();
       doc.text(payDate.toLocaleDateString(), col2, detailY);
     }
 
@@ -1760,9 +1758,7 @@ const PaymentsPage = React.memo(() => {
                           <Box>
                             <Typography variant="subtitle1" fontWeight={600}>
                               #{inv.id.slice(0, 6)} •{" "}
-                              {new Date(
-                                inv.createdAt?.seconds * 1000,
-                              ).toLocaleDateString()}
+                              {formatDateSafe(inv.createdAt)}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                               {inv.lines.length} items •{" "}
@@ -2097,11 +2093,7 @@ const PaymentsPage = React.memo(() => {
                     <Stack spacing={1.5}>
                       {allPayments
                         .slice()
-                        .sort(
-                          (a, b) =>
-                            (b.createdAt?.seconds || 0) -
-                            (a.createdAt?.seconds || 0),
-                        )
+                        .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
                         .slice(0, 5)
                         .map((p) => (
                           <Stack
@@ -2120,11 +2112,7 @@ const PaymentsPage = React.memo(() => {
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                {p.createdAt?.seconds
-                                  ? new Date(
-                                      p.createdAt.seconds * 1000,
-                                    ).toLocaleDateString()
-                                  : "Just now"}{" "}
+                                {formatDateSafe(p.createdAt, "Just now")}{" "}
                                 • {p.method?.toUpperCase()}
                               </Typography>
                             </Box>
@@ -2514,13 +2502,7 @@ const PaymentsPage = React.memo(() => {
                             variant="caption"
                             color="text.secondary"
                           >
-                            {inv.createdAt
-                              ? new Date(
-                                  inv.createdAt.seconds
-                                    ? inv.createdAt.seconds * 1000
-                                    : inv.createdAt,
-                                ).toLocaleDateString()
-                              : "—"}{" "}
+                            {formatDateSafe(inv.createdAt)}{" "}
                             • {inv.status}
                           </Typography>
                         </Box>
@@ -2563,9 +2545,7 @@ const PaymentsPage = React.memo(() => {
                           {usd(p.amount)} via {p.method}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {new Date(
-                            p.createdAt?.seconds * 1000,
-                          ).toLocaleString()}
+                          {formatDateTimeSafe(p.createdAt)}
                         </Typography>
                       </Box>
                       <ReceiptIcon color="action" />
@@ -2616,9 +2596,8 @@ const PaymentsPage = React.memo(() => {
                       { total: number; payments: any[] }
                     > = {};
                     payments.forEach((p) => {
-                      const d = p.createdAt?.seconds
-                        ? new Date(p.createdAt.seconds * 1000)
-                        : new Date();
+                      const dMs = toMillis(p.createdAt);
+                      const d = dMs > 0 ? new Date(dMs) : new Date();
                       // Get start of week (Sunday)
                       const day = d.getDay();
                       const diff = d.getDate() - day;
@@ -2694,11 +2673,7 @@ const PaymentsPage = React.memo(() => {
                 </Typography>
                 <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
                   {(allInvoices || [])
-                    .sort(
-                      (a, b) =>
-                        (b.createdAt?.seconds || 0) -
-                        (a.createdAt?.seconds || 0),
-                    )
+                    .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
                     .map((inv) => (
                       <Paper
                         key={inv.id}
@@ -2716,9 +2691,7 @@ const PaymentsPage = React.memo(() => {
                             #{inv.id.slice(0, 6)} • {inv.studentName}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {new Date(
-                              inv.createdAt?.seconds * 1000,
-                            ).toLocaleDateString()}{" "}
+                            {formatDateSafe(inv.createdAt)}{" "}
                             • {inv.status}
                           </Typography>
                         </Box>
