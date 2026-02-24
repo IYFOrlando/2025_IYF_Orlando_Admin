@@ -248,7 +248,7 @@ export default function ProgressPage() {
       field: 'certType', headerName: 'Certificate', width: 150,
       type: 'singleSelect',
       valueOptions: ['None', 'Completion', 'Participation'],
-      valueGetter: (_value: any, row: any) => getCertType(row.attendancePct),
+      valueGetter: (params: any) => getCertType(params.row?.attendancePct),
       renderCell: (p) => {
         const ct = p.value as string
         if (ct === 'Completion') return <Chip label="Completion" color="success" size="small" icon={<EmojiEventsIcon />} />
