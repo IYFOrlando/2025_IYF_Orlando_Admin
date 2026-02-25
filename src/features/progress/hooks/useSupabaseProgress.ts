@@ -106,10 +106,11 @@ export function useSupabaseProgress() {
     return pcts
   }, [])
 
-  // Fetch feedback rows for an academy (semester-oriented, one row per student)
+  // Fetch feedback rows for an academy and class date (one row per student for that date)
   const fetchFeedback = useCallback(async (
     academyId: string,
     academyName: string,
+    targetDate: string,
   ): Promise<FeedbackRow[]> => {
     try {
       setLoading(true)
@@ -135,15 +136,21 @@ export function useSupabaseProgress() {
 
       const studentIds = enrollments.map((e: any) => e.student_id)
 
-      // 2. Get existing feedback for these students
+      // 2. Get existing feedback for these students on selected class date
       const { data: existing } = await supabase
         .from('progress_reports')
         .select('id, student_id, score, comments, cert_type_override')
         .eq('academy_id', academyId)
         .eq('semester_id', semesterId)
+        .eq('date', targetDate)
+        .order('id', { ascending: false })
 
       const feedbackMap: Record<string, any> = {}
-      existing?.forEach((r: any) => { feedbackMap[r.student_id] = r })
+      existing?.forEach((r: any) => {
+        if (!feedbackMap[r.student_id]) {
+          feedbackMap[r.student_id] = r
+        }
+      })
 
       // 3. Calculate attendance %
       const attPcts = await calcAttendancePcts(academyId, studentIds)
@@ -179,7 +186,7 @@ export function useSupabaseProgress() {
     }
   }, [getActiveSemesterId, calcAttendancePcts])
 
-  // Batch save feedback
+  // Batch save feedback by business key (student+academy+semester+date)
   const saveFeedbackBatch = useCallback(async (rows: FeedbackRow[], saveDate?: string): Promise<boolean> => {
     try {
       setLoading(true)
@@ -192,8 +199,7 @@ export function useSupabaseProgress() {
       const today = new Date().toISOString().slice(0, 10)
       const targetDate = saveDate || today
 
-      for (const row of dirtyRows) {
-        const payload = {
+      const payloads = dirtyRows.map((row) => ({
           student_id: row.studentId,
           academy_id: row.academyId,
           level_id: row.levelId,
@@ -202,16 +208,12 @@ export function useSupabaseProgress() {
           score: row.score,
           comments: row.comment,
           teacher_id: currentUser?.id || null,
-        }
+      }))
 
-        if (row.id) {
-          const { error } = await supabase.from('progress_reports').update(payload).eq('id', row.id)
-          if (error) throw error
-        } else {
-          const { error } = await supabase.from('progress_reports').insert(payload)
-          if (error) throw error
-        }
-      }
+      const { error } = await supabase
+        .from('progress_reports')
+        .upsert(payloads, { onConflict: 'student_id,academy_id,semester_id,date' })
+      if (error) throw error
 
       notifySuccess('Saved', `${dirtyRows.length} feedback record(s) saved`)
       return true
@@ -251,12 +253,19 @@ export function useSupabaseProgress() {
       // Get all feedback for this semester
       const { data: existing } = await supabase
         .from('progress_reports')
-        .select('id, student_id, academy_id, score, comments, cert_type_override')
+        .select('id, student_id, academy_id, date, score, comments, cert_type_override')
         .eq('semester_id', semesterId)
+        .order('date', { ascending: false })
+        .order('id', { ascending: false })
 
       const fbKey = (sid: string, aid: string) => `${sid}:${aid}`
       const feedbackMap: Record<string, any> = {}
-      existing?.forEach((r: any) => { feedbackMap[fbKey(r.student_id, r.academy_id)] = r })
+      existing?.forEach((r: any) => {
+        const key = fbKey(r.student_id, r.academy_id)
+        if (!feedbackMap[key]) {
+          feedbackMap[key] = r
+        }
+      })
 
       // Get unique academy IDs and calculate attendance for each
       const academyIds = [...new Set(enrollments.map((e: any) => e.academy_id))]

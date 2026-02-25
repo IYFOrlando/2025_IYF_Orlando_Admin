@@ -201,15 +201,15 @@ export default function ProgressPage() {
     }
   }, [isTeacher, teacherScope, selectedLevel])
 
-  // Load feedback when academy/level changes
+  // Load feedback when academy/level/date changes
   React.useEffect(() => {
     if (!selectedAcademy || tab !== 0) return
     const load = async () => {
-      const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
+      const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name, feedbackDate)
       setRows(applyFeedbackScopeFilter(data))
     }
     load()
-  }, [selectedAcademy, selectedLevel, tab, fetchFeedback, applyFeedbackScopeFilter])
+  }, [selectedAcademy, selectedLevel, tab, feedbackDate, fetchFeedback, applyFeedbackScopeFilter])
 
   // Load certifications
   const applyCertificationScopeFilter = React.useCallback((data: FeedbackRow[]) => {
@@ -255,7 +255,7 @@ export default function ProgressPage() {
     if (success) {
       // Refresh with same level filter
       if (selectedAcademy) {
-        const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name)
+        const data = await fetchFeedback(selectedAcademy.id, selectedAcademy.name, feedbackDate)
         setRows(applyFeedbackScopeFilter(data))
       }
       if (isTeacher && teacherProfile) {
