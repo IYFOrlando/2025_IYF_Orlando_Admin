@@ -57,10 +57,10 @@ import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
 import {
   formatClassDateLabel,
+  getNearestSaturdayYmd,
   getLastSaturdayYmd,
-  getThisSaturdayYmd,
-  getTodayYmd,
-  shiftSaturdayYmd,
+  getSaturdayOptions,
+  isSaturdayYmd,
 } from "../../../lib/classDate";
 // deduplicateRegistrations removed - Supabase hook already groups by student.id
 
@@ -110,11 +110,8 @@ export default function AttendancePage() {
   // Filters
   const [date, setDate] = React.useState<string>(() => getLastSaturdayYmd());
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (!val) return;
-    setDate(val);
-  };
+  const [showCalendarPicker, setShowCalendarPicker] = React.useState(false);
+  const [dateHint, setDateHint] = React.useState<string>("");
 
   // Navigate date by N days
   const shiftDate = (days: number) => {
@@ -123,17 +120,25 @@ export default function AttendancePage() {
     setDate(d.toISOString().slice(0, 10));
   };
 
-  const applyDateQuickAction = (
-    action: "lastSaturday" | "thisSaturday" | "prevSaturday" | "nextSaturday" | "today",
-  ) => {
-    if (action === "lastSaturday") return setDate(getLastSaturdayYmd());
-    if (action === "thisSaturday") return setDate(getThisSaturdayYmd());
-    if (action === "prevSaturday") return setDate(shiftSaturdayYmd(date, -1));
-    if (action === "nextSaturday") return setDate(shiftSaturdayYmd(date, 1));
-    setDate(getTodayYmd());
+  const handleSaturdaySelect = (value: string) => {
+    setDate(value);
+    setDateHint("");
+  };
+
+  const handleManualCalendarDateChange = (value: string) => {
+    if (!value) return;
+    if (isSaturdayYmd(value)) {
+      setDate(value);
+      setDateHint("");
+      return;
+    }
+    const adjusted = getNearestSaturdayYmd(value);
+    setDate(adjusted);
+    setDateHint(`Adjusted to nearest Saturday: ${formatClassDateLabel(adjusted)}`);
   };
 
   const classDateLabel = React.useMemo(() => formatClassDateLabel(date), [date]);
+  const saturdayOptions = React.useMemo(() => getSaturdayOptions(date), [date]);
 
   const [academy, setAcademy] = React.useState<string>("");
   const [level, setLevel] = React.useState<string>(urlLevel || "");
@@ -979,15 +984,20 @@ export default function AttendancePage() {
                       </Button>
                     </Tooltip>
                     <TextField
-                      label="Date"
-                      type="date"
-                      InputLabelProps={{ shrink: true }}
+                      select
+                      label="Class Saturday"
                       value={date}
-                      onChange={handleDateChange}
+                      onChange={(e) => handleSaturdaySelect(e.target.value)}
                       fullWidth
                       size="small"
-                      helperText={`Class target: ${classDateLabel}`}
-                    />
+                      helperText={`Selected class date: ${classDateLabel}`}
+                    >
+                      {saturdayOptions.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                     <Tooltip title="Next week">
                       <Button
                         size="small"
@@ -1000,22 +1010,31 @@ export default function AttendancePage() {
                     </Tooltip>
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
-                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("lastSaturday")}>
-                      Last Saturday
+                    <Button size="small" variant="outlined" onClick={() => handleSaturdaySelect(getLastSaturdayYmd())}>
+                      Use Last Saturday
                     </Button>
-                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("thisSaturday")}>
-                      This Saturday
-                    </Button>
-                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("prevSaturday")}>
-                      Saturday -1
-                    </Button>
-                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("nextSaturday")}>
-                      Saturday +1
-                    </Button>
-                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("today")}>
-                      Today
+                    <Button size="small" variant="text" onClick={() => setShowCalendarPicker((v) => !v)}>
+                      {showCalendarPicker ? "Hide calendar" : "Open calendar"}
                     </Button>
                   </Stack>
+                  {showCalendarPicker && (
+                    <TextField
+                      sx={{ mt: 1 }}
+                      label="Pick any date"
+                      type="date"
+                      InputLabelProps={{ shrink: true }}
+                      value={date}
+                      onChange={(e) => handleManualCalendarDateChange(e.target.value)}
+                      fullWidth
+                      size="small"
+                      helperText="If you pick a non-Saturday, it will auto-adjust to the nearest Saturday."
+                    />
+                  )}
+                  {!!dateHint && (
+                    <Alert sx={{ mt: 1 }} severity="info">
+                      {dateHint}
+                    </Alert>
+                  )}
                 </Grid>
                 <Grid item xs={12} md={academyHasLevels ? 4 : 8}>
                   <Autocomplete

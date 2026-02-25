@@ -23,7 +23,11 @@ import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { supabase } from "../../../lib/supabase";
 import { useTeacherReports } from "../../reports/hooks/useTeacherReports";
 import {
+  formatClassDateLabel,
+  getNearestSaturdayYmd,
+  getSaturdayOptions,
   getSaturdayRangePreset,
+  isSaturdayYmd,
   type SaturdayRangePreset,
 } from "../../../lib/classDate";
 
@@ -41,6 +45,8 @@ export default function TeacherReportsPage() {
   const [rangePreset, setRangePreset] = React.useState<
     SaturdayRangePreset | "custom"
   >("last4Saturdays");
+  const [showRangeCalendar, setShowRangeCalendar] = React.useState(false);
+  const [rangeHint, setRangeHint] = React.useState("");
 
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [detailRows, setDetailRows] = React.useState<AttendanceDetailRow[]>([]);
@@ -80,6 +86,34 @@ export default function TeacherReportsPage() {
     if (rangePreset !== "custom") return getSaturdayRangePreset(rangePreset).label;
     return `${startDate} - ${endDate}`;
   }, [rangePreset, startDate, endDate]);
+  const saturdayFromOptions = React.useMemo(
+    () => getSaturdayOptions(startDate, 16, 4),
+    [startDate],
+  );
+  const saturdayToOptions = React.useMemo(
+    () => getSaturdayOptions(endDate, 16, 4),
+    [endDate],
+  );
+
+  const setSaturdayRangeDate = (target: "from" | "to", value: string) => {
+    if (target === "from") setStartDate(value);
+    else setEndDate(value);
+    setRangePreset("custom");
+    setRangeHint("");
+  };
+
+  const setManualRangeDate = (target: "from" | "to", value: string) => {
+    if (!value) return;
+    const adjusted = isSaturdayYmd(value) ? value : getNearestSaturdayYmd(value);
+    if (target === "from") setStartDate(adjusted);
+    else setEndDate(adjusted);
+    setRangePreset("custom");
+    setRangeHint(
+      isSaturdayYmd(value)
+        ? ""
+        : `Adjusted to Saturday date: ${formatClassDateLabel(adjusted)}`,
+    );
+  };
 
   const openSessionDetails = async (sessionId: string, label: string) => {
     const { data } = await supabase
@@ -218,33 +252,71 @@ export default function TeacherReportsPage() {
               sx={{ minWidth: 220 }}
             />
             <TextField
-              label="From"
-              type="date"
+              select
+              label="From Saturday"
               size="small"
               value={startDate}
-              InputLabelProps={{ shrink: true }}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                setRangePreset("custom");
-              }}
-            />
+              onChange={(e) => setSaturdayRangeDate("from", e.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              {saturdayFromOptions.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
-              label="To"
-              type="date"
+              select
+              label="To Saturday"
               size="small"
               value={endDate}
-              InputLabelProps={{ shrink: true }}
-              onChange={(e) => {
-                setEndDate(e.target.value);
-                setRangePreset("custom");
-              }}
-            />
+              onChange={(e) => setSaturdayRangeDate("to", e.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              {saturdayToOptions.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => setShowRangeCalendar((v) => !v)}
+            >
+              {showRangeCalendar ? "Hide calendar" : "Open calendar"}
+            </Button>
             <Chip
               label={`Range: ${rangeLabel}`}
               variant="outlined"
               color="primary"
               sx={{ alignSelf: "center" }}
             />
+            {showRangeCalendar && (
+              <>
+                <TextField
+                  label="Pick from date"
+                  type="date"
+                  size="small"
+                  value={startDate}
+                  InputLabelProps={{ shrink: true }}
+                  onChange={(e) => setManualRangeDate("from", e.target.value)}
+                />
+                <TextField
+                  label="Pick to date"
+                  type="date"
+                  size="small"
+                  value={endDate}
+                  InputLabelProps={{ shrink: true }}
+                  onChange={(e) => setManualRangeDate("to", e.target.value)}
+                />
+              </>
+            )}
+            {!!rangeHint && (
+              <Alert severity="info" sx={{ py: 0 }}>
+                {rangeHint}
+              </Alert>
+            )}
           </Stack>
 
           {error && (

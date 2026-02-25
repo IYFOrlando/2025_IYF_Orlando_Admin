@@ -20,10 +20,11 @@ import { supabase } from '../../../lib/supabase'
 import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
 import {
   formatClassDateLabel,
+  getNearestSaturdayYmd,
   getLastSaturdayYmd,
-  getThisSaturdayYmd,
   getTodayYmd,
-  shiftSaturdayYmd,
+  getSaturdayOptions,
+  isSaturdayYmd,
 } from '../../../lib/classDate'
 
 const ADMIN_EMAILS = ['jodlouis.dev@gmail.com', 'orlando@iyfusa.org']
@@ -64,6 +65,8 @@ export default function ProgressPage() {
   const [feedbackDate, setFeedbackDate] = React.useState<string>(() =>
     isTeacher ? getLastSaturdayYmd() : getTodayYmd(),
   )
+  const [showFeedbackCalendar, setShowFeedbackCalendar] = React.useState(false)
+  const [feedbackDateHint, setFeedbackDateHint] = React.useState('')
 
   const resolveCertType = React.useCallback((row: FeedbackRow): CertType => {
     if (row.certTypeOverride) return row.certTypeOverride
@@ -267,18 +270,29 @@ export default function ProgressPage() {
     }
   }
 
-  const applyFeedbackDateQuickAction = (
-    action: 'lastSaturday' | 'thisSaturday' | 'prevSaturday' | 'nextSaturday' | 'today',
-  ) => {
-    if (action === 'lastSaturday') return setFeedbackDate(getLastSaturdayYmd())
-    if (action === 'thisSaturday') return setFeedbackDate(getThisSaturdayYmd())
-    if (action === 'prevSaturday') return setFeedbackDate(shiftSaturdayYmd(feedbackDate, -1))
-    if (action === 'nextSaturday') return setFeedbackDate(shiftSaturdayYmd(feedbackDate, 1))
-    setFeedbackDate(getTodayYmd())
+  const setFeedbackSaturday = (value: string) => {
+    setFeedbackDate(value)
+    setFeedbackDateHint('')
+  }
+
+  const handleFeedbackCalendarDate = (value: string) => {
+    if (!value) return
+    if (isSaturdayYmd(value)) {
+      setFeedbackDate(value)
+      setFeedbackDateHint('')
+      return
+    }
+    const adjusted = getNearestSaturdayYmd(value)
+    setFeedbackDate(adjusted)
+    setFeedbackDateHint(`Adjusted to nearest Saturday: ${formatClassDateLabel(adjusted)}`)
   }
 
   const feedbackDateLabel = React.useMemo(
     () => formatClassDateLabel(feedbackDate),
+    [feedbackDate],
+  )
+  const feedbackSaturdayOptions = React.useMemo(
+    () => getSaturdayOptions(feedbackDate),
     [feedbackDate],
   )
 
@@ -524,32 +538,45 @@ export default function ProgressPage() {
                 )}
                 <Box sx={{ flexGrow: 1 }} />
                 <TextField
-                  label="Feedback Date"
-                  type="date"
+                  select
+                  label="Feedback Saturday"
                   size="small"
                   value={feedbackDate}
-                  onChange={(e) => setFeedbackDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  helperText={feedbackDateLabel}
-                  sx={{ minWidth: 220 }}
-                />
+                  onChange={(e) => setFeedbackSaturday(e.target.value)}
+                  helperText={`Selected class date: ${feedbackDateLabel}`}
+                  sx={{ minWidth: 250 }}
+                >
+                  {feedbackSaturdayOptions.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('lastSaturday')}>
-                    Last Saturday
+                  <Button size="small" variant="outlined" onClick={() => setFeedbackSaturday(getLastSaturdayYmd())}>
+                    Use Last Saturday
                   </Button>
-                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('thisSaturday')}>
-                    This Saturday
-                  </Button>
-                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('prevSaturday')}>
-                    Saturday -1
-                  </Button>
-                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('nextSaturday')}>
-                    Saturday +1
-                  </Button>
-                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('today')}>
-                    Today
+                  <Button size="small" variant="text" onClick={() => setShowFeedbackCalendar((v) => !v)}>
+                    {showFeedbackCalendar ? 'Hide calendar' : 'Open calendar'}
                   </Button>
                 </Stack>
+                {showFeedbackCalendar && (
+                  <TextField
+                    label="Pick any date"
+                    type="date"
+                    size="small"
+                    value={feedbackDate}
+                    onChange={(e) => handleFeedbackCalendarDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    helperText="If you pick a non-Saturday, it will auto-adjust to the nearest Saturday."
+                    sx={{ minWidth: 220 }}
+                  />
+                )}
+                {!!feedbackDateHint && (
+                  <Alert severity="info" sx={{ py: 0 }}>
+                    {feedbackDateHint}
+                  </Alert>
+                )}
                 {dirtyCount > 0 && (
                   <Chip label={`${dirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
                 )}

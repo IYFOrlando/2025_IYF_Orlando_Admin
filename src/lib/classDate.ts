@@ -1,4 +1,5 @@
 export type SaturdayRangePreset = "lastSaturday" | "last4Saturdays" | "thisMonth";
+export type SaturdayOption = { value: string; label: string };
 
 const toLocalYmd = (d: Date): string => {
   const year = d.getFullYear();
@@ -40,6 +41,38 @@ export const formatClassDateLabel = (ymd: string): string =>
     day: "numeric",
     year: "numeric",
   });
+
+export const isSaturdayYmd = (ymd: string): boolean => fromYmd(ymd).getDay() === 6;
+
+export const getNearestSaturdayYmd = (ymd: string): string => {
+  const d = fromYmd(ymd);
+  const day = d.getDay();
+  if (day === 6) return ymd;
+  // Prefer previous Saturday for Sunday-Friday teacher backfill workflow.
+  const prevDiff = (day + 1) % 7;
+  d.setDate(d.getDate() - prevDiff);
+  return toLocalYmd(d);
+};
+
+export const getSaturdayOptions = (
+  baseYmd: string = getLastSaturdayYmd(),
+  pastCount = 10,
+  futureCount = 3,
+): SaturdayOption[] => {
+  const baseSaturday = getNearestSaturdayYmd(baseYmd);
+  const items: SaturdayOption[] = [];
+
+  for (let i = 0; i <= futureCount; i++) {
+    const v = shiftSaturdayYmd(baseSaturday, i);
+    items.push({ value: v, label: formatClassDateLabel(v) });
+  }
+  for (let i = 1; i <= pastCount; i++) {
+    const v = shiftSaturdayYmd(baseSaturday, -i);
+    items.push({ value: v, label: formatClassDateLabel(v) });
+  }
+
+  return items;
+};
 
 export const getSaturdayRangePreset = (
   preset: SaturdayRangePreset,
