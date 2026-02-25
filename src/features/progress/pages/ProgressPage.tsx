@@ -18,6 +18,13 @@ import { useTeacherNotifications } from '../../dashboard/hooks/useTeacherNotific
 import { useSupabaseProgress, type FeedbackRow, type CertType } from '../hooks/useSupabaseProgress'
 import { supabase } from '../../../lib/supabase'
 import { normalizeAcademy, normalizeLevel } from '../../../lib/normalization'
+import {
+  formatClassDateLabel,
+  getLastSaturdayYmd,
+  getThisSaturdayYmd,
+  getTodayYmd,
+  shiftSaturdayYmd,
+} from '../../../lib/classDate'
 
 const ADMIN_EMAILS = ['jodlouis.dev@gmail.com', 'orlando@iyfusa.org']
 
@@ -54,7 +61,9 @@ export default function ProgressPage() {
   const [selectedAcademy, setSelectedAcademy] = React.useState<AcademyOption | null>(null)
   const [levels, setLevels] = React.useState<LevelOption[]>([])
   const [selectedLevel, setSelectedLevel] = React.useState<string>('') // level_id or '' for all
-  const [feedbackDate, setFeedbackDate] = React.useState<string>(new Date().toISOString().slice(0, 10))
+  const [feedbackDate, setFeedbackDate] = React.useState<string>(() =>
+    isTeacher ? getLastSaturdayYmd() : getTodayYmd(),
+  )
 
   const resolveCertType = React.useCallback((row: FeedbackRow): CertType => {
     if (row.certTypeOverride) return row.certTypeOverride
@@ -257,6 +266,21 @@ export default function ProgressPage() {
       }
     }
   }
+
+  const applyFeedbackDateQuickAction = (
+    action: 'lastSaturday' | 'thisSaturday' | 'prevSaturday' | 'nextSaturday' | 'today',
+  ) => {
+    if (action === 'lastSaturday') return setFeedbackDate(getLastSaturdayYmd())
+    if (action === 'thisSaturday') return setFeedbackDate(getThisSaturdayYmd())
+    if (action === 'prevSaturday') return setFeedbackDate(shiftSaturdayYmd(feedbackDate, -1))
+    if (action === 'nextSaturday') return setFeedbackDate(shiftSaturdayYmd(feedbackDate, 1))
+    setFeedbackDate(getTodayYmd())
+  }
+
+  const feedbackDateLabel = React.useMemo(
+    () => formatClassDateLabel(feedbackDate),
+    [feedbackDate],
+  )
 
   const dirtyCount = rows.filter(r => r.dirty).length
   const certDirtyCount = certRows.filter(r => r.dirty).length
@@ -506,8 +530,26 @@ export default function ProgressPage() {
                   value={feedbackDate}
                   onChange={(e) => setFeedbackDate(e.target.value)}
                   InputLabelProps={{ shrink: true }}
-                  sx={{ minWidth: 190 }}
+                  helperText={feedbackDateLabel}
+                  sx={{ minWidth: 220 }}
                 />
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('lastSaturday')}>
+                    Last Saturday
+                  </Button>
+                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('thisSaturday')}>
+                    This Saturday
+                  </Button>
+                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('prevSaturday')}>
+                    Saturday -1
+                  </Button>
+                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('nextSaturday')}>
+                    Saturday +1
+                  </Button>
+                  <Button size="small" variant="text" onClick={() => applyFeedbackDateQuickAction('today')}>
+                    Today
+                  </Button>
+                </Stack>
                 {dirtyCount > 0 && (
                   <Chip label={`${dirtyCount} unsaved`} color="warning" variant="outlined" sx={{ fontWeight: 600 }} />
                 )}

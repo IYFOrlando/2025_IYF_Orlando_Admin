@@ -1,6 +1,7 @@
 import * as React from "react";
 import { supabase } from "../../../lib/supabase";
 import { normalizeLevel } from "../../../lib/normalization";
+import { getSaturdayRangePreset } from "../../../lib/classDate";
 
 export type AcademyOption = { id: string; name: string };
 export type LevelOption = { id: string; name: string; academyId: string; schedule?: string | null };
@@ -28,7 +29,7 @@ export type FeedbackHistoryRow = {
   certTypeOverride: string | null;
 };
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const defaultRange = getSaturdayRangePreset("last4Saturdays");
 
 type UseTeacherReportsOptions = {
   isTeacher: boolean;
@@ -40,8 +41,8 @@ export function useTeacherReports({ isTeacher, teacherProfile }: UseTeacherRepor
   const [selectedAcademy, setSelectedAcademy] = React.useState<AcademyOption | null>(null);
   const [levels, setLevels] = React.useState<LevelOption[]>([]);
   const [selectedLevel, setSelectedLevel] = React.useState("");
-  const [startDate, setStartDate] = React.useState(ymd(new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)));
-  const [endDate, setEndDate] = React.useState(ymd(new Date()));
+  const [startDate, setStartDate] = React.useState(defaultRange.startDate);
+  const [endDate, setEndDate] = React.useState(defaultRange.endDate);
 
   const [attendanceRows, setAttendanceRows] = React.useState<AttendanceSessionRow[]>([]);
   const [feedbackRows, setFeedbackRows] = React.useState<FeedbackHistoryRow[]>([]);

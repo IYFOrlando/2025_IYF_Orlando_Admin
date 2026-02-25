@@ -22,6 +22,10 @@ import { GlassCard } from "../../../components/GlassCard";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { supabase } from "../../../lib/supabase";
 import { useTeacherReports } from "../../reports/hooks/useTeacherReports";
+import {
+  getSaturdayRangePreset,
+  type SaturdayRangePreset,
+} from "../../../lib/classDate";
 
 type AttendanceDetailRow = {
   studentId: string;
@@ -34,6 +38,9 @@ export default function TeacherReportsPage() {
   const { teacherProfile, isTeacher, isAdmin } = useTeacherContext();
   const [tab, setTab] = React.useState(0);
   const [feedbackStudentFilter, setFeedbackStudentFilter] = React.useState("");
+  const [rangePreset, setRangePreset] = React.useState<
+    SaturdayRangePreset | "custom"
+  >("last4Saturdays");
 
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [detailRows, setDetailRows] = React.useState<AttendanceDetailRow[]>([]);
@@ -61,6 +68,18 @@ export default function TeacherReportsPage() {
     if (!term) return feedbackRows;
     return feedbackRows.filter((r) => r.studentName.toLowerCase().includes(term));
   }, [feedbackRows, feedbackStudentFilter]);
+
+  React.useEffect(() => {
+    if (rangePreset === "custom") return;
+    const range = getSaturdayRangePreset(rangePreset);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+  }, [rangePreset, setStartDate, setEndDate]);
+
+  const rangeLabel = React.useMemo(() => {
+    if (rangePreset !== "custom") return getSaturdayRangePreset(rangePreset).label;
+    return `${startDate} - ${endDate}`;
+  }, [rangePreset, startDate, endDate]);
 
   const openSessionDetails = async (sessionId: string, label: string) => {
     const { data } = await supabase
@@ -175,6 +194,23 @@ export default function TeacherReportsPage() {
               </TextField>
             )}
             <TextField
+              select
+              label="Range Preset"
+              size="small"
+              value={rangePreset}
+              onChange={(e) =>
+                setRangePreset(
+                  e.target.value as SaturdayRangePreset | "custom",
+                )
+              }
+              sx={{ minWidth: 170 }}
+            >
+              <MenuItem value="lastSaturday">Last Saturday</MenuItem>
+              <MenuItem value="last4Saturdays">Last 4 Saturdays</MenuItem>
+              <MenuItem value="thisMonth">This Month</MenuItem>
+              <MenuItem value="custom">Custom</MenuItem>
+            </TextField>
+            <TextField
               label="Student (optional)"
               size="small"
               value={feedbackStudentFilter}
@@ -187,7 +223,10 @@ export default function TeacherReportsPage() {
               size="small"
               value={startDate}
               InputLabelProps={{ shrink: true }}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setRangePreset("custom");
+              }}
             />
             <TextField
               label="To"
@@ -195,7 +234,16 @@ export default function TeacherReportsPage() {
               size="small"
               value={endDate}
               InputLabelProps={{ shrink: true }}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setRangePreset("custom");
+              }}
+            />
+            <Chip
+              label={`Range: ${rangeLabel}`}
+              variant="outlined"
+              color="primary"
+              sx={{ alignSelf: "center" }}
             />
           </Stack>
 

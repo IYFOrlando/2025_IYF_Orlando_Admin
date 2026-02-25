@@ -55,6 +55,13 @@ import { useSupabaseAttendance } from "../hooks/useSupabaseAttendance";
 import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
+import {
+  formatClassDateLabel,
+  getLastSaturdayYmd,
+  getThisSaturdayYmd,
+  getTodayYmd,
+  shiftSaturdayYmd,
+} from "../../../lib/classDate";
 // deduplicateRegistrations removed - Supabase hook already groups by student.id
 
 const KOREAN = "Korean Language";
@@ -101,18 +108,7 @@ export default function AttendancePage() {
   const canEdit = isSuperAdmin || isTeacher;
 
   // Filters
-  // Determine initial date (nearest past Saturday or today if Saturday)
-  const getInitialSaturday = () => {
-    const d = new Date();
-    const day = d.getDay();
-    if (day !== 6) {
-      const diff = (day + 1) % 7;
-      d.setDate(d.getDate() - diff);
-    }
-    return d.toISOString().slice(0, 10);
-  };
-
-  const [date, setDate] = React.useState<string>(getInitialSaturday());
+  const [date, setDate] = React.useState<string>(() => getLastSaturdayYmd());
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -126,6 +122,18 @@ export default function AttendancePage() {
     d.setDate(d.getDate() + days);
     setDate(d.toISOString().slice(0, 10));
   };
+
+  const applyDateQuickAction = (
+    action: "lastSaturday" | "thisSaturday" | "prevSaturday" | "nextSaturday" | "today",
+  ) => {
+    if (action === "lastSaturday") return setDate(getLastSaturdayYmd());
+    if (action === "thisSaturday") return setDate(getThisSaturdayYmd());
+    if (action === "prevSaturday") return setDate(shiftSaturdayYmd(date, -1));
+    if (action === "nextSaturday") return setDate(shiftSaturdayYmd(date, 1));
+    setDate(getTodayYmd());
+  };
+
+  const classDateLabel = React.useMemo(() => formatClassDateLabel(date), [date]);
 
   const [academy, setAcademy] = React.useState<string>("");
   const [level, setLevel] = React.useState<string>(urlLevel || "");
@@ -978,7 +986,7 @@ export default function AttendancePage() {
                       onChange={handleDateChange}
                       fullWidth
                       size="small"
-                      helperText="Navigate weeks or pick any date"
+                      helperText={`Class target: ${classDateLabel}`}
                     />
                     <Tooltip title="Next week">
                       <Button
@@ -990,6 +998,23 @@ export default function AttendancePage() {
                         <ChevronRightIcon />
                       </Button>
                     </Tooltip>
+                  </Stack>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
+                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("lastSaturday")}>
+                      Last Saturday
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("thisSaturday")}>
+                      This Saturday
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("prevSaturday")}>
+                      Saturday -1
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("nextSaturday")}>
+                      Saturday +1
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => applyDateQuickAction("today")}>
+                      Today
+                    </Button>
                   </Stack>
                 </Grid>
                 <Grid item xs={12} md={academyHasLevels ? 4 : 8}>
