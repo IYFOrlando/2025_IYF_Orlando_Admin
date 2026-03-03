@@ -726,6 +726,7 @@ const PaymentsPage = React.memo(() => {
           });
           rem -= pay;
         }
+        await refetchInvoices();
         notifySuccess("Payment Distributed");
       } else {
         // Single Invoice
@@ -743,6 +744,7 @@ const PaymentsPage = React.memo(() => {
           currentTotal: inv.total,
         });
 
+        await refetchInvoices();
         notifySuccess("Payment Recorded");
 
         // Check if paid in full (locally predicted)
