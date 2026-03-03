@@ -4,17 +4,12 @@
  * Replaces Firebase-based registration operations (autoInvoice.ts).
  */
 import { supabase } from './supabase'
+import { getActiveSemesterIdCached } from './activeSemester'
 
 // --- Helpers ---
 
 async function getActiveSemesterId(): Promise<string> {
-  const { data, error } = await supabase
-    .from('semesters')
-    .select('id')
-    .eq('name', 'Spring 2026')
-    .limit(1)
-  if (error || !data?.[0]) throw new Error('Active semester not found')
-  return data[0].id
+  return getActiveSemesterIdCached()
 }
 
 // --- Academy Config ---

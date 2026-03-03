@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabase";
 import type { Payment } from "../types";
 import { logger } from "../../../lib/logger";
+import { getActiveSemesterIdCached } from "../../../lib/activeSemester";
+
+const timerNow = () =>
+  typeof performance !== "undefined" ? performance.now() : Date.now();
 
 export function useSupabasePayments() {
   const [data, setData] = useState<Payment[]>([]);
@@ -9,17 +13,12 @@ export function useSupabasePayments() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPayments = useCallback(async () => {
+    const started = timerNow();
     try {
       setLoading(true);
 
-      const { data: semesters } = await supabase
-        .from("semesters")
-        .select("id")
-        .eq("name", "Spring 2026")
-        .limit(1);
-
-      const semester = semesters?.[0];
-      if (!semester) throw new Error("Semester not found");
+      const semesterLookupStart = timerNow();
+      const semesterId = await getActiveSemesterIdCached();
 
       const { data: paymentsData, error: payError } = await supabase
         .from("payments")
@@ -30,7 +29,7 @@ export function useSupabasePayments() {
             student:students(first_name, last_name)
         `,
         )
-        .eq("invoice.semester_id", semester.id)
+        .eq("invoice.semester_id", semesterId)
         .order("transaction_date", { ascending: false }); // Use transaction_date
 
       if (payError) throw payError;
@@ -50,6 +49,11 @@ export function useSupabasePayments() {
       }));
 
       setData(mappedPayments);
+      logger.info("Billing perf: fetchPayments", {
+        semesterLookupMs: Math.round(timerNow() - semesterLookupStart),
+        rows: mappedPayments.length,
+        totalMs: Math.round(timerNow() - started),
+      });
     } catch (err: any) {
       console.error("Error fetching Supabase payments:", err);
       setError(err.message);
@@ -74,10 +78,12 @@ export function useSupabasePayments() {
     currentPaid: number; // In Cents
     currentTotal: number; // In Cents
   }) => {
+    const started = timerNow();
     try {
       const amountDollars = paymentData.amount / 100;
 
       // 1. Insert Payment
+      const insertStart = timerNow();
       const { data: pay, error: payError } = await supabase
         .from("payments")
         .insert({
@@ -94,6 +100,7 @@ export function useSupabasePayments() {
       if (payError) throw payError;
 
       // 2. Update Invoice Balance
+      const invoiceFetchStart = timerNow();
       const { data: inv, error: invError } = await supabase
         .from("invoices")
         .select("total, paid_amount")
@@ -107,6 +114,7 @@ export function useSupabasePayments() {
       const computedStatus =
         newBalance <= 0.01 ? "paid" : newPaid > 0 ? "partial" : "unpaid";
 
+      const invoiceUpdateStart = timerNow();
       const { error: updErr } = await supabase
         .from("invoices")
         .update({
@@ -117,7 +125,15 @@ export function useSupabasePayments() {
         .eq("id", paymentData.invoiceId);
       if (updErr) console.error("Invoice update error:", updErr);
 
+      const refetchStart = timerNow();
       await fetchPayments();
+      logger.info("Billing perf: recordPayment", {
+        insertPaymentMs: Math.round(invoiceFetchStart - insertStart),
+        fetchInvoiceMs: Math.round(invoiceUpdateStart - invoiceFetchStart),
+        updateInvoiceMs: Math.round(refetchStart - invoiceUpdateStart),
+        refetchPaymentsMs: Math.round(timerNow() - refetchStart),
+        totalMs: Math.round(timerNow() - started),
+      });
       return pay.id;
     } catch (err: any) {
       logger.error("Error recording payment", err);

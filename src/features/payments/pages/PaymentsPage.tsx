@@ -99,6 +99,7 @@ import iyfLogo from "../../../assets/logo/IYF_logo.png";
 import { sendEmail, formatPrice } from "../../../lib/emailService";
 import { CreatePaymentSchema } from "../schemas";
 import { supabase } from "../../../lib/supabase";
+import { getActiveSemesterIdCached } from "../../../lib/activeSemester";
 import LunchIcon from "@mui/icons-material/Restaurant";
 
 // --- Helpers ---
@@ -149,6 +150,9 @@ function priceFor(
   );
   return 0;
 }
+
+const timerNow = () =>
+  typeof performance !== "undefined" ? performance.now() : Date.now();
 
 type StudentOption = { id: string; label: string; reg: Registration };
 
@@ -617,6 +621,7 @@ const PaymentsPage = React.memo(() => {
 
   // Actions
   const createInvoice = async (mode: "normal" | "lunchOnly" = "normal") => {
+    const started = timerNow();
     if (!student) return;
 
     // Block duplicate academy invoices, but always allow lunch-only
@@ -653,6 +658,12 @@ const PaymentsPage = React.memo(() => {
     try {
       const newId = await createInv(docData);
       setSelectedInvoiceId(newId);
+      logger.info("Billing perf: createInvoice action", {
+        mode,
+        lineCount: effLines.length,
+        totalCents: effTotal,
+        totalMs: Math.round(timerNow() - started),
+      });
       notifySuccess("Invoice Created");
     } catch (e: any) {
       notifyError("Error creating invoice", e.message);
@@ -934,6 +945,7 @@ const PaymentsPage = React.memo(() => {
 
   // ---------- Walk-in Lunch Sale ----------
   const handleLunchSale = async () => {
+    const started = timerNow();
     if (!lunchBuyerName.trim()) return notifyError("Buyer name is required");
     if (lunchMethod === "none") return notifyError("Select a payment method");
     if (lunchQty < 1) return notifyError("Quantity must be at least 1");
@@ -944,63 +956,24 @@ const PaymentsPage = React.memo(() => {
 
     setLunchProcessing(true);
     try {
-      // Get active semester
-      const { data: semData } = await supabase
-        .from("semesters")
-        .select("id")
-        .eq("name", "Spring 2026")
-        .limit(1);
-      const semesterId = semData?.[0]?.id || null;
+      const semesterLookupStart = timerNow();
+      const semesterId = await getActiveSemesterIdCached();
+      const rpcStart = timerNow();
+      const {
+        data: rpcData,
+        error: rpcError,
+      } = await supabase.rpc("create_walkin_lunch_sale", {
+        p_semester_id: semesterId,
+        p_buyer_name: lunchBuyerName.trim(),
+        p_buyer_email: lunchBuyerEmail.trim() || null,
+        p_quantity: lunchQty,
+        p_unit_price: singlePrice / 100,
+        p_method: lunchMethod,
+        p_notes: `Walk-in lunch: ${lunchBuyerName.trim()}${lunchBuyerEmail.trim() ? ` (${lunchBuyerEmail.trim()})` : ""}`,
+        p_received_by: (await supabase.auth.getUser()).data.user?.id || null,
+      });
 
-      // 1. Create Invoice (no student_id for walk-in)
-      const { data: inv, error: invError } = await supabase
-        .from("invoices")
-        .insert({
-          semester_id: semesterId,
-          student_id: null,
-          buyer_name: lunchBuyerName.trim(),
-          buyer_email: lunchBuyerEmail.trim() || null,
-          status: "paid",
-          subtotal: totalDollars,
-          discount_amount: 0,
-          discount_note: "Walk-in lunch sale",
-          total: totalDollars,
-          paid_amount: totalDollars,
-          balance: 0,
-          due_date: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (invError) throw invError;
-
-      // 2. Create Invoice Item
-      const { error: itemError } = await supabase
-        .from("invoice_items")
-        .insert({
-          invoice_id: inv.id,
-          type: "lunch_single",
-          description: `Walk-in Lunch × ${lunchQty} — ${lunchBuyerName.trim()}`,
-          quantity: lunchQty,
-          unit_price: singlePrice / 100,
-          amount: totalDollars,
-        });
-
-      if (itemError) console.error("Item insert error:", itemError);
-
-      // 3. Create Payment
-      const { error: payError } = await supabase
-        .from("payments")
-        .insert({
-          invoice_id: inv.id,
-          student_id: null,
-          amount: totalDollars,
-          method: lunchMethod,
-          notes: `Walk-in lunch: ${lunchBuyerName.trim()}${lunchBuyerEmail.trim() ? ` (${lunchBuyerEmail.trim()})` : ""}`,
-          received_by: (await supabase.auth.getUser()).data.user?.id,
-        });
-
-      if (payError) console.error("Payment insert error:", payError);
+      if (rpcError) throw rpcError;
 
       notifySuccess(
         `Lunch sale recorded: ${lunchQty}× for ${lunchBuyerName.trim()} — ${usd(totalCents)}`,
@@ -1013,8 +986,19 @@ const PaymentsPage = React.memo(() => {
       setLunchMethod("none");
 
       // Refresh data
-      refetchInvoices();
-      refetchPayments();
+      void refetchInvoices();
+      // Payments refresh deferred to reduce immediate post-save contention.
+      setTimeout(() => {
+        void refetchPayments();
+      }, 350);
+
+      logger.info("Billing perf: walkInLunchSale", {
+        invoiceId: rpcData?.[0]?.invoice_id,
+        paymentId: rpcData?.[0]?.payment_id,
+        semesterLookupMs: Math.round(rpcStart - semesterLookupStart),
+        rpcMs: Math.round(timerNow() - rpcStart),
+        totalMs: Math.round(timerNow() - started),
+      });
     } catch (err: any) {
       console.error("Walk-in lunch sale error:", err);
       notifyError("Failed to process lunch sale: " + (err.message || err));
