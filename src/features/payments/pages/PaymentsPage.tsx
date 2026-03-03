@@ -624,10 +624,13 @@ const PaymentsPage = React.memo(() => {
     const started = timerNow();
     if (!student) return;
 
-    // Block duplicate academy invoices, but always allow lunch-only
-    if (mode === "normal" && studentInvoices.length > 0) {
+    // Block duplicate tuition invoices, but allow lunch-only/history-only invoices.
+    const hasActiveTuitionInvoice = studentInvoices.some(
+      (inv) => inv.status !== "void" && inv.subtotal > 0,
+    );
+    if (mode === "normal" && hasActiveTuitionInvoice) {
       return notifyError(
-        "Este alumno ya tiene factura. Usa la factura existente en la lista o edítala desde Registrations.",
+        "This student already has an active tuition invoice. Use the existing invoice in the list or edit it from Registrations.",
       );
     }
 
