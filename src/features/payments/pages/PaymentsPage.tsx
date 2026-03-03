@@ -626,7 +626,7 @@ const PaymentsPage = React.memo(() => {
 
     // Block duplicate tuition invoices, but allow lunch-only/history-only invoices.
     const hasActiveTuitionInvoice = studentInvoices.some(
-      (inv) => inv.status !== "void" && inv.subtotal > 0,
+      (inv) => (inv.status as string) !== "void" && inv.subtotal > 0,
     );
     if (mode === "normal" && hasActiveTuitionInvoice) {
       return notifyError(
