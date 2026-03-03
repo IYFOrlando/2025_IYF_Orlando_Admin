@@ -952,7 +952,6 @@ const PaymentsPage = React.memo(() => {
 
     const singlePrice = Number(pricing.lunch?.single || 500); // cents
     const totalCents = lunchQty * singlePrice;
-    const totalDollars = totalCents / 100;
 
     setLunchProcessing(true);
     try {

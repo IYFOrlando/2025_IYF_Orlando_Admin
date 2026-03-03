@@ -29,9 +29,10 @@ export async function getActiveSemesterIdCached(
     throw new Error(`Active semester not found: ${ACTIVE_SEMESTER_NAME}`);
   }
 
-  cachedSemesterId = data[0].id;
+  const resolvedSemesterId = data[0].id;
+  cachedSemesterId = resolvedSemesterId;
   cachedAt = now;
-  return cachedSemesterId;
+  return resolvedSemesterId;
 }
 
 export function clearActiveSemesterCache() {
