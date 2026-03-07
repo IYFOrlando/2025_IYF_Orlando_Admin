@@ -54,6 +54,7 @@ import { useSupabaseAcademyPricing } from "../hooks/useSupabaseAcademyPricing";
 import { useSupabaseInvoices } from "../hooks/useSupabaseInvoices";
 import { useSupabasePayments } from "../hooks/useSupabasePayments";
 import { useSupabaseInstructors } from "../hooks/useSupabaseInstructors";
+import { useUserRole } from "../../auth/hooks/useUserRole";
 import { useInvoiceConfig } from "../../settings/hooks/useInvoiceConfig"; // This one might still be Firebase? Let's check later, likely small.
 import InvoiceDialog from "../components/InvoiceDialog";
 import { InvoiceDisplay } from "../components/InvoiceDisplay";
@@ -291,8 +292,10 @@ const PaymentsPage = React.memo(() => {
     data: allPayments,
     recordPayment: recPay,
     deletePayment: delPay,
+    updatePaymentMethod: updPayMethod,
     refetch: refetchPayments,
   } = useSupabasePayments(); // Supabase
+  const { isAdmin } = useUserRole(); // maps admin + superuser to admin access
   const { getInstructorByAcademy } = useSupabaseInstructors(); // Supabase
 
   // Dynamic invoice configuration from Firestore
@@ -802,6 +805,38 @@ const PaymentsPage = React.memo(() => {
       notifySuccess("Payment deleted");
     } catch (e: any) {
       notifyError("Failed to delete payment", e.message);
+    }
+  };
+
+  const editPaymentMethod = async (p: Payment) => {
+    if (!isAdmin) return;
+    const { value: method } = await Swal.fire({
+      title: "Edit payment method",
+      input: "select",
+      inputOptions: {
+        cash: "Cash",
+        zelle: "Zelle",
+        check: "Check",
+        card: "Credit/Debit Card",
+      },
+      inputValue: p.method || "cash",
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) return "Please select a payment method";
+        return null;
+      },
+    });
+
+    if (!method || method === p.method) return;
+
+    try {
+      await updPayMethod(
+        p.id,
+        method as "cash" | "zelle" | "check" | "card",
+      );
+      notifySuccess("Payment method updated");
+    } catch (e: any) {
+      notifyError("Failed to update payment method", e.message);
     }
   };
 
@@ -2513,14 +2548,27 @@ const PaymentsPage = React.memo(() => {
                   <ListItem
                     key={p.id}
                     secondaryAction={
-                      <IconButton
-                        edge="end"
-                        onClick={() => deletePayment(p)}
-                        size="small"
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      <Stack direction="row" spacing={0.5}>
+                        {isAdmin && (
+                          <IconButton
+                            edge="end"
+                            onClick={() => editPaymentMethod(p)}
+                            size="small"
+                            color="primary"
+                            title="Edit payment method"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          edge="end"
+                          onClick={() => deletePayment(p)}
+                          size="small"
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
                     }
                   >
                     <Stack

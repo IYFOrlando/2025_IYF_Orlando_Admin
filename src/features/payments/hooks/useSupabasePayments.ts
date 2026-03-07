@@ -191,6 +191,25 @@ export function useSupabasePayments() {
     }
   };
 
+  const updatePaymentMethod = async (
+    paymentId: string,
+    method: "cash" | "zelle" | "check" | "card",
+  ) => {
+    try {
+      const { error: updateError } = await supabase
+        .from("payments")
+        .update({ method })
+        .eq("id", paymentId);
+      if (updateError) throw updateError;
+
+      await fetchPayments();
+      return true;
+    } catch (err: any) {
+      logger.error("Error updating payment method", err);
+      throw err;
+    }
+  };
+
   return {
     data,
     loading,
@@ -198,5 +217,6 @@ export function useSupabasePayments() {
     refetch: fetchPayments,
     recordPayment,
     deletePayment,
+    updatePaymentMethod,
   };
 }
