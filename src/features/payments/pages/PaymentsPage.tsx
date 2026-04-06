@@ -42,7 +42,6 @@ import {
   Mail as MailIcon,
   Undo as UndoIcon,
   Visibility as VisibilityIcon,
-  CreditCard as CreditCardIcon,
   ConfirmationNumber as ConfirmationNumberIcon,
   Percent as PercentIcon,
 } from "@mui/icons-material";
@@ -55,11 +54,17 @@ import { useSupabaseAcademyPricing } from "../hooks/useSupabaseAcademyPricing";
 import { useSupabaseInvoices } from "../hooks/useSupabaseInvoices";
 import { useSupabasePayments } from "../hooks/useSupabasePayments";
 import { useSupabaseInstructors } from "../hooks/useSupabaseInstructors";
+import { useUserRole } from "../../auth/hooks/useUserRole";
 import { useInvoiceConfig } from "../../settings/hooks/useInvoiceConfig"; // This one might still be Firebase? Let's check later, likely small.
 import InvoiceDialog from "../components/InvoiceDialog";
 import { InvoiceDisplay } from "../components/InvoiceDisplay";
 import type { PricingDoc, InvoiceLine, Invoice, Payment } from "../types";
-import { latestInvoicePerStudent } from "../utils";
+import {
+  latestInvoicePerStudent,
+  toMillis,
+  formatDateSafe,
+  formatDateTimeSafe,
+} from "../utils";
 import {
   isKoreanLanguage,
   mapKoreanLevel,
@@ -94,6 +99,9 @@ import Swal from "sweetalert2";
 import iyfLogo from "../../../assets/logo/IYF_logo.png";
 import { sendEmail, formatPrice } from "../../../lib/emailService";
 import { CreatePaymentSchema } from "../schemas";
+import { supabase } from "../../../lib/supabase";
+import { getActiveSemesterIdCached } from "../../../lib/activeSemester";
+import LunchIcon from "@mui/icons-material/Restaurant";
 
 // --- Helpers ---
 /** Resolve academy name to a key in academyPrices (e.g. "Kids" → "kids academy") */
@@ -144,29 +152,48 @@ function priceFor(
   return 0;
 }
 
+const timerNow = () =>
+  typeof performance !== "undefined" ? performance.now() : Date.now();
+
 type StudentOption = { id: string; label: string; reg: Registration };
 
 function paidAcademyKeys(invs: Invoice[]): Set<string> {
   const covered = new Set<string>();
+  // Track if there are any paid invoices without items (legacy/migrated)
+  let hasPaidNoItems = false;
   for (const inv of invs) {
     if (inv.status !== "paid" && inv.status !== "exonerated") continue;
+    if (inv.lines.length === 0) {
+      hasPaidNoItems = true;
+      continue;
+    }
     for (const l of inv.lines) {
       const key = `${norm(l.academy)}|${(l.level || "").toString().trim().toLowerCase()}`;
       covered.add(key);
     }
   }
+  // If there's a paid invoice without items, mark a special flag so callers know
+  if (hasPaidNoItems) covered.add("__ALL_PAID__");
   return covered;
 }
 
 function invoicedAcademyKeys(invs: Invoice[]): Set<string> {
   const covered = new Set<string>();
+  // Track if there are any non-void invoices without items (legacy/migrated)
+  let hasInvoiceNoItems = false;
   for (const inv of invs) {
     if ((inv.status as string) === "void") continue;
+    if (inv.lines.length === 0) {
+      hasInvoiceNoItems = true;
+      continue;
+    }
     for (const l of inv.lines) {
       const key = `${norm(l.academy)}|${(l.level || "").toString().trim().toLowerCase()}`;
       covered.add(key);
     }
   }
+  // If there's an invoice without items, mark a special flag so callers know
+  if (hasInvoiceNoItems) covered.add("__ALL_INVOICED__");
   return covered;
 }
 
@@ -248,7 +275,7 @@ const PaymentsPage = React.memo(() => {
   const pricing: PricingDoc = React.useMemo(
     () => ({
       academyPrices: academyPricesFromSpring,
-      lunch: settingsPricing.lunch || { semester: 4000, single: 400 },
+      lunch: settingsPricing.lunch || { semester: 5000, single: 500 },
       items: settingsPricing.items || [],
       currency: "USD",
     }),
@@ -259,12 +286,16 @@ const PaymentsPage = React.memo(() => {
     data: allInvoices,
     createInvoice: createInv,
     deleteInvoice: delInv,
+    refetch: refetchInvoices,
   } = useSupabaseInvoices(); // Supabase
   const {
     data: allPayments,
     recordPayment: recPay,
     deletePayment: delPay,
+    updatePaymentMethod: updPayMethod,
+    refetch: refetchPayments,
   } = useSupabasePayments(); // Supabase
+  const { isAdmin } = useUserRole(); // maps admin + superuser to admin access
   const { getInstructorByAcademy } = useSupabaseInstructors(); // Supabase
 
   // Dynamic invoice configuration from Firestore
@@ -338,6 +369,13 @@ const PaymentsPage = React.memo(() => {
   const [, setEditLunchSem] = React.useState<number>(0);
   const [, setEditLunchSingle] = React.useState<number>(0);
 
+  // Quick Lunch Sale State (for non-students)
+  const [lunchBuyerName, setLunchBuyerName] = React.useState("");
+  const [lunchBuyerEmail, setLunchBuyerEmail] = React.useState("");
+  const [lunchQty, setLunchQty] = React.useState<number>(1);
+  const [lunchMethod, setLunchMethod] = React.useState<"cash" | "zelle" | "check" | "card" | "none">("none");
+  const [lunchProcessing, setLunchProcessing] = React.useState(false);
+
   // UI State
   const [activeTab, setActiveTab] = React.useState(0);
 
@@ -368,20 +406,20 @@ const PaymentsPage = React.memo(() => {
     // Derived from Supabase data
     const studentInvs = (allInvoices || [])
       .filter((i) => i.studentId === student.id)
-      .sort(
-        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-      );
+      .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
     const studentPays = (allPayments || [])
       .filter((p) => p.studentId === student.id)
-      .sort(
-        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-      );
+      .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
     setStudentInvoices(studentInvs);
     setStudentPayments(studentPays);
 
-    if (!selectedInvoiceId && studentInvs.length) {
+    // Auto-select the unpaid invoice with highest balance (prefer unpaid/partial over paid)
+    const unpaidInv = studentInvs.find((i) => i.balance > 0);
+    if (unpaidInv) {
+      setSelectedInvoiceId(unpaidInv.id);
+    } else if (!selectedInvoiceId && studentInvs.length) {
       setSelectedInvoiceId(studentInvs[0].id);
     }
   }, [student?.id, allInvoices, allPayments]); // Removed selectedInvoiceId dependency to avoid reset loops
@@ -403,6 +441,8 @@ const PaymentsPage = React.memo(() => {
         (ac: { academy?: string; level?: string }, idx: number) => {
           const a = norm(ac?.academy);
           if (!a || a === "n/a") return;
+          // If there's an invoice without items covering everything, skip
+          if (covered.has("__ALL_INVOICED__")) return;
           const key = `${a}|${(ac?.level || "").toString().trim().toLowerCase()}`;
           if (covered.has(key)) return;
           if (filterByAcademy && filterByAcademy !== a) return;
@@ -584,19 +624,27 @@ const PaymentsPage = React.memo(() => {
 
   // Actions
   const createInvoice = async (mode: "normal" | "lunchOnly" = "normal") => {
+    const started = timerNow();
     if (!student) return;
-    if (studentInvoices.length > 0) {
+
+    // Block duplicate tuition invoices, but allow lunch-only/history-only invoices.
+    const hasActiveTuitionInvoice = studentInvoices.some(
+      (inv) => (inv.status as string) !== "void" && inv.subtotal > 0,
+    );
+    if (mode === "normal" && hasActiveTuitionInvoice) {
       return notifyError(
-        "Este alumno ya tiene factura. Usa la factura existente en la lista o edítala desde Registrations.",
+        "This student already has an active tuition invoice. Use the existing invoice in the list or edit it from Registrations.",
       );
     }
+
     const effLines = mode === "lunchOnly" ? [] : lines;
     const effSub = effLines.reduce((s, l) => s + l.amount, 0);
-    const effDisc = Math.min(discountAmount, effSub);
-    const effTotal = Math.max(effSub - effDisc, 0) + lunchAmount;
+    const effDisc = mode === "lunchOnly" ? 0 : Math.min(discountAmount, effSub);
+    const lunchTotal = mode === "lunchOnly" ? lunchAmount : lunchAmount;
+    const effTotal = Math.max(effSub - effDisc, 0) + lunchTotal;
 
-    if (!effLines.length && !lunchAmount)
-      return notifyError("Nothing to invoice");
+    if (!effLines.length && !lunchTotal)
+      return notifyError("Select a lunch option to create a lunch invoice");
 
     const docData = {
       studentId: student.id,
@@ -616,6 +664,12 @@ const PaymentsPage = React.memo(() => {
     try {
       const newId = await createInv(docData);
       setSelectedInvoiceId(newId);
+      logger.info("Billing perf: createInvoice action", {
+        mode,
+        lineCount: effLines.length,
+        totalCents: effTotal,
+        totalMs: Math.round(timerNow() - started),
+      });
       notifySuccess("Invoice Created");
     } catch (e: any) {
       notifyError("Error creating invoice", e.message);
@@ -625,20 +679,21 @@ const PaymentsPage = React.memo(() => {
   const recordPayment = async () => {
     if (!student || (!applyToAllInvoices && !selectedInvoiceId)) return;
 
+    // payAmount is already in CENTS (TextField onChange multiplies user input × 100)
+    const amtCents = payAmount;
+
     const basicValidation = CreatePaymentSchema.pick({
       method: true,
       amount: true,
     }).safeParse({
       method: method === "none" ? "cash" : method,
-      amount: toCents(payAmount),
+      amount: amtCents,
     });
 
-    if (method === "none" || payAmount <= 0)
+    if (method === "none" || amtCents <= 0)
       return notifyError("Invalid payment details");
     if (!basicValidation.success)
       return notifyError(basicValidation.error.issues[0].message);
-
-    const amtCents = toCents(payAmount);
 
     try {
       if (applyToAllInvoices) {
@@ -674,6 +729,7 @@ const PaymentsPage = React.memo(() => {
           });
           rem -= pay;
         }
+        await refetchInvoices();
         notifySuccess("Payment Distributed");
       } else {
         // Single Invoice
@@ -691,6 +747,7 @@ const PaymentsPage = React.memo(() => {
           currentTotal: inv.total,
         });
 
+        await refetchInvoices();
         notifySuccess("Payment Recorded");
 
         // Check if paid in full (locally predicted)
@@ -748,6 +805,38 @@ const PaymentsPage = React.memo(() => {
       notifySuccess("Payment deleted");
     } catch (e: any) {
       notifyError("Failed to delete payment", e.message);
+    }
+  };
+
+  const editPaymentMethod = async (p: Payment) => {
+    if (!isAdmin) return;
+    const { value: method } = await Swal.fire({
+      title: "Edit payment method",
+      input: "select",
+      inputOptions: {
+        cash: "Cash",
+        zelle: "Zelle",
+        check: "Check",
+        card: "Credit/Debit Card",
+      },
+      inputValue: p.method || "cash",
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) return "Please select a payment method";
+        return null;
+      },
+    });
+
+    if (!method || method === p.method) return;
+
+    try {
+      await updPayMethod(
+        p.id,
+        method as "cash" | "zelle" | "check" | "card",
+      );
+      notifySuccess("Payment method updated");
+    } catch (e: any) {
+      notifyError("Failed to update payment method", e.message);
     }
   };
 
@@ -894,6 +983,69 @@ const PaymentsPage = React.memo(() => {
     }
   };
 
+  // ---------- Walk-in Lunch Sale ----------
+  const handleLunchSale = async () => {
+    const started = timerNow();
+    if (!lunchBuyerName.trim()) return notifyError("Buyer name is required");
+    if (lunchMethod === "none") return notifyError("Select a payment method");
+    if (lunchQty < 1) return notifyError("Quantity must be at least 1");
+
+    const singlePrice = Number(pricing.lunch?.single || 500); // cents
+    const totalCents = lunchQty * singlePrice;
+
+    setLunchProcessing(true);
+    try {
+      const semesterLookupStart = timerNow();
+      const semesterId = await getActiveSemesterIdCached();
+      const rpcStart = timerNow();
+      const {
+        data: rpcData,
+        error: rpcError,
+      } = await supabase.rpc("create_walkin_lunch_sale", {
+        p_semester_id: semesterId,
+        p_buyer_name: lunchBuyerName.trim(),
+        p_buyer_email: lunchBuyerEmail.trim() || null,
+        p_quantity: lunchQty,
+        p_unit_price: singlePrice / 100,
+        p_method: lunchMethod,
+        p_notes: `Walk-in lunch: ${lunchBuyerName.trim()}${lunchBuyerEmail.trim() ? ` (${lunchBuyerEmail.trim()})` : ""}`,
+        p_received_by: (await supabase.auth.getUser()).data.user?.id || null,
+      });
+
+      if (rpcError) throw rpcError;
+
+      notifySuccess(
+        `Lunch sale recorded: ${lunchQty}× for ${lunchBuyerName.trim()} — ${usd(totalCents)}`,
+      );
+
+      // Reset form
+      setLunchBuyerName("");
+      setLunchBuyerEmail("");
+      setLunchQty(1);
+      setLunchMethod("none");
+
+      // Refresh data
+      void refetchInvoices();
+      // Payments refresh deferred to reduce immediate post-save contention.
+      setTimeout(() => {
+        void refetchPayments();
+      }, 350);
+
+      logger.info("Billing perf: walkInLunchSale", {
+        invoiceId: rpcData?.[0]?.invoice_id,
+        paymentId: rpcData?.[0]?.payment_id,
+        semesterLookupMs: Math.round(rpcStart - semesterLookupStart),
+        rpcMs: Math.round(timerNow() - rpcStart),
+        totalMs: Math.round(timerNow() - started),
+      });
+    } catch (err: any) {
+      console.error("Walk-in lunch sale error:", err);
+      notifyError("Failed to process lunch sale: " + (err.message || err));
+    } finally {
+      setLunchProcessing(false);
+    }
+  };
+
   const handleExportExcel = () => {
     if (!allInvoices || !allPayments) return notifyError("Data not loaded");
 
@@ -904,9 +1056,7 @@ const PaymentsPage = React.memo(() => {
         Student: inv?.studentName || "Unknown",
         Amount: fromCents(p.amount),
         Method: p.method,
-        Date: p.createdAt?.seconds
-          ? new Date(p.createdAt.seconds * 1000).toLocaleDateString()
-          : "",
+        Date: formatDateSafe(p.createdAt, ""),
       };
     });
 
@@ -1050,9 +1200,8 @@ const PaymentsPage = React.memo(() => {
       doc.text("Payment Date:", col1, detailY);
       doc.setFont("helvetica", "bold");
       // Try to use update date or today
-      const payDate = inv.updatedAt
-        ? new Date(inv.updatedAt.seconds * 1000 || new Date())
-        : new Date();
+      const payDateMs = toMillis(inv.updatedAt);
+      const payDate = payDateMs > 0 ? new Date(payDateMs) : new Date();
       doc.text(payDate.toLocaleDateString(), col2, detailY);
     }
 
@@ -1325,14 +1474,15 @@ const PaymentsPage = React.memo(() => {
                         const academyName = norm(ac.academy);
 
                         // Find invoices covering this academy
+                        // Include invoices with matching items OR invoices without items (legacy/migrated)
                         const coveringInvoices = studentInvoices.filter(
                           (inv) =>
                             (inv.status as string) !== "void" &&
-                            inv.lines.some(
+                            (inv.lines.some(
                               (l) =>
                                 norm(l.academy) === academyName &&
                                 (!l.level || norm(l.level) === norm(ac.level)),
-                            ),
+                            ) || inv.lines.length === 0),
                         );
 
                         const paidInvoice = coveringInvoices.find(
@@ -1591,7 +1741,7 @@ const PaymentsPage = React.memo(() => {
                 <Button
                   variant="outlined"
                   onClick={() => createInvoice("lunchOnly")}
-                  disabled={!student}
+                  disabled={!student || !lunchAmount}
                 >
                   Lunch Only
                 </Button>
@@ -1631,9 +1781,7 @@ const PaymentsPage = React.memo(() => {
                           <Box>
                             <Typography variant="subtitle1" fontWeight={600}>
                               #{inv.id.slice(0, 6)} •{" "}
-                              {new Date(
-                                inv.createdAt?.seconds * 1000,
-                              ).toLocaleDateString()}
+                              {formatDateSafe(inv.createdAt)}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                               {inv.lines.length} items •{" "}
@@ -1705,6 +1853,23 @@ const PaymentsPage = React.memo(() => {
                             Email
                           </Button>
 
+                          {inv.balance > 0 && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              startIcon={<AttachMoneyIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedInvoiceId(inv.id);
+                                setPayAmount(inv.balance); // already in cents, field divides by 100 for display
+                                setActiveTab(1); // Switch to Pay tab
+                              }}
+                            >
+                              Pay
+                            </Button>
+                          )}
+
                           {inv.paid > 0 && (
                             <Button
                               size="small"
@@ -1757,11 +1922,23 @@ const PaymentsPage = React.memo(() => {
               sx={{ mb: 2 }}
               variant="scrollable"
               scrollButtons="auto"
+              TabIndicatorProps={{ sx: { height: 3 } }}
             >
-              <Tab label="Overview" />
-              <Tab label="Pay Invoice" />
-              <Tab label="Student Logs" />
-              <Tab label="Global History" />
+              <Tab label="Overview" sx={{ minWidth: 0, px: 1.5 }} />
+              <Tab label="Pay" sx={{ minWidth: 0, px: 1.5 }} />
+              <Tab
+                icon={<LunchIcon sx={{ fontSize: 18 }} />}
+                iconPosition="start"
+                label="Lunch"
+                sx={{
+                  minWidth: 0,
+                  px: 1.5,
+                  color: "warning.main",
+                  "&.Mui-selected": { color: "warning.dark" },
+                }}
+              />
+              <Tab label="Logs" sx={{ minWidth: 0, px: 1.5 }} />
+              <Tab label="History" sx={{ minWidth: 0, px: 1.5 }} />
             </Tabs>
 
             {activeTab === 0 && (
@@ -1939,11 +2116,7 @@ const PaymentsPage = React.memo(() => {
                     <Stack spacing={1.5}>
                       {allPayments
                         .slice()
-                        .sort(
-                          (a, b) =>
-                            (b.createdAt?.seconds || 0) -
-                            (a.createdAt?.seconds || 0),
-                        )
+                        .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
                         .slice(0, 5)
                         .map((p) => (
                           <Stack
@@ -1962,11 +2135,7 @@ const PaymentsPage = React.memo(() => {
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                {p.createdAt?.seconds
-                                  ? new Date(
-                                      p.createdAt.seconds * 1000,
-                                    ).toLocaleDateString()
-                                  : "Just now"}{" "}
+                                {formatDateSafe(p.createdAt, "Just now")}{" "}
                                 • {p.method?.toUpperCase()}
                               </Typography>
                             </Box>
@@ -2054,15 +2223,6 @@ const PaymentsPage = React.memo(() => {
                         onClick={() => setMethod("zelle")}
                         variant={method === "zelle" ? "filled" : "outlined"}
                       />
-                      {/* Card */}
-                      <Chip
-                        icon={<CreditCardIcon />}
-                        label="Card"
-                        clickable
-                        color={method === "card" ? "primary" : "default"}
-                        onClick={() => setMethod("card")}
-                        variant={method === "card" ? "filled" : "outlined"}
-                      />
                       {/* Check */}
                       <Chip
                         icon={<ConfirmationNumberIcon />}
@@ -2071,6 +2231,15 @@ const PaymentsPage = React.memo(() => {
                         color={method === "check" ? "secondary" : "default"}
                         onClick={() => setMethod("check")}
                         variant={method === "check" ? "filled" : "outlined"}
+                      />
+                      {/* Credit/Debit Card */}
+                      <Chip
+                        icon={<ReceiptIcon />}
+                        label="Credit/Debit Card"
+                        clickable
+                        color={method === "card" ? "primary" : "default"}
+                        onClick={() => setMethod("card")}
+                        variant={method === "card" ? "filled" : "outlined"}
                       />
                       {/* Discount */}
                       <Chip
@@ -2192,20 +2361,214 @@ const PaymentsPage = React.memo(() => {
               </Stack>
             )}
 
+            {/* -------- Quick Lunch Sale (Walk-in) -------- */}
             {activeTab === 2 && (
+              <Stack
+                spacing={3}
+                component={motion.div}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <Paper sx={{ p: 3, borderRadius: 2 }} variant="outlined">
+                  <Stack spacing={2}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <LunchIcon color="primary" />
+                      <Typography variant="h6">Quick Lunch Sale</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      Record a lunch payment for walk-in buyers (non-students).
+                      Price: {usd(Number(pricing.lunch?.single || 500))} per
+                      lunch.
+                    </Typography>
+
+                    <Divider />
+
+                    <TextField
+                      label="Buyer Name"
+                      value={lunchBuyerName}
+                      onChange={(e) => setLunchBuyerName(e.target.value)}
+                      fullWidth
+                      required
+                      placeholder="e.g. John Doe"
+                    />
+
+                    <TextField
+                      label="Email (optional)"
+                      value={lunchBuyerEmail}
+                      onChange={(e) => setLunchBuyerEmail(e.target.value)}
+                      fullWidth
+                      type="email"
+                      placeholder="e.g. john@example.com"
+                    />
+
+                    <TextField
+                      label="Quantity"
+                      type="number"
+                      value={lunchQty}
+                      onChange={(e) =>
+                        setLunchQty(Math.max(1, parseInt(e.target.value) || 1))
+                      }
+                      inputProps={{ min: 1 }}
+                      fullWidth
+                    />
+
+                    <Box>
+                      <Typography
+                        variant="subtitle2"
+                        gutterBottom
+                        color="text.secondary"
+                      >
+                        Payment Method
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        flexWrap="wrap"
+                        rowGap={1}
+                      >
+                        {(
+                          [
+                            { val: "cash" as const, label: "Cash", icon: <AttachMoneyIcon /> },
+                            { val: "zelle" as const, label: "Zelle", icon: <ReceiptIcon /> },
+                            { val: "check" as const, label: "Check", icon: <ConfirmationNumberIcon /> },
+                            { val: "card" as const, label: "Credit/Debit Card", icon: <ReceiptIcon /> },
+                          ] as const
+                        ).map((m) => (
+                          <Chip
+                            key={m.val}
+                            icon={m.icon}
+                            label={m.label}
+                            onClick={() => setLunchMethod(m.val)}
+                            color={lunchMethod === m.val ? "primary" : "default"}
+                            variant={
+                              lunchMethod === m.val ? "filled" : "outlined"
+                            }
+                            sx={{ fontWeight: 600 }}
+                          />
+                        ))}
+                      </Stack>
+                    </Box>
+
+                    <Divider />
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="h6">Total</Typography>
+                      <Typography variant="h5" fontWeight={700} color="primary">
+                        {usd(
+                          lunchQty * Number(pricing.lunch?.single || 500),
+                        )}
+                      </Typography>
+                    </Stack>
+
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={
+                        lunchProcessing ? (
+                          <CircularProgress size={20} color="inherit" />
+                        ) : (
+                          <LunchIcon />
+                        )
+                      }
+                      onClick={handleLunchSale}
+                      disabled={
+                        lunchProcessing ||
+                        !lunchBuyerName.trim() ||
+                        lunchMethod === "none"
+                      }
+                      sx={{ height: 50, fontSize: "1.1rem" }}
+                    >
+                      {lunchProcessing
+                        ? "Processing..."
+                        : `Record Lunch Sale — ${usd(lunchQty * Number(pricing.lunch?.single || 500))}`}
+                    </Button>
+                  </Stack>
+                </Paper>
+
+                {/* Recent Walk-in Lunch Sales */}
+                <Paper sx={{ p: 2, borderRadius: 2 }} variant="outlined">
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                    Recent Walk-in Lunch Sales
+                  </Typography>
+                  {allInvoices
+                    ?.filter(
+                      (inv) =>
+                        inv.discountNote === "Walk-in lunch sale" ||
+                        inv.lines?.some((l) =>
+                          l.academy
+                            ?.toLowerCase()
+                            .includes("walk-in lunch"),
+                        ),
+                    )
+                    .slice(0, 20)
+                    .map((inv) => (
+                      <Paper
+                        key={inv.id}
+                        sx={{
+                          p: 1.5,
+                          mb: 1,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                        variant="outlined"
+                      >
+                        <Box>
+                          <Typography variant="subtitle2">
+                            {inv.studentName || "Walk-in"}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {formatDateSafe(inv.createdAt)}{" "}
+                            • {inv.status}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {usd(inv.total)}
+                        </Typography>
+                      </Paper>
+                    )) || (
+                    <Typography variant="caption" color="text.secondary">
+                      No walk-in sales yet.
+                    </Typography>
+                  )}
+                </Paper>
+              </Stack>
+            )}
+
+            {activeTab === 3 && (
               <List>
                 {studentPayments.map((p) => (
                   <ListItem
                     key={p.id}
                     secondaryAction={
-                      <IconButton
-                        edge="end"
-                        onClick={() => deletePayment(p)}
-                        size="small"
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      <Stack direction="row" spacing={0.5}>
+                        {isAdmin && (
+                          <IconButton
+                            edge="end"
+                            onClick={() => editPaymentMethod(p)}
+                            size="small"
+                            color="primary"
+                            title="Edit payment method"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          edge="end"
+                          onClick={() => deletePayment(p)}
+                          size="small"
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
                     }
                   >
                     <Stack
@@ -2218,9 +2581,7 @@ const PaymentsPage = React.memo(() => {
                           {usd(p.amount)} via {p.method}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {new Date(
-                            p.createdAt?.seconds * 1000,
-                          ).toLocaleString()}
+                          {formatDateTimeSafe(p.createdAt)}
                         </Typography>
                       </Box>
                       <ReceiptIcon color="action" />
@@ -2238,7 +2599,7 @@ const PaymentsPage = React.memo(() => {
               </List>
             )}
 
-            {activeTab === 3 && (
+            {activeTab === 4 && (
               <Stack
                 spacing={2}
                 component={motion.div}
@@ -2271,9 +2632,8 @@ const PaymentsPage = React.memo(() => {
                       { total: number; payments: any[] }
                     > = {};
                     payments.forEach((p) => {
-                      const d = p.createdAt?.seconds
-                        ? new Date(p.createdAt.seconds * 1000)
-                        : new Date();
+                      const dMs = toMillis(p.createdAt);
+                      const d = dMs > 0 ? new Date(dMs) : new Date();
                       // Get start of week (Sunday)
                       const day = d.getDay();
                       const diff = d.getDate() - day;
@@ -2349,11 +2709,7 @@ const PaymentsPage = React.memo(() => {
                 </Typography>
                 <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
                   {(allInvoices || [])
-                    .sort(
-                      (a, b) =>
-                        (b.createdAt?.seconds || 0) -
-                        (a.createdAt?.seconds || 0),
-                    )
+                    .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
                     .map((inv) => (
                       <Paper
                         key={inv.id}
@@ -2371,9 +2727,7 @@ const PaymentsPage = React.memo(() => {
                             #{inv.id.slice(0, 6)} • {inv.studentName}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {new Date(
-                              inv.createdAt?.seconds * 1000,
-                            ).toLocaleDateString()}{" "}
+                            {formatDateSafe(inv.createdAt)}{" "}
                             • {inv.status}
                           </Typography>
                         </Box>

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useTeacherContext } from "../../auth/context/TeacherContext";
 import { useNavigate } from "react-router-dom";
-// import { supabase } from "../../../lib/supabase"; // Removed - using hooks
+import { supabase } from "../../../lib/supabase";
 import { useSupabaseRegistrations } from "../../registrations/hooks/useSupabaseRegistrations";
 import { useSupabaseAttendance } from "../../attendance/hooks/useSupabaseAttendance";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
@@ -108,6 +108,82 @@ export default function TeacherDashboardPage() {
   const { data: allRegistrations } = useSupabaseRegistrations();
   const { fetchDailyOverallAttendance } = useSupabaseAttendance();
 
+  // Fetch levels per academy ID to resolve sub-academy assignments
+  const [academyLevelsMap, setAcademyLevelsMap] = React.useState<Record<string, string[]>>({});
+
+  React.useEffect(() => {
+    const fetchLevels = async () => {
+      const { data } = await supabase
+        .from("levels")
+        .select("name, academy_id")
+        .order("display_order", { ascending: true });
+      if (data) {
+        const map: Record<string, string[]> = {};
+        data.forEach((l: any) => {
+          if (!map[l.academy_id]) map[l.academy_id] = [];
+          if (!map[l.academy_id].includes(l.name)) {
+            map[l.academy_id].push(l.name);
+          }
+        });
+        setAcademyLevelsMap(map);
+      }
+    };
+    fetchLevels();
+  }, []);
+
+  // Resolve teacher assignments: expand sub-academy (level: null) into specific levels
+  type ResolvedClass = {
+    academyId: string;
+    academyName: string;
+    normalizedAcademy: string;
+    level: string | null;
+    label: string;
+  };
+
+  const resolvedClasses = React.useMemo<ResolvedClass[]>(() => {
+    if (!teacherProfile) return [];
+    const classes: ResolvedClass[] = [];
+
+    teacherProfile.academies.forEach((a) => {
+      const norm = normalizeAcademy(a.academyName);
+      if (a.level) {
+        classes.push({
+          academyId: a.academyId,
+          academyName: a.academyName,
+          normalizedAcademy: norm,
+          level: a.level,
+          label: `${norm} — ${a.level}`,
+        });
+      } else {
+        const subLevels = academyLevelsMap[a.academyId] || [];
+        if (subLevels.length > 0) {
+          subLevels.forEach(lvl => {
+            const key = `${norm}::${lvl}`;
+            if (!classes.some(c => `${c.normalizedAcademy}::${c.level}` === key)) {
+              classes.push({
+                academyId: a.academyId,
+                academyName: a.academyName,
+                normalizedAcademy: norm,
+                level: lvl,
+                label: `${norm} — ${lvl}`,
+              });
+            }
+          });
+        } else {
+          classes.push({
+            academyId: a.academyId,
+            academyName: a.academyName,
+            normalizedAcademy: norm,
+            level: null,
+            label: a.academyName,
+          });
+        }
+      }
+    });
+
+    return classes;
+  }, [teacherProfile, academyLevelsMap]);
+
   // -- Stats State --
   const [stats, setStats] = React.useState({
     attendancePercent: 0,
@@ -123,22 +199,19 @@ export default function TeacherDashboardPage() {
 
       try {
         setLoadingStats(true);
-        // 1. Calculate Total Students for this teacher
-        const uniqueRegs = allRegistrations; // Already grouped by student.id
+        // 1. Calculate Total Students for this teacher (using resolved classes)
+        const uniqueRegs = allRegistrations;
         let teacherStudents = 0;
 
         uniqueRegs.forEach((reg) => {
-          const isMatch = teacherProfile.academies.some((asg) => {
-            const myAcademy = normalizeAcademy(asg.academyName);
-            const myLevel = asg.level ? normalizeLevel(asg.level) : null;
-
+          const isMatch = resolvedClasses.some((cls) => {
             if (reg.selectedAcademies && Array.isArray(reg.selectedAcademies)) {
               return reg.selectedAcademies.some((sa) => {
                 const saAcademy = normalizeAcademy(sa.academy || "");
                 const saLevel = normalizeLevel(sa.level || "");
 
-                if (saAcademy !== myAcademy) return false;
-                if (myLevel && saLevel !== myLevel) return false;
+                if (saAcademy !== cls.normalizedAcademy) return false;
+                if (cls.level && saLevel !== normalizeLevel(cls.level) && sa.level !== cls.level) return false;
                 return true;
               });
             }
@@ -195,9 +268,9 @@ export default function TeacherDashboardPage() {
     if (teacherProfile && allRegistrations.length > 0) {
       fetchStats();
     }
-  }, [teacherProfile, allRegistrations, fetchDailyOverallAttendance]);
+  }, [teacherProfile, allRegistrations, fetchDailyOverallAttendance, resolvedClasses]);
 
-  const classesCount = teacherProfile?.academies.length || 0;
+  const classesCount = resolvedClasses.length;
 
   // Get greeting based on time
   const hour = new Date().getHours();
@@ -283,7 +356,7 @@ export default function TeacherDashboardPage() {
         My Classes
       </Typography>
       <Grid container spacing={3}>
-        {teacherProfile?.academies.map((cls, idx) => (
+        {resolvedClasses.map((cls, idx) => (
           <Grid key={idx} item xs={12} md={6}>
             <GlassCard
               sx={{
@@ -311,7 +384,7 @@ export default function TeacherDashboardPage() {
                       sx={{ mb: 1.5, fontWeight: 600 }}
                     />
                     <Typography variant="h5" fontWeight={700} gutterBottom>
-                      {cls.academyName}
+                      {cls.normalizedAcademy}
                     </Typography>
                     <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                       <Box

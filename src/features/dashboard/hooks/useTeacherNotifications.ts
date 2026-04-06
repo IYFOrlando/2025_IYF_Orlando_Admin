@@ -110,10 +110,10 @@ export function useTeacherNotifications(listenForNotifications: boolean = true) 
   const addNotification = async (data: { teacherId: string, teacherName: string, action: string, academy: string, details?: string }) => {
     try {
         // We insert to 'admin_notifications'
-        // teacherId here is likely the Profile ID (since it comes from teacherProfile.id)
+        // teacherId is the auth user UUID (from currentUser.id)
         
         await supabase.from('admin_notifications').insert({
-            teacher_profile_id: data.teacherId, // assuming profile ID
+            teacher_profile_id: data.teacherId, // auth user UUID
             teacher_name: data.teacherName,
             action: data.action,
             academy: data.academy,

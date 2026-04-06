@@ -5,7 +5,7 @@ import { notifyError, notifySuccess } from "../../../lib/alerts";
 export type AttendanceRow = {
   id: string; // student_id (for the grid)
   studentName: string;
-  present: boolean;
+  status: "present" | "late" | "absent";
   reason: string;
   percent?: number;
   recordId?: string; // Link to specific attendance_record ID
@@ -61,7 +61,8 @@ export function useSupabaseAttendance() {
           id: r.student_id, // Grid uses Student ID as key
           studentName:
             `${r.students?.first_name || ""} ${r.students?.last_name || ""}`.trim(),
-          present: r.status === "present",
+          status:
+            r.status === "late" || r.status === "absent" ? r.status : "present",
           reason: r.reason || "",
           recordId: r.id,
         }));
@@ -156,8 +157,8 @@ export function useSupabaseAttendance() {
       const recordsToUpsert = rows.map((r) => ({
         session_id: session.id,
         student_id: r.id,
-        status: r.present ? "present" : "absent",
-        reason: r.present ? null : r.reason || null,
+        status: r.status,
+        reason: r.status === "present" ? null : r.reason || null,
       }));
 
       // Batch upsert

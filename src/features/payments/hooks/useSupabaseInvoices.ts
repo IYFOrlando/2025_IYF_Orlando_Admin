@@ -2,17 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabase";
 import type { Invoice } from "../types";
 import { logger } from "../../../lib/logger";
+import { getActiveSemesterIdCached } from "../../../lib/activeSemester";
 
-// Helper to get active semester
-async function getActiveSemesterId() {
-  const { data, error } = await supabase
-    .from("semesters")
-    .select("id")
-    .eq("name", "Spring 2026")
-    .limit(1);
-  if (error || !data?.[0]) throw new Error("Active semester not found");
-  return data[0].id;
-}
+const timerNow = () =>
+  typeof performance !== "undefined" ? performance.now() : Date.now();
 
 export function useSupabaseInvoices() {
   const [data, setData] = useState<Invoice[]>([]);
@@ -20,9 +13,11 @@ export function useSupabaseInvoices() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchInvoices = useCallback(async () => {
+    const started = timerNow();
     try {
       setLoading(true);
-      const semesterId = await getActiveSemesterId();
+      const semesterLookupStart = timerNow();
+      const semesterId = await getActiveSemesterIdCached();
 
       const { data: invoicesData, error: invError } = await supabase
         .from("invoices")
@@ -43,7 +38,7 @@ export function useSupabaseInvoices() {
         studentId: inv.student_id,
         studentName: inv.student
           ? `${inv.student.first_name} ${inv.student.last_name}`
-          : "Unknown",
+          : inv.buyer_name || "Walk-in",
         lines: inv.items.map((item: any) => ({
           academy: item.description,
           unitPrice: (item.unit_price || 0) * 100, // DB(Dollars) -> UI(Cents)
@@ -69,6 +64,11 @@ export function useSupabaseInvoices() {
 
       setData(mappedInvoices);
       setError(null);
+      logger.info("Billing perf: fetchInvoices", {
+        semesterLookupMs: Math.round(timerNow() - semesterLookupStart),
+        rows: mappedInvoices.length,
+        totalMs: Math.round(timerNow() - started),
+      });
     } catch (err: any) {
       console.error("Error fetching invoices:", err);
       setError(err.message);
@@ -87,11 +87,14 @@ export function useSupabaseInvoices() {
   const createInvoice = async (
     invoiceData: Omit<Invoice, "id" | "createdAt" | "updatedAt">,
   ) => {
+    const started = timerNow();
     try {
-      const semesterId = await getActiveSemesterId();
+      const semesterLookupStart = timerNow();
+      const semesterId = await getActiveSemesterIdCached();
 
       // 1. Insert Invoice
       // UI sends Cents, DB expects Dollars -> Divide by 100
+      const insertStart = timerNow();
       const { data: inv, error: insError } = await supabase
         .from("invoices")
         .insert({
@@ -112,6 +115,7 @@ export function useSupabaseInvoices() {
       if (insError) throw insError;
 
       // 2. Insert Items
+      const itemsStart = timerNow();
       const itemsToInsert = [];
 
       // Academy Lines
@@ -148,7 +152,37 @@ export function useSupabaseInvoices() {
         if (itemsError) throw itemsError;
       }
 
-      await fetchInvoices();
+      const createdInvoice: Invoice = {
+        id: inv.id,
+        studentId: invoiceData.studentId,
+        studentName: invoiceData.studentName,
+        lines: invoiceData.lines || [],
+        subtotal: invoiceData.subtotal,
+        discountAmount: invoiceData.discountAmount ?? 0,
+        discountNote: invoiceData.discountNote ?? null,
+        total: invoiceData.total,
+        paid: invoiceData.paid,
+        balance: invoiceData.balance,
+        status: invoiceData.status,
+        createdAt: inv.created_at || new Date().toISOString(),
+        updatedAt: inv.created_at || new Date().toISOString(),
+        lunch: invoiceData.lunch || { semesterSelected: false, singleQty: 0 },
+        lunchAmount: invoiceData.lunchAmount || 0,
+      };
+      setData((prev) => [createdInvoice, ...prev]);
+
+      // Refresh in background to keep list consistent without blocking UX.
+      setTimeout(() => {
+        void fetchInvoices();
+      }, 0);
+
+      logger.info("Billing perf: createInvoice", {
+        semesterLookupMs: Math.round(timerNow() - semesterLookupStart),
+        invoiceInsertMs: Math.round(itemsStart - insertStart),
+        itemsInsertMs: Math.round(timerNow() - itemsStart),
+        lineCount: itemsToInsert.length,
+        totalMs: Math.round(timerNow() - started),
+      });
       return inv.id;
     } catch (err: any) {
       logger.error("Error creating invoice", err);
@@ -167,8 +201,6 @@ export function useSupabaseInvoices() {
       if (updates.balance !== undefined)
         dbUpdates.balance = updates.balance / 100;
       if (updates.total !== undefined) dbUpdates.total = updates.total / 100;
-
-      dbUpdates.updated_at = new Date().toISOString();
 
       const { error } = await supabase
         .from("invoices")

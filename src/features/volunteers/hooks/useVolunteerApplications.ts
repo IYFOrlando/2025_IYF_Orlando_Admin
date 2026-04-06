@@ -9,17 +9,44 @@ export function useVolunteerApplications() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<Error | null>(null)
 
+  // Map lowercase DB columns to camelCase for UI
+  const mapRow = (r: any): VolunteerApplication => ({
+    id: r.id,
+    firstName: r.firstname || '',
+    lastName: r.lastname || '',
+    email: r.email || '',
+    gender: r.gender || '',
+    tshirtSize: r.tshirtsize || '',
+    emergencyContact: r.emergencycontact || '',
+    emergencyPhone: r.emergencyphone || '',
+    volunteerCode: r.volunteercode || '',
+    source: r.source || '',
+    eventInfoAccepted: r.eventinfoaccepted || false,
+    termsAccepted: r.termsaccepted || false,
+    age: r.age,
+    phone: r.cellnumber || '',
+    city: r.city || '',
+    availability: r.availability,
+    interests: r.interests,
+    skills: r.skills,
+    languages: r.languages,
+    status: r.status || 'pending',
+    notes: r.notes || '',
+    createdAt: r.createdat,
+    updatedAt: r.updatedat,
+  })
+
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true)
       const { data: rows, error: fetchError } = await supabase
         .from('volunteer_applications')
         .select('*')
-        .order('createdAt', { ascending: false })
+        .order('createdat', { ascending: false })
 
       if (fetchError) throw fetchError
 
-      setData((rows || []).map(r => ({ id: r.id, ...r } as VolunteerApplication)))
+      setData((rows || []).map(mapRow))
       setError(null)
     } catch (err: any) {
       logger.error('Error fetching volunteer applications', err)
@@ -37,14 +64,18 @@ export function useVolunteerApplications() {
       const volunteerCode = volunteerData.volunteerCode || generateVolunteerCode(6)
       const now = new Date().toISOString()
 
+      // Map camelCase fields to lowercase DB column names
+      const dbData: Record<string, any> = {}
+      for (const [key, val] of Object.entries(volunteerData)) {
+        dbData[key.toLowerCase()] = val
+      }
+      dbData.volunteercode = volunteerCode
+      dbData.createdat = now
+      dbData.updatedat = now
+
       const { data: row, error } = await supabase
         .from('volunteer_applications')
-        .insert({
-          ...volunteerData,
-          volunteerCode,
-          createdAt: now,
-          updatedAt: now,
-        })
+        .insert(dbData)
         .select('id')
         .single()
 
@@ -59,9 +90,17 @@ export function useVolunteerApplications() {
 
   const updateVolunteer = React.useCallback(async (id: string, updates: Partial<VolunteerApplication>) => {
     try {
+      // Map camelCase fields to lowercase DB column names
+      const dbUpdates: Record<string, any> = {}
+      for (const [key, val] of Object.entries(updates)) {
+        if (key === 'id') continue
+        dbUpdates[key.toLowerCase()] = val
+      }
+      dbUpdates.updatedat = new Date().toISOString()
+
       const { error } = await supabase
         .from('volunteer_applications')
-        .update({ ...updates, updatedAt: new Date().toISOString() })
+        .update(dbUpdates)
         .eq('id', id)
 
       if (error) throw error
@@ -85,8 +124,8 @@ export function useVolunteerApplications() {
         .update({
           status,
           notes: notes || null,
-          updatedBy: updatedBy || null,
-          updatedAt: new Date().toISOString(),
+          updatedby: updatedBy || null,
+          updatedat: new Date().toISOString(),
         })
         .eq('id', id)
 

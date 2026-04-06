@@ -527,5 +527,6 @@ export function useEmailDatabase() {
     searchEmails,
     exportEventbriteEmails,
     markEmailsAsBounced,
+    refetch: fetchEmails,
   }
 }

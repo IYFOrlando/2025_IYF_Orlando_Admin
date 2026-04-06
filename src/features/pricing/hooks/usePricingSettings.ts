@@ -8,7 +8,7 @@ export function usePricingSettings() {
   const [data, setData] = React.useState<PricingDoc>({
     academyPrices: {},
     items: [],
-    lunch: { semester: 40, single: 4 },
+    lunch: { semester: 50, single: 5 },
   });
   const [loading, setLoading] = React.useState(true);
   const [_error, _setError] = React.useState<string | null>(null);
@@ -27,7 +27,7 @@ export function usePricingSettings() {
           setData({
             academyPrices: {},
             items: [],
-            lunch: { semester: 40, single: 4 },
+            lunch: { semester: 50, single: 5 },
           });
         } else {
           throw fetchError;

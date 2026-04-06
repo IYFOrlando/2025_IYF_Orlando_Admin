@@ -9,10 +9,21 @@ import {
   TextField,
   MenuItem,
   Chip,
-  Switch,
   Autocomplete,
   Grid,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Paper,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import type { GridColDef } from "@mui/x-data-grid";
@@ -24,6 +35,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import HistoryIcon from "@mui/icons-material/History";
+import PersonIcon from "@mui/icons-material/Person";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../context/AuthContext";
@@ -42,6 +55,13 @@ import { useSupabaseAttendance } from "../hooks/useSupabaseAttendance";
 import { PageHeader } from "../../../components/PageHeader";
 import { PageHeaderColors } from "../../../components/pageHeaderColors";
 import { normalizeAcademy, normalizeLevel } from "../../../lib/normalization";
+import {
+  formatClassDateLabel,
+  getNearestSaturdayYmd,
+  getLastSaturdayYmd,
+  getSaturdayOptions,
+  isSaturdayYmd,
+} from "../../../lib/classDate";
 // deduplicateRegistrations removed - Supabase hook already groups by student.id
 
 const KOREAN = "Korean Language";
@@ -53,7 +73,7 @@ type Row = {
   id: string;
   registrationId: string;
   studentName: string;
-  present: boolean;
+  status: "present" | "late" | "absent";
   reason?: string;
   percent?: number;
   recordId?: string; // Supabase record ID
@@ -88,24 +108,10 @@ export default function AttendancePage() {
   const canEdit = isSuperAdmin || isTeacher;
 
   // Filters
-  // Determine initial date (nearest past Saturday or today if Saturday)
-  const getInitialSaturday = () => {
-    const d = new Date();
-    const day = d.getDay();
-    if (day !== 6) {
-      const diff = (day + 1) % 7;
-      d.setDate(d.getDate() - diff);
-    }
-    return d.toISOString().slice(0, 10);
-  };
+  const [date, setDate] = React.useState<string>(() => getLastSaturdayYmd());
 
-  const [date, setDate] = React.useState<string>(getInitialSaturday());
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (!val) return;
-    setDate(val);
-  };
+  const [showCalendarPicker, setShowCalendarPicker] = React.useState(false);
+  const [dateHint, setDateHint] = React.useState<string>("");
 
   // Navigate date by N days
   const shiftDate = (days: number) => {
@@ -113,6 +119,26 @@ export default function AttendancePage() {
     d.setDate(d.getDate() + days);
     setDate(d.toISOString().slice(0, 10));
   };
+
+  const handleSaturdaySelect = (value: string) => {
+    setDate(value);
+    setDateHint("");
+  };
+
+  const handleManualCalendarDateChange = (value: string) => {
+    if (!value) return;
+    if (isSaturdayYmd(value)) {
+      setDate(value);
+      setDateHint("");
+      return;
+    }
+    const adjusted = getNearestSaturdayYmd(value);
+    setDate(adjusted);
+    setDateHint(`Adjusted to nearest Saturday: ${formatClassDateLabel(adjusted)}`);
+  };
+
+  const classDateLabel = React.useMemo(() => formatClassDateLabel(date), [date]);
+  const saturdayOptions = React.useMemo(() => getSaturdayOptions(date), [date]);
 
   const [academy, setAcademy] = React.useState<string>("");
   const [level, setLevel] = React.useState<string>(urlLevel || "");
@@ -201,39 +227,105 @@ export default function AttendancePage() {
 
   const currentAcademyId = academyIdMap[academy];
 
+  // Helper: resolve ALL levels a teacher can access for the current normalized academy.
+  // Handles two cases:
+  //   a) Teacher assigned to a specific LEVEL (level is set) → use that level
+  //   b) Teacher assigned to a sub-academy (level is null, e.g. "Korean Conversation")
+  //      → look up what levels belong to THAT academyId in academyLevelsMap
+  const resolvedTeacherLevels = React.useMemo<string[]>(() => {
+    if (!isTeacher || !teacherProfile) return [];
+
+    const matching = teacherProfile.academies
+      .filter(a => normalizeAcademy(a.academyName) === academy);
+
+    if (matching.length === 0) return [];
+
+    const resolved = new Set<string>();
+    let hasFullAcademyAccess = false;
+
+    matching.forEach(entry => {
+      if (entry.level) {
+        // Case a: explicitly assigned to a specific level
+        resolved.add(entry.level);
+      } else {
+        // Case b: assigned to entire (sub-)academy → look up its levels
+        const subLevels = academyLevelsMap[entry.academyId] || [];
+        if (subLevels.length > 0) {
+          subLevels.forEach(l => resolved.add(l));
+        } else {
+          // Academy has no levels at all → full access
+          hasFullAcademyAccess = true;
+        }
+      }
+    });
+
+    // If teacher has full access to an academy without levels, return empty (no restriction)
+    if (hasFullAcademyAccess && resolved.size === 0) return [];
+
+    return Array.from(resolved);
+  }, [isTeacher, teacherProfile, academy, academyLevelsMap]);
+
   // Levels available for the currently selected academy
+  // Teachers only see their assigned levels; admins see all
   const currentAcademyLevels = React.useMemo(() => {
     if (!currentAcademyId) return [];
-    // For Korean, collect from ALL Korean academy IDs
+
+    // 1. Collect ALL levels for this academy from the DB
+    let allLevels: string[] = [];
     if (academy === KOREAN && koreanAcademyIds.length > 0) {
-      const all: string[] = [];
       koreanAcademyIds.forEach(kid => {
         (academyLevelsMap[kid] || []).forEach(l => {
-          if (!all.includes(l)) all.push(l);
+          if (!allLevels.includes(l)) allLevels.push(l);
         });
       });
-      return all;
+    } else {
+      allLevels = academyLevelsMap[currentAcademyId] || [];
     }
-    return academyLevelsMap[currentAcademyId] || [];
-  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap]);
+
+    // 2. If teacher, restrict to only their resolved levels
+    if (isTeacher && resolvedTeacherLevels.length > 0) {
+      return allLevels.filter(l =>
+        resolvedTeacherLevels.some(tl =>
+          normalizeLevel(tl) === normalizeLevel(l) || tl === l
+        )
+      );
+    }
+
+    return allLevels;
+  }, [currentAcademyId, academy, koreanAcademyIds, academyLevelsMap, isTeacher, resolvedTeacherLevels]);
 
   const academyHasLevels = currentAcademyLevels.length > 0;
 
-  // Auto-select level for teachers with specific level assignments
+  // Auto-select level for teachers when they only have one level
   React.useEffect(() => {
     if (!isTeacher || !teacherProfile || !academy || !academyHasLevels) return;
-    // Find teacher's assigned levels for this academy
-    const teacherLevels = teacherProfile.academies
-      .filter(a => normalizeAcademy(a.academyName) === academy && a.level)
-      .map(a => a.level as string);
-    // If teacher has exactly one level for this academy, auto-select it
-    if (teacherLevels.length === 1 && !level) {
-      setLevel(teacherLevels[0]);
+    // If teacher has exactly one level available, auto-select it
+    if (currentAcademyLevels.length === 1 && !level) {
+      setLevel(currentAcademyLevels[0]);
     }
-  }, [isTeacher, teacherProfile, academy, academyHasLevels, level]);
+  }, [isTeacher, teacherProfile, academy, academyHasLevels, currentAcademyLevels, level]);
+
+  // Build a set of allowed levels for roster filtering
+  // Teachers: only their resolved levels; Admins: all levels or selected level
+  const allowedLevels = React.useMemo<string[] | null>(() => {
+    // If a specific level is selected, use that
+    if (level && academyHasLevels) {
+      return [level, normalizeLevel(level)];
+    }
+    // If teacher with resolved level assignments but no level selected yet,
+    // restrict to their levels
+    if (isTeacher && resolvedTeacherLevels.length > 0 && academyHasLevels) {
+      const set = new Set<string>();
+      resolvedTeacherLevels.forEach(l => { set.add(l); set.add(normalizeLevel(l)); });
+      return Array.from(set);
+    }
+    // null = no filtering (show all)
+    return null;
+  }, [level, academyHasLevels, isTeacher, resolvedTeacherLevels]);
 
   // Roster for selected class (Dynamic & Normalized)
   // Filters by level for ANY academy that has levels (Korean, Taekwondo, etc.)
+  // Teachers are restricted to only their assigned levels
   const roster = React.useMemo(() => {
     if (!academy) return [];
     const list: { id: string; name: string }[] = [];
@@ -259,9 +351,10 @@ export default function AttendancePage() {
       }
 
       if (studentLevels.size > 0) {
-        // If a level is selected AND this academy has levels, filter by it
-        if (level && academyHasLevels) {
-          if (studentLevels.has(level) || studentLevels.has(normalizeLevel(level))) {
+        // If we have allowed levels (selected or teacher-restricted), filter by them
+        if (allowedLevels) {
+          const match = allowedLevels.some(al => studentLevels.has(al) || studentLevels.has(normalizeLevel(al)));
+          if (match) {
             const fullName = `${r.firstName || ""} ${r.lastName || ""}`.trim();
             list.push({ id: r.id, name: fullName });
           }
@@ -275,7 +368,7 @@ export default function AttendancePage() {
     // unique + sorted
     const m = new Map(list.map((s) => [s.id, s]));
     return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [regs, academy, level, academyHasLevels]);
+  }, [regs, academy, allowedLevels]);
 
   // Fetch Levels Map for ID lookup (must be declared before loadClassForDate)
   const [levelIdMap, setLevelIdMap] = React.useState<Record<string, string>>(
@@ -293,42 +386,96 @@ export default function AttendancePage() {
     Record<string, number>
   >({});
 
+  // Past sessions history
+  type SessionSummary = {
+    id: string;
+    date: string;
+    presentCount: number;
+    lateCount: number;
+    absentCount: number;
+    total: number;
+  };
+  const [pastSessions, setPastSessions] = React.useState<SessionSummary[]>([]);
+  const [historyTab, setHistoryTab] = React.useState(0); // 0=attendance grid, 1=history
+
+  // Student detail dialog
+  type StudentHistoryRow = { date: string; status: string; reason: string | null };
+  const [studentDetailOpen, setStudentDetailOpen] = React.useState(false);
+  const [studentDetailName, setStudentDetailName] = React.useState("");
+  const [studentDetailRows, setStudentDetailRows] = React.useState<StudentHistoryRow[]>([]);
+  const [studentDetailSummary, setStudentDetailSummary] = React.useState({ present: 0, total: 0, pct: 0 });
+
+  // Resolve level ID for history queries
+  const currentLevelId = React.useMemo(() => {
+    if (!level || !academyHasLevels) return null;
+    const isKorean = academy === KOREAN;
+    const searchIds = isKorean && koreanAcademyIds.length > 0 ? koreanAcademyIds : [currentAcademyId];
+    for (const aid of searchIds) {
+      const lid = levelIdMap[`${aid}:${normalizeLevel(level)}`] || levelIdMap[`${aid}:${level}`];
+      if (lid) return lid;
+    }
+    return null;
+  }, [level, academyHasLevels, academy, koreanAcademyIds, currentAcademyId, levelIdMap]);
+
   React.useEffect(() => {
     const fetchHistory = async () => {
       if (!currentAcademyId) return;
 
-      // 1. Get all sessions for this academy (use all Korean IDs for Korean)
       const isKorean = academy === KOREAN;
       const queryIds = isKorean && koreanAcademyIds.length > 0
         ? koreanAcademyIds
         : [currentAcademyId];
 
-      const { data: sessions } = await supabase
+      // Build sessions query with optional level filter
+      let sessQuery = supabase
         .from("attendance_sessions")
-        .select("id")
-        .in("academy_id", queryIds);
+        .select("id, date")
+        .in("academy_id", queryIds)
+        .order("date", { ascending: false });
+
+      if (currentLevelId) {
+        sessQuery = sessQuery.eq("level_id", currentLevelId);
+      }
+
+      const { data: sessions } = await sessQuery;
 
       if (!sessions || sessions.length === 0) {
         setStudentStats({});
+        setPastSessions([]);
         return;
       }
 
       const sessionIds = sessions.map((s) => s.id);
 
-      // 2. Get all status records
       const { data: records } = await supabase
         .from("attendance_records")
-        .select("student_id, status")
+        .select("session_id, student_id, status")
         .in("session_id", sessionIds);
 
       if (!records) return;
 
+      // Per-student stats
       const stats: Record<string, { present: number; total: number }> = {};
+      // Per-session stats
+      const sessionStats: Record<
+        string,
+        { present: number; late: number; absent: number; total: number }
+      > = {};
+
       records.forEach((r: any) => {
-        if (!stats[r.student_id])
-          stats[r.student_id] = { present: 0, total: 0 };
+        // Student stats
+        if (!stats[r.student_id]) stats[r.student_id] = { present: 0, total: 0 };
         stats[r.student_id].total++;
         if (r.status === "present") stats[r.student_id].present++;
+
+        // Session stats
+        if (!sessionStats[r.session_id]) {
+          sessionStats[r.session_id] = { present: 0, late: 0, absent: 0, total: 0 };
+        }
+        sessionStats[r.session_id].total++;
+        if (r.status === "present") sessionStats[r.session_id].present++;
+        else if (r.status === "late") sessionStats[r.session_id].late++;
+        else sessionStats[r.session_id].absent++;
       });
 
       const percents: Record<string, number> = {};
@@ -337,10 +484,63 @@ export default function AttendancePage() {
         percents[sid] = Math.round((s.present / s.total) * 100);
       });
       setStudentStats(percents);
+
+      // Build past sessions list
+      const summaries: SessionSummary[] = sessions.map((s: any) => {
+        const ss = sessionStats[s.id] || { present: 0, late: 0, absent: 0, total: 0 };
+        return {
+          id: s.id,
+          date: s.date,
+          presentCount: ss.present,
+          lateCount: ss.late,
+          absentCount: ss.absent,
+          total: ss.total,
+        };
+      });
+      setPastSessions(summaries);
     };
 
     fetchHistory();
-  }, [currentAcademyId, academy, koreanAcademyIds]); // Re-fetch when academy changes
+  }, [currentAcademyId, academy, koreanAcademyIds, currentLevelId]);
+
+  // Open student detail dialog
+  const openStudentDetail = React.useCallback(async (studentId: string, studentName: string) => {
+    setStudentDetailName(studentName);
+    setStudentDetailOpen(true);
+    setStudentDetailRows([]);
+
+    if (!currentAcademyId) return;
+    const isKorean = academy === KOREAN;
+    const queryIds = isKorean && koreanAcademyIds.length > 0 ? koreanAcademyIds : [currentAcademyId];
+
+    let sessQ = supabase.from("attendance_sessions").select("id, date").in("academy_id", queryIds).order("date", { ascending: false });
+    if (currentLevelId) sessQ = sessQ.eq("level_id", currentLevelId);
+    const { data: sessions } = await sessQ;
+    if (!sessions || sessions.length === 0) return;
+
+    const sessionIds = sessions.map((s) => s.id);
+    const sessionDateMap: Record<string, string> = {};
+    sessions.forEach((s: any) => { sessionDateMap[s.id] = s.date; });
+
+    const { data: recs } = await supabase
+      .from("attendance_records")
+      .select("session_id, status, reason")
+      .eq("student_id", studentId)
+      .in("session_id", sessionIds);
+
+    if (!recs) return;
+
+    const rows: StudentHistoryRow[] = recs.map((r: any) => ({
+      date: sessionDateMap[r.session_id] || "Unknown",
+      status: r.status,
+      reason: r.reason,
+    })).sort((a, b) => b.date.localeCompare(a.date));
+
+    const present = rows.filter((r) => r.status === "present").length;
+    const total = rows.length;
+    setStudentDetailRows(rows);
+    setStudentDetailSummary({ present, total, pct: total > 0 ? Math.round((present / total) * 100) : 0 });
+  }, [currentAcademyId, academy, koreanAcademyIds, currentLevelId]);
 
   const loadClassForDate = React.useCallback(async () => {
     try {
@@ -416,7 +616,8 @@ export default function AttendancePage() {
           id: s.id,
           registrationId: s.id,
           studentName: s.name,
-          present: ex ? ex.status === "present" : true,
+          status:
+            ex?.status === "late" || ex?.status === "absent" ? ex.status : "present",
           reason: ex?.reason || "",
           percent,
           recordId: ex?.id,
@@ -439,37 +640,56 @@ export default function AttendancePage() {
   // Columns
   const cols = React.useMemo<GridColDef[]>(
     () => [
-      { field: "studentName", headerName: "Student", minWidth: 220, flex: 1 },
       {
-        field: "present",
-        headerName: "Present",
-        width: 120,
+        field: "studentName", headerName: "Student", minWidth: 220, flex: 1,
+        renderCell: (p) => (
+          <Typography
+            variant="body2"
+            sx={{ cursor: "pointer", color: "primary.main", fontWeight: 500, "&:hover": { textDecoration: "underline" } }}
+            onClick={(e) => { e.stopPropagation(); openStudentDetail(p.row.id, p.row.studentName); }}
+          >
+            {p.row.studentName}
+          </Typography>
+        ),
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 170,
         sortable: false,
         filterable: false,
         renderCell: (p) => (
-          <Switch
-            checked={!!p.row.present}
+          <TextField
+            select
+            size="small"
+            value={p.row.status}
             onChange={(e) => {
-              const checked = e.target.checked;
+              const status = e.target.value as Row["status"];
               setRows((prev) =>
                 prev.map((r) =>
                   r.id === p.row.id
                     ? {
                         ...r,
-                        present: checked,
-                        reason: checked ? "" : r.reason,
+                        status,
+                        reason: status === "present" ? "" : r.reason,
                       }
                     : r,
                 ),
               );
             }}
             disabled={!canEdit}
-          />
+            onClick={(e) => e.stopPropagation()}
+            sx={{ minWidth: 150 }}
+          >
+            <MenuItem value="present">Present</MenuItem>
+            <MenuItem value="late">Late</MenuItem>
+            <MenuItem value="absent">Absent</MenuItem>
+          </TextField>
         ),
       },
       {
         field: "reason",
-        headerName: "Reason (if absent)",
+        headerName: "Reason (if late/absent)",
         minWidth: 260,
         flex: 1.2,
         sortable: false,
@@ -480,7 +700,10 @@ export default function AttendancePage() {
             fullWidth
             placeholder="Illness, travel, family…"
             value={p.row.reason || ""}
-            disabled={p.row.present || !canEdit}
+            disabled={p.row.status === "present" || !canEdit}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
             onChange={(e) =>
               setRows((prev) =>
                 prev.map((r) =>
@@ -510,13 +733,13 @@ export default function AttendancePage() {
         },
       },
     ],
-    [canEdit],
+    [canEdit, openStudentDetail],
   );
 
   // Admin-only helpers
-  const markAll = (val: boolean) =>
+  const markAll = (status: Row["status"]) =>
     setRows((prev) =>
-      prev.map((r) => ({ ...r, present: val, reason: val ? "" : r.reason })),
+      prev.map((r) => ({ ...r, status, reason: status === "present" ? "" : r.reason })),
     );
 
   // Schedule display info per level (levelName -> schedule)
@@ -622,7 +845,7 @@ export default function AttendancePage() {
     const rowsToSave = rows.map((r) => ({
       id: r.registrationId, // hook uses 'id' as studentId
       studentName: r.studentName,
-      present: r.present,
+      status: r.status,
       reason: r.reason || "",
       recordId: r.recordId,
     }));
@@ -631,7 +854,7 @@ export default function AttendancePage() {
       date,
       saveAcademyId, // Use correct academy (may differ from primary for Korean levels)
       targetLevelId,
-      teacherProfile?.id || null, // Pass teacher ID
+      currentUser?.id || null, // Pass auth user UUID (not email)
       teacherNote,
       rowsToSave,
     );
@@ -644,7 +867,7 @@ export default function AttendancePage() {
 
       if (isTeacher && teacherProfile) {
         void addNotification({
-          teacherId: teacherProfile.id,
+          teacherId: currentUser?.id || '',
           teacherName: teacherProfile.name,
           action: "Updated Attendance",
           academy: academy,
@@ -761,15 +984,20 @@ export default function AttendancePage() {
                       </Button>
                     </Tooltip>
                     <TextField
-                      label="Date"
-                      type="date"
-                      InputLabelProps={{ shrink: true }}
+                      select
+                      label="Class Saturday"
                       value={date}
-                      onChange={handleDateChange}
+                      onChange={(e) => handleSaturdaySelect(e.target.value)}
                       fullWidth
                       size="small"
-                      helperText="Navigate weeks or pick any date"
-                    />
+                      helperText={`Selected class date: ${classDateLabel}`}
+                    >
+                      {saturdayOptions.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                     <Tooltip title="Next week">
                       <Button
                         size="small"
@@ -781,6 +1009,32 @@ export default function AttendancePage() {
                       </Button>
                     </Tooltip>
                   </Stack>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
+                    <Button size="small" variant="outlined" onClick={() => handleSaturdaySelect(getLastSaturdayYmd())}>
+                      Use Last Saturday
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => setShowCalendarPicker((v) => !v)}>
+                      {showCalendarPicker ? "Hide calendar" : "Open calendar"}
+                    </Button>
+                  </Stack>
+                  {showCalendarPicker && (
+                    <TextField
+                      sx={{ mt: 1 }}
+                      label="Pick any date"
+                      type="date"
+                      InputLabelProps={{ shrink: true }}
+                      value={date}
+                      onChange={(e) => handleManualCalendarDateChange(e.target.value)}
+                      fullWidth
+                      size="small"
+                      helperText="If you pick a non-Saturday, it will auto-adjust to the nearest Saturday."
+                    />
+                  )}
+                  {!!dateHint && (
+                    <Alert sx={{ mt: 1 }} severity="info">
+                      {dateHint}
+                    </Alert>
+                  )}
                 </Grid>
                 <Grid item xs={12} md={academyHasLevels ? 4 : 8}>
                   <Autocomplete
@@ -813,9 +1067,15 @@ export default function AttendancePage() {
                       helperText={!level ? "Select a level to filter students" : ""}
                     >
                       {currentAcademyLevels.map((l) => {
-                        // Find schedule info for display
-                        const scheduleKey = `${currentAcademyId}:${l}`;
-                        const sched = levelScheduleMap[scheduleKey];
+                        // Find schedule info - search across all relevant academy IDs
+                        const searchIds = academy === KOREAN && koreanAcademyIds.length > 0
+                          ? koreanAcademyIds
+                          : [currentAcademyId];
+                        let sched: string | undefined;
+                        for (const aid of searchIds) {
+                          sched = levelScheduleMap[`${aid}:${l}`];
+                          if (sched) break;
+                        }
                         return (
                           <MenuItem key={l} value={l}>
                             {l}{sched ? ` — ${sched}` : ""}
@@ -878,7 +1138,7 @@ export default function AttendancePage() {
                     <Button
                       startIcon={<DoneAllIcon />}
                       color="success"
-                      onClick={() => markAll(true)}
+                      onClick={() => markAll("present")}
                       disabled={!rows.length}
                       sx={{ minWidth: { xs: "45%", sm: "auto" } }}
                     >
@@ -889,7 +1149,7 @@ export default function AttendancePage() {
                     <Button
                       startIcon={<CloseIcon />}
                       color="warning"
-                      onClick={() => markAll(false)}
+                      onClick={() => markAll("absent")}
                       disabled={!rows.length}
                       sx={{ minWidth: { xs: "45%", sm: "auto" } }}
                     >
@@ -954,37 +1214,151 @@ export default function AttendancePage() {
             </Alert>
           )}
 
-          <Box sx={{ height: 600, width: "100%" }}>
-            <DataGrid
-              rows={rows}
-              columns={cols}
-              loading={loading}
-              checkboxSelection={canEdit}
-              disableRowSelectionOnClick
-              onRowSelectionModelChange={(m) => setSelection(m as string[])}
-              rowSelectionModel={selection}
-              getRowId={(r) => r.id}
-              slots={{ toolbar: GridToolbar }}
-              columnVisibilityModel={
-                {
-                  // isMobile logic removed or handled via Media Query hook if needed
-                  // Currently just showing standard columns
-                }
-              }
-              sx={{
-                border: "none",
-                "& .MuiDataGrid-cell": {
-                  borderBottom: "1px solid rgba(224, 224, 224, 0.4)",
-                },
-                "& .MuiDataGrid-columnHeaders": {
-                  bgcolor: "rgba(63, 81, 181, 0.08)",
-                  fontWeight: 700,
-                },
-              }}
-            />
-          </Box>
+          <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+            Reason is saved only for <strong>Late</strong> or <strong>Absent</strong>.
+            If status is <strong>Present</strong>, the reason field is cleared.
+          </Alert>
+
+          {/* Tabs: Today / History */}
+          <Tabs
+            value={historyTab}
+            onChange={(_, v) => setHistoryTab(v)}
+            sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+          >
+            <Tab icon={<ChecklistIcon />} iconPosition="start" label="Today" />
+            <Tab icon={<HistoryIcon />} iconPosition="start" label={`History (${pastSessions.length})`} />
+          </Tabs>
+
+          {historyTab === 0 && (
+            <Box sx={{ height: 600, width: "100%" }}>
+              <DataGrid
+                rows={rows}
+                columns={cols}
+                loading={loading}
+                checkboxSelection={canEdit}
+                disableRowSelectionOnClick
+                onRowSelectionModelChange={(m) => setSelection(m as string[])}
+                rowSelectionModel={selection}
+                getRowId={(r) => r.id}
+                slots={{ toolbar: GridToolbar }}
+                columnVisibilityModel={{}}
+                sx={{
+                  border: "none",
+                  "& .MuiDataGrid-cell": {
+                    borderBottom: "1px solid rgba(224, 224, 224, 0.4)",
+                  },
+                  "& .MuiDataGrid-columnHeaders": {
+                    bgcolor: "rgba(63, 81, 181, 0.08)",
+                    fontWeight: 700,
+                  },
+                }}
+              />
+            </Box>
+          )}
+
+          {historyTab === 1 && (
+            <Box>
+              {pastSessions.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>No past sessions recorded for this academy/level.</Alert>
+              ) : (
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "rgba(63, 81, 181, 0.08)" }}>
+                        <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Present</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Late</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Absent</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Total</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }} align="center">Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {pastSessions.map((s) => (
+                        <TableRow key={s.id} hover>
+                          <TableCell>{new Date(s.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</TableCell>
+                          <TableCell align="center">
+                            <Chip label={s.presentCount} color="success" size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={s.lateCount} color={s.lateCount > 0 ? "warning" : "default"} size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={s.absentCount} color={s.absentCount > 0 ? "error" : "default"} size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell align="center">{s.total}</TableCell>
+                          <TableCell align="center">
+                            <Button
+                              size="small"
+                              variant="text"
+                              onClick={() => { setDate(s.date); setHistoryTab(0); }}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
         </CardContent>
       </GlassCard>
+
+      {/* Student Attendance Detail Dialog */}
+      <Dialog open={studentDetailOpen} onClose={() => setStudentDetailOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <PersonIcon />
+          {studentDetailName} — Attendance History
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Chip
+                label={`${studentDetailSummary.present} / ${studentDetailSummary.total} present`}
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
+                label={`${studentDetailSummary.pct}%`}
+                color={studentDetailSummary.pct >= 90 ? "success" : studentDetailSummary.pct >= 75 ? "warning" : "default"}
+              />
+            </Stack>
+            {studentDetailRows.length === 0 ? (
+              <Alert severity="info">No attendance records found.</Alert>
+            ) : (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "rgba(63, 81, 181, 0.08)" }}>
+                      <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Reason</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {studentDetailRows.map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={r.status === "present" ? "Present" : r.status === "late" ? "Late" : "Absent"}
+                            color={r.status === "present" ? "success" : r.status === "late" ? "warning" : "error"}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>{r.reason || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

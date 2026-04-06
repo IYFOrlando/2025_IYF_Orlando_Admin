@@ -551,11 +551,6 @@ const AcademiesPage = React.memo(function AcademiesPage() {
                 <SchoolIcon color="primary" />
                 <Typography variant="h6">{academy.name}</Typography>
                 <Chip
-                  label={`$${academy.price}`}
-                  size="small"
-                  color="primary"
-                />
-                <Chip
                   label={`${Object.values(koreanByLevel).reduce((sum, regs) => sum + regs.length, 0)} students`}
                   size="small"
                   color="primary"
@@ -877,11 +872,6 @@ const AcademiesPage = React.memo(function AcademiesPage() {
               >
                 <SchoolIcon color="primary" />
                 <Typography variant="h6">{academy.name}</Typography>
-                <Chip
-                  label={`$${academy.price}`}
-                  size="small"
-                  color="primary"
-                />
                 <Chip
                   label={`${academyRegistrations.length} students`}
                   size="small"

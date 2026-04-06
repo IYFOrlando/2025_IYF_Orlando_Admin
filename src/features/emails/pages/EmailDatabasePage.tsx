@@ -26,7 +26,9 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import SearchIcon from '@mui/icons-material/Search'
 import BlockIcon from '@mui/icons-material/Block'
 
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
 import { useEmailDatabase } from '../hooks/useEmailDatabase'
+import { migrateEmailDatabaseToSupabase } from '../../../lib/migration'
 import type { EmailRecord, EmailSource } from '../types'
 import { notifySuccess, notifyError } from '../../../lib/alerts'
 import { GlassCard } from '../../../components/GlassCard'
@@ -52,7 +54,8 @@ const EmailDatabasePage = React.memo(() => {
     importFromSubscribers,
     importFromEventbrite,
     exportEventbriteEmails,
-    markEmailsAsBounced
+    markEmailsAsBounced,
+    refetch
   } = useEmailDatabase()
 
   const [mainTabValue, setMainTabValue] = React.useState(0)
@@ -763,6 +766,7 @@ const EmailDatabasePage = React.memo(() => {
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography variant="h6" fontWeight={700}>Email Management</Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+            <Button variant="contained" startIcon={<CloudDownloadIcon />} onClick={async () => { await migrateEmailDatabaseToSupabase(); refetch() }} color="warning" sx={{ fontWeight: 700 }}>Firebase Import</Button>
             <Button variant="contained" startIcon={<RefreshIcon />} onClick={handleAutoImportAll} color="success">Auto Import</Button>
             <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => setImportDialogOpen(true)}>Import</Button>
             <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportEmails}>Export</Button>
