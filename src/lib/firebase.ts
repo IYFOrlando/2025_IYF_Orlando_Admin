@@ -7,6 +7,7 @@
  */
 
 import { initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
@@ -26,7 +27,7 @@ const requiredEnvVars = {
 
 // Check for missing required variables
 const missingVars = Object.entries(requiredEnvVars)
-  .filter(([_, value]) => !value)
+  .filter(([, value]) => !value)
   .map(([key]) => key)
 
 if (missingVars.length > 0) {
@@ -54,9 +55,9 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
+const auth = getAuth(app)
 const db = getFirestore(app)
 const storage = getStorage(app)
 
 
-
-export { db, storage }
+export { auth, db, storage }
