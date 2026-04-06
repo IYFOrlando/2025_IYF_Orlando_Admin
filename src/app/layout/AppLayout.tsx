@@ -544,7 +544,7 @@ export default function AppLayout(props: AppLayoutProps) {
 
   // STRICT CHECK: Only explicitly authorized admins can see the Admin Layout
   if (role === 'admin') {
-    return <AdminLayout {...props} />
+    return <AdminLayout {...props} isAdmin={true} hasGmailAccess={props.hasGmailAccess} />
   }
 
   // Fallback for unauthorized users (or unexpected states)
