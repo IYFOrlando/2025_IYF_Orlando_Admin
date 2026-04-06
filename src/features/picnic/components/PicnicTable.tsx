@@ -1,8 +1,7 @@
-import React from 'react'
 import { 
   Box, Card, Typography, IconButton, Chip, Stack, 
-  Tooltip, TextField, InputAdornment, Button,
-  useTheme, useMediaQuery
+  Tooltip, Button,
+  useTheme
 } from '@mui/material'
 import { 
   DataGrid, 
@@ -11,11 +10,9 @@ import {
   type GridColDef
 } from '@mui/x-data-grid'
 import { 
-  Search, 
   Download, 
   Eye, 
-  Trash2,
-  Table as TableIcon
+  Trash2
 } from 'lucide-react'
 import type { PicnicSignup } from '../api/picnicApi'
 import * as XLSX from 'xlsx'
@@ -30,7 +27,6 @@ interface PicnicTableProps {
 export default function PicnicTable({ rows, loading, onViewDetails, onDelete }: PicnicTableProps) {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const handleExport = () => {
     const exportData = rows.map(r => ({

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, Card, Typography, Grid, useTheme, Avatar } from '@mui/material'
 import { Users, UserCheck, Utensils } from 'lucide-react'
 

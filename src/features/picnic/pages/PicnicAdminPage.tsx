@@ -11,9 +11,7 @@ import {
   Utensils, 
   X,
   Mail,
-  Phone,
-  Clock,
-  ChevronRight
+  Phone
 } from 'lucide-react'
 import { PageHeader } from '../../../components/PageHeader'
 import PicnicStats from '../components/PicnicStats'
@@ -41,7 +39,7 @@ export default function PicnicAdminPage() {
       ])
       setSignups(data)
       setStats(statsData)
-    } catch (err) {
+    } catch {
       notifyError('Failed to fetch picnic data')
     } finally {
       setLoading(false)
@@ -59,7 +57,7 @@ export default function PicnicAdminPage() {
         await deletePicnicSignup(id)
         notifySuccess('Registration deleted successfully')
         fetchData()
-      } catch (err) {
+      } catch {
         notifyError('Failed to delete registration')
       }
     }

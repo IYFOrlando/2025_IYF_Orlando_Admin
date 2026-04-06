@@ -1,12 +1,6 @@
 import React from 'react'
-import { Box, Card, Typography, Grid, Chip, Avatar, useTheme, Stack } from '@mui/material'
+import { Box, Card, Typography, Grid, Chip, Avatar, useTheme } from '@mui/material'
 import { UtensilsCrossed, Package, Coffee, Pizza, Soup, Beef } from 'lucide-react'
-
-interface PotluckItem {
-  name: string
-  count: number
-  category: string
-}
 
 interface PotluckSummaryProps {
   items: string[]
