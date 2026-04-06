@@ -64,6 +64,7 @@
     "sonner": "^1.4.3",
     "sweetalert2": "^11.10.6",
     "sweetalert2-react-content": "^5.0.7",
+    "tinyglobby": "^0.2.15",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4",
     "zustand": "^4.5.2"
