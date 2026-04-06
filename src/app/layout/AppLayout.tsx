@@ -40,7 +40,7 @@ const overviewItems: Item[] = [
 const academicItems: Item[] = [
   { to: '/classes', label: 'Classes', icon: <School size={20} /> },
   { to: '/academies-management', label: 'Academy Settings', icon: <Settings size={20} />, adminOnly: true },
-  { to: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
+  { to: '/progress', label: 'Feedback', icon: <TrendingUp size={20} /> },
   { to: '/attendance', label: 'Attendance', icon: <ClipboardCheck size={20} /> },
 ]
 
@@ -52,6 +52,10 @@ const peopleItems: Item[] = [
   { to: '/emails', label: 'Email Database', icon: <Mail size={20} /> },
 ]
 
+const eventItems: Item[] = [
+  { to: '/events/picnic', label: 'Event Registration', icon: <ClipboardCheck size={20} />, adminOnly: true },
+]
+
 const systemItems: Item[] = [
   { to: '/global-search', label: 'Global Search', icon: <Search size={20} /> },
   { to: '/reports', label: 'Reports', icon: <FileText size={20} /> },
@@ -59,7 +63,7 @@ const systemItems: Item[] = [
   { to: '/reports/invalid-academies', label: 'Data Issues', icon: <AlertTriangle size={20} /> },
 ]
 
-const allItems = [...overviewItems, ...academicItems, ...peopleItems, ...systemItems]
+const allItems = [...overviewItems, ...academicItems, ...peopleItems, ...eventItems, ...systemItems]
 
 interface NavItemProps extends Item {
   onNavClick?: () => void
@@ -223,6 +227,20 @@ function AdminLayout({ isAdmin = false, hasGmailAccess = false }: AppLayoutProps
         <List disablePadding>
           {peopleItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
         </List>
+
+        {/* Events */}
+        {isAdmin && (
+          <>
+            <Box sx={{ px: 3, mb: 1, mt: 3 }}>
+              <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: 0.5 }}>
+                EVENTS
+              </Typography>
+            </Box>
+            <List disablePadding>
+              {eventItems.filter(it => !it.adminOnly || isAdmin).map(it => <NavItem key={it.to} {...it} onNavClick={!isLgUp ? handleDrawerToggle : undefined} />)}
+            </List>
+          </>
+        )}
 
         {/* System */}
         <Box sx={{ px: 3, mb: 1, mt: 3 }}>

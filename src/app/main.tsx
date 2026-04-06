@@ -8,6 +8,7 @@ import { TeacherProvider } from '../features/auth/context/TeacherContext'
 import AppLayout from './layout/AppLayout'
 import AuthGate from './layout/auth/AuthGate'
 import PublicAccessPage from './layout/auth/PublicAccessPage'
+import AdminRoute from './layout/auth/AdminRoute'
 import theme from '../theme'
 
 // Pages
@@ -33,9 +34,11 @@ import InvoiceDebugPage from '../pages/InvoiceDebugPage'
 import TeachersManagementPage from '../features/teacher/pages/TeachersManagementPage'
 import TeacherPlannerPage from '../features/teacher/pages/TeacherPlannerPage'
 import TeacherStudentsPage from '../features/teacher/pages/TeacherStudentsPage'
+import TeacherReportsPage from '../features/teacher/pages/TeacherReportsPage'
 import ActivityLogPage from '../features/dashboard/pages/ActivityLogPage'
 import AnalyticsPage from '../features/analytics/pages/AnalyticsPage'
 import GlobalSearchPage from '../features/search/pages/GlobalSearchPage'
+import PicnicAdminPage from '../features/picnic/pages/PicnicAdminPage'
 
 // Global styles only (no DataGrid CSS file needed in v8)
 import '../index.css'
@@ -49,37 +52,32 @@ const router = createBrowserRouter([
       </AuthGate>
     ),
     children: [
+      // --- Shared routes (admin + teacher) ---
       { index: true, element: <DashboardPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'analytics', element: <AnalyticsPage /> },
-
-      { path: 'registrations', element: <RegistrationsList /> },
-      { path: 'payments', element: <PaymentsPage /> },
-
-      // Reports
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'reports/payments', element: <PaymentsReportPage /> },
-      { path: 'reports/registrations', element: <RegistrationsReportPage /> },
-      { path: 'reports/invalid-academies', element: <InvalidAcademiesReportPage /> },
-
       { path: 'attendance', element: <AttendancePage /> },
       { path: 'progress', element: <ProgressPage /> },
-      { path: 'classes', element: <AcademiesPage /> },
-      { path: 'academies-management', element: <AcademiesManagementPage /> },
-      { path: 'volunteers', element: <VolunteersPage /> },
-      { path: 'emails', element: <EmailDatabasePage /> },
       { path: 'planner', element: <TeacherPlannerPage /> },
       { path: 'my-students', element: <TeacherStudentsPage /> },
-      { path: 'global-search', element: <GlobalSearchPage /> },
-      
-      // Debug tools
-      { path: 'debug/invoices', element: <InvoiceDebugPage /> },
-      
-      // Teacher Management (Phase 2)
-      { path: 'teachers', element: <TeachersManagementPage /> },
-      
-      // Audit Log (Phase 10)
-      { path: 'dashboard/activity-log', element: <ActivityLogPage /> },
+      { path: 'teacher-reports', element: <TeacherReportsPage /> },
+
+      // --- Admin-only routes (teachers get redirected to /dashboard) ---
+      { path: 'analytics', element: <AdminRoute><AnalyticsPage /></AdminRoute> },
+      { path: 'registrations', element: <AdminRoute><RegistrationsList /></AdminRoute> },
+      { path: 'payments', element: <AdminRoute><PaymentsPage /></AdminRoute> },
+      { path: 'reports', element: <AdminRoute><ReportsPage /></AdminRoute> },
+      { path: 'reports/payments', element: <AdminRoute><PaymentsReportPage /></AdminRoute> },
+      { path: 'reports/registrations', element: <AdminRoute><RegistrationsReportPage /></AdminRoute> },
+      { path: 'reports/invalid-academies', element: <AdminRoute><InvalidAcademiesReportPage /></AdminRoute> },
+      { path: 'classes', element: <AdminRoute><AcademiesPage /></AdminRoute> },
+      { path: 'academies-management', element: <AdminRoute><AcademiesManagementPage /></AdminRoute> },
+      { path: 'volunteers', element: <AdminRoute><VolunteersPage /></AdminRoute> },
+      { path: 'emails', element: <AdminRoute><EmailDatabasePage /></AdminRoute> },
+      { path: 'global-search', element: <AdminRoute><GlobalSearchPage /></AdminRoute> },
+      { path: 'debug/invoices', element: <AdminRoute><InvoiceDebugPage /></AdminRoute> },
+      { path: 'teachers', element: <AdminRoute><TeachersManagementPage /></AdminRoute> },
+      { path: 'events/picnic', element: <AdminRoute><PicnicAdminPage /></AdminRoute> },
+      { path: 'dashboard/activity-log', element: <AdminRoute><ActivityLogPage /></AdminRoute> },
     ],
   },
   // Public pages (no auth required)
